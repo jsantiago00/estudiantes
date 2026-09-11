@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#4f46e5">
+<title>estudiAntes</title>
+<style>
+  :root{
+    --bg:#f2f3f7;
+    --card:#ffffff;
+    --text:#1c1e21;
+    --text-dim:#6b7280;
+    --primary:#4f46e5;
+    --primary-dark:#3730a3;
+    --danger:#e11d48;
+    --danger-bg:#fee2e2;
+    --ok:#16a34a;
+    --ok-bg:#dcfce7;
+    --warn:#d97706;
+    --warn-bg:#fef3c7;
+    --border:#e5e7eb;
+    --radius:14px;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    padding-bottom:calc(72px + var(--safe-bottom));
+    min-height:100vh;
+  }
+  header.topbar{
+    position:sticky;top:0;z-index:20;
+    background:var(--primary);
+    color:#fff;
+    padding:14px 16px;
+    display:flex;align-items:center;justify-content:space-between;
+    box-shadow:0 2px 8px rgba(0,0,0,.12);
+  }
+  header.topbar h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.2px;}
+  header.topbar .icon-btn{
+    background:rgba(255,255,255,.15);
+    border:none;color:#fff;
+    width:38px;height:38px;border-radius:10px;
+    font-size:18px;display:flex;align-items:center;justify-content:center;
+  }
+  main{padding:14px;max-width:640px;margin:0 auto;}
+  section.view{display:none;}
+  section.view.active{display:block;animation:fadein .15s ease;}
+  @keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+
+  .card{
+    background:var(--card);
+    border-radius:var(--radius);
+    padding:14px;
+    margin-bottom:12px;
+    box-shadow:0 1px 3px rgba(0,0,0,.06);
+    border:1px solid var(--border);
+  }
+  .card h2{margin:0 0 10px;font-size:15px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;}
+  .card h2 .count{
+    background:var(--primary);color:#fff;border-radius:20px;
+    padding:1px 9px;font-size:12px;margin-left:6px;
+  }
+  .empty-msg{color:var(--text-dim);font-size:14px;padding:8px 2px;}
+
+  .stat-row{display:flex;gap:10px;margin-bottom:12px;}
+  .stat-box{
+    flex:1;background:var(--card);border-radius:var(--radius);
+    padding:14px 10px;text-align:center;border:1px solid var(--border);
+  }
+  .stat-box .num{font-size:22px;font-weight:800;}
+  .stat-box .label{font-size:12px;color:var(--text-dim);margin-top:2px;}
+  .stat-box.warn .num{color:var(--warn);}
+  .stat-box.ok .num{color:var(--ok);}
+
+  .list-item{
+    display:flex;align-items:center;gap:10px;
+    padding:10px 4px;border-bottom:1px solid var(--border);
+  }
+  .list-item:last-child{border-bottom:none;}
+  .dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+  .item-main{flex:1;min-width:0;}
+  .item-title{font-weight:600;font-size:15px;}
+  .item-sub{font-size:13px;color:var(--text-dim);margin-top:1px;}
+  .item-right{text-align:right;font-size:14px;font-weight:700;white-space:nowrap;}
+
+  .badge{
+    display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;
+  }
+  .badge.pendiente{background:var(--warn-bg);color:var(--warn);}
+  .badge.pagada{background:var(--ok-bg);color:var(--ok);}
+
+  nav.bottomnav{
+    position:fixed;bottom:0;left:0;right:0;z-index:20;
+    background:#fff;border-top:1px solid var(--border);
+    display:flex;
+    padding-bottom:var(--safe-bottom);
+    box-shadow:0 -2px 10px rgba(0,0,0,.06);
+  }
+  nav.bottomnav button{
+    flex:1;background:none;border:none;
+    padding:9px 2px 8px;
+    display:flex;flex-direction:column;align-items:center;gap:3px;
+    color:var(--text-dim);font-size:11px;font-weight:600;
+  }
+  nav.bottomnav button .ic{font-size:20px;}
+  nav.bottomnav button.active{color:var(--primary);}
+
+  .fab{
+    position:fixed;right:18px;bottom:calc(84px + var(--safe-bottom));z-index:15;
+    width:58px;height:58px;border-radius:50%;
+    background:var(--primary);color:#fff;border:none;
+    font-size:28px;box-shadow:0 4px 14px rgba(79,70,229,.45);
+    display:flex;align-items:center;justify-content:center;
+    line-height:0;
+  }
+  .fab:active{background:var(--primary-dark);}
+
+  .filter-row{display:flex;gap:8px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px;}
+  .filter-chip{
+    flex-shrink:0;padding:8px 14px;border-radius:20px;border:1px solid var(--border);
+    background:#fff;font-size:13px;font-weight:600;color:var(--text-dim);white-space:nowrap;
+  }
+  .filter-chip.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+
+  /* bottom sheet modal */
+  .overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;
+    display:none;align-items:flex-end;justify-content:center;
+  }
+  .overlay.show{display:flex;}
+  .sheet{
+    background:#fff;width:100%;max-width:640px;
+    border-radius:18px 18px 0 0;
+    padding:16px 16px calc(20px + var(--safe-bottom));
+    max-height:88vh;overflow-y:auto;
+    animation:slideup .18s ease;
+  }
+  @keyframes slideup{from{transform:translateY(30px);opacity:.4;}to{transform:translateY(0);opacity:1;}}
+  .sheet-handle{width:40px;height:4px;background:var(--border);border-radius:4px;margin:0 auto 12px;}
+  .sheet h3{margin:0 0 14px;font-size:17px;}
+
+  label{display:block;font-size:13px;font-weight:600;color:var(--text-dim);margin:12px 0 5px;}
+  label:first-of-type{margin-top:0;}
+  input[type=text],input[type=number],input[type=date],input[type=time],select,textarea{
+    width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:10px;
+    font-size:15px;background:#fafafa;color:var(--text);font-family:inherit;
+  }
+  textarea{resize:vertical;min-height:60px;}
+  input[type=color]{width:44px;height:36px;border:1px solid var(--border);border-radius:8px;padding:2px;background:#fff;}
+
+  .swatches{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+  .swatch{width:30px;height:30px;border-radius:50%;border:2px solid transparent;}
+  .swatch.sel{border-color:#1c1e21;}
+
+  .row2{display:flex;gap:10px;}
+  .row2 > *{flex:1;}
+
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    padding:12px 16px;border-radius:12px;border:none;font-size:15px;font-weight:700;
+    width:100%;margin-top:16px;
+  }
+  .btn.primary{background:var(--primary);color:#fff;}
+  .btn.primary:active{background:var(--primary-dark);}
+  .btn.secondary{background:#f0f0f3;color:var(--text);}
+  .btn.danger{background:var(--danger-bg);color:var(--danger);}
+  .btn-row{display:flex;gap:10px;}
+  .btn-row .btn{margin-top:16px;}
+
+  .checkbox-line{display:flex;align-items:center;gap:10px;padding:10px 0;}
+  .checkbox-line input[type=checkbox]{width:22px;height:22px;flex-shrink:0;}
+  .checkbox-line span{font-size:15px;}
+  .checkbox-line.done span{text-decoration:line-through;color:var(--text-dim);}
+
+  .toggle-pill{
+    border:none;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;flex-shrink:0;
+  }
+  .toggle-pill.pendiente{background:var(--warn-bg);color:var(--warn);}
+  .toggle-pill.pagada{background:var(--ok-bg);color:var(--ok);}
+
+  .toast{
+    position:fixed;left:50%;bottom:calc(90px + var(--safe-bottom));transform:translateX(-50%);
+    background:#1c1e21;color:#fff;padding:10px 18px;border-radius:30px;font-size:13px;
+    z-index:60;opacity:0;pointer-events:none;transition:opacity .2s;
+  }
+  .toast.show{opacity:1;}
+
+  .section-actions{display:flex;gap:8px;margin-bottom:12px;}
+  .section-actions .btn{margin-top:0;flex:1;padding:10px;font-size:13px;}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <h1 id="pageTitle">estudiAntes</h1>
+  <button class="icon-btn" onclick="openSettings()" aria-label="Ajustes">⚙️</button>
+</header>
+
+<main>
+
+  <!-- DASHBOARD -->
+  <section class="view active" id="view-dashboard">
+    <div class="stat-row">
+      <div class="stat-box warn">
+        <div class="num" id="statPendienteMonto">$0</div>
+        <div class="label">Total pendiente</div>
+      </div>
+      <div class="stat-box">
+        <div class="num" id="statProximas">0</div>
+        <div class="label">Próximas clases</div>
+      </div>
+      <div class="stat-box">
+        <div class="num" id="statTareas">0</div>
+        <div class="label">Tareas pendientes</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Próximas clases</h2>
+      <div id="dashProximas"></div>
+    </div>
+
+    <div class="card">
+      <h2>Alumnos con pagos pendientes</h2>
+      <div id="dashPendientes"></div>
+    </div>
+
+    <div class="card">
+      <h2>Material sin preparar</h2>
+      <div id="dashTareas"></div>
+    </div>
+  </section>
+
+  <!-- ALUMNOS -->
+  <section class="view" id="view-alumnos">
+    <div id="listaAlumnos"></div>
+  </section>
+
+  <!-- CLASES -->
+  <section class="view" id="view-clases">
+    <div class="filter-row" id="filtroAlumnoClases"></div>
+    <div class="section-actions">
+      <button class="btn secondary" onclick="marcarTodasPagadas()">✓ Marcar filtradas como pagadas</button>
+    </div>
+    <div id="listaClases"></div>
+  </section>
+
+  <!-- TAREAS -->
+  <section class="view" id="view-tareas">
+    <div class="filter-row" id="filtroAlumnoTareas"></div>
+    <div id="listaTareas"></div>
+  </section>
+
+</main>
+
+<button class="fab" id="fabBtn">+</button>
+
+<nav class="bottomnav">
+  <button data-view="dashboard" class="active"><span class="ic">🏠</span>Inicio</button>
+  <button data-view="alumnos"><span class="ic">👤</span>Alumnos</button>
+  <button data-view="clases"><span class="ic">📅</span>Clases</button>
+  <button data-view="tareas"><span class="ic">📝</span>Tareas</button>
+</nav>
+
+<!-- overlay / bottom sheet -->
+<div class="overlay" id="overlay">
+  <div class="sheet" id="sheetContent"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   ESTRUCTURA DE DATOS
+   ========================================================= */
+const STORAGE_KEY = 'estudiantes_app_data_v1';
+
+let db = {
+  alumnos: [],  // {id, nombre, tarifa, color, activo}
+  clases:  [],  // {id, alumnoId, fecha:'YYYY-MM-DD', hora:'HH:MM', duracionMin, monto, pagada, notas}
+  tareas:  []   // {id, alumnoId|null, claseId|null, texto, hecha}
+};
+
+function uid(){
+  if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'id-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+}
+
+function loadDB(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      db.alumnos = parsed.alumnos || [];
+      db.clases = parsed.clases || [];
+      db.tareas = parsed.tareas || [];
+    }
+  }catch(e){
+    console.error('Error leyendo datos', e);
+  }
+}
+
+function saveDB(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+}
+
+/* helpers de acceso */
+function getAlumno(id){ return db.alumnos.find(a => a.id === id); }
+function alumnoNombre(id){ const a = getAlumno(id); return a ? a.nombre : '(alumno eliminado)'; }
+function alumnoColor(id){ const a = getAlumno(id); return a ? a.color : '#999'; }
+
+const COLOR_SWATCHES = ['#ef4444','#f97316','#f59e0b','#84cc16','#22c55e','#14b8a6','#06b6d4','#3b82f6','#6366f1','#a855f7','#ec4899','#78716c'];
+
+/* =========================================================
+   NAVEGACIÓN
+   ========================================================= */
+const views = ['dashboard','alumnos','clases','tareas'];
+const titles = {dashboard:'estudiAntes', alumnos:'Alumnos', clases:'Clases', tareas:'Material a preparar'};
+
+function goTo(view){
+  views.forEach(v=>{
+    document.getElementById('view-'+v).classList.toggle('active', v===view);
+  });
+  document.querySelectorAll('.bottomnav button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.view===view);
+  });
+  document.getElementById('pageTitle').textContent = titles[view];
+  document.getElementById('fabBtn').style.display = view==='dashboard' ? 'none' : 'flex';
+  renderAll();
+}
+
+document.querySelectorAll('.bottomnav button').forEach(b=>{
+  b.addEventListener('click', ()=>goTo(b.dataset.view));
+});
+
+document.getElementById('fabBtn').addEventListener('click', ()=>{
+  const active = document.querySelector('.bottomnav button.active').dataset.view;
+  if(active==='alumnos') openAlumnoForm();
+  if(active==='clases') openClaseForm();
+  if(active==='tareas') openTareaForm();
+});
+
+/* =========================================================
+   BOTTOM SHEET GENÉRICO
+   ========================================================= */
+const overlay = document.getElementById('overlay');
+const sheetContent = document.getElementById('sheetContent');
+
+function openSheet(html){
+  sheetContent.innerHTML = '<div class="sheet-handle"></div>' + html;
+  overlay.classList.add('show');
+}
+function closeSheet(){
+  overlay.classList.remove('show');
+  sheetContent.innerHTML = '';
+}
+overlay.addEventListener('click', (e)=>{ if(e.target===overlay) closeSheet(); });
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+function money(n){
+  n = Number(n)||0;
+  return '$' + n.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function fmtFecha(iso){
+  if(!iso) return '';
+  const [y,m,d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+function fechaHoraClase(c){
+  return new Date(`${c.fecha}T${c.hora||'00:00'}`);
+}
+
+/* =========================================================
+   ALUMNOS: alta / edición / baja
+   ========================================================= */
+function openAlumnoForm(id){
+  const editing = id ? getAlumno(id) : null;
+  const swatchesHtml = COLOR_SWATCHES.map(c=>
+    `<button type="button" class="swatch ${editing && editing.color===c ? 'sel':''}" style="background:${c}" data-color="${c}"></button>`
+  ).join('');
+
+  openSheet(`
+    <h3>${editing ? 'Editar alumno' : 'Nuevo alumno'}</h3>
+    <label>Nombre</label>
+    <input type="text" id="f_nombre" value="${editing ? escapeAttr(editing.nombre) : ''}" placeholder="Nombre del alumno">
+
+    <label>Tarifa por hora</label>
+    <input type="number" id="f_tarifa" value="${editing ? editing.tarifa : ''}" placeholder="0" min="0" step="0.01" inputmode="decimal">
+
+    <label>Color identificador</label>
+    <div class="row2" style="align-items:center;">
+      <input type="color" id="f_color" value="${editing ? editing.color : COLOR_SWATCHES[db.alumnos.length % COLOR_SWATCHES.length]}">
+      <div class="swatches" id="swatchPicker" style="flex:3;">${swatchesHtml}</div>
+    </div>
+
+    <div class="btn-row">
+      ${editing ? `<button class="btn danger" onclick="eliminarAlumno('${editing.id}')">Eliminar</button>` : ''}
+      <button class="btn primary" onclick="guardarAlumno(${editing ? `'${editing.id}'` : 'null'})">Guardar</button>
+    </div>
+  `);
+
+  document.querySelectorAll('#swatchPicker .swatch').forEach(sw=>{
+    sw.addEventListener('click', ()=>{
+      document.getElementById('f_color').value = sw.dataset.color;
+      document.querySelectorAll('#swatchPicker .swatch').forEach(s=>s.classList.remove('sel'));
+      sw.classList.add('sel');
+    });
+  });
+}
+
+function escapeAttr(s){
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+function escapeHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function guardarAlumno(id){
+  const nombre = document.getElementById('f_nombre').value.trim();
+  const tarifa = parseFloat(document.getElementById('f_tarifa').value) || 0;
+  const color = document.getElementById('f_color').value;
+
+  if(!nombre){ showToast('Poné un nombre'); return; }
+
+  if(id){
+    const a = getAlumno(id);
+    a.nombre = nombre; a.tarifa = tarifa; a.color = color;
+  }else{
+    db.alumnos.push({id: uid(), nombre, tarifa, color, activo:true});
+  }
+  saveDB();
+  closeSheet();
+  renderAll();
+  showToast('Alumno guardado');
+}
+
+function eliminarAlumno(id){
+  const tieneClases = db.clases.some(c=>c.alumnoId===id);
+  const msg = tieneClases
+    ? '¿Eliminar alumno? También se borrarán sus clases y tareas asociadas.'
+    : '¿Eliminar alumno?';
+  if(!confirm(msg)) return;
+  db.alumnos = db.alumnos.filter(a=>a.id!==id);
+  db.clases = db.clases.filter(c=>c.alumnoId!==id);
+  db.tareas = db.tareas.filter(t=>t.alumnoId!==id);
+  saveDB();
+  closeSheet();
+  renderAll();
+  showToast('Alumno eliminado');
+}
+
+function renderAlumnos(){
+  const cont = document.getElementById('listaAlumnos');
+  if(db.alumnos.length===0){
+    cont.innerHTML = '<div class="card"><div class="empty-msg">No hay alumnos todavía. Tocá el botón + para agregar el primero.</div></div>';
+    return;
+  }
+  cont.innerHTML = db.alumnos.map(a=>{
+    const deuda = sumaPendiente(a.id);
+    return `
+    <div class="card" onclick="openAlumnoForm('${a.id}')" style="cursor:pointer;">
+      <div class="list-item" style="border:none;padding:0;">
+        <div class="dot" style="background:${a.color}"></div>
+        <div class="item-main">
+          <div class="item-title">${escapeHtml(a.nombre)}</div>
+          <div class="item-sub">${money(a.tarifa)}/hora</div>
+        </div>
+        <div class="item-right" style="color:${deuda>0?'var(--warn)':'var(--ok)'}">
+          ${deuda>0 ? money(deuda) : 'Al día'}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function sumaPendiente(alumnoId){
+  return db.clases
+    .filter(c=>c.alumnoId===alumnoId && !c.pagada)
+    .reduce((s,c)=>s+Number(c.monto||0),0);
+}
+
+/* =========================================================
+   CLASES
+   ========================================================= */
+let filtroClasesAlumno = 'todos';
+
+function alumnoOptionsHtml(selectedId){
+  if(db.alumnos.length===0) return '<option value="">-- Cargá un alumno primero --</option>';
+  return db.alumnos.map(a=>`<option value="${a.id}" ${a.id===selectedId?'selected':''}>${escapeHtml(a.nombre)}</option>`).join('');
+}
+
+function openClaseForm(id){
+  if(db.alumnos.length===0){ showToast('Primero agregá un alumno'); return; }
+  const editing = id ? db.clases.find(c=>c.id===id) : null;
+  const today = new Date().toISOString().slice(0,10);
+  const nowHM = new Date().toTimeString().slice(0,5);
+
+  openSheet(`
+    <h3>${editing ? 'Editar clase' : 'Nueva clase'}</h3>
+    <label>Alumno</label>
+    <select id="f_alumnoId" onchange="recalcularMontoForm()">${alumnoOptionsHtml(editing ? editing.alumnoId : (filtroClasesAlumno!=='todos'?filtroClasesAlumno:db.alumnos[0].id))}</select>
+
+    <div class="row2">
+      <div>
+        <label>Fecha</label>
+        <input type="date" id="f_fecha" value="${editing ? editing.fecha : today}">
+      </div>
+      <div>
+        <label>Hora</label>
+        <input type="time" id="f_hora" value="${editing ? editing.hora : nowHM}">
+      </div>
+    </div>
+
+    <div class="row2">
+      <div>
+        <label>Duración (horas)</label>
+        <input type="number" id="f_durH" min="0" step="1" value="${editing ? Math.floor(editing.duracionMin/60) : 1}" oninput="recalcularMontoForm()" inputmode="numeric">
+      </div>
+      <div>
+        <label>Duración (minutos)</label>
+        <input type="number" id="f_durM" min="0" max="59" step="5" value="${editing ? editing.duracionMin%60 : 0}" oninput="recalcularMontoForm()" inputmode="numeric">
+      </div>
+    </div>
+
+    <label>Monto a cobrar</label>
+    <input type="number" id="f_monto" min="0" step="0.01" value="${editing ? editing.monto : ''}" inputmode="decimal">
+
+    <label>Notas (opcional)</label>
+    <textarea id="f_notas" placeholder="Temas vistos, observaciones...">${editing ? escapeHtml(editing.notas||'') : ''}</textarea>
+
+    <div class="checkbox-line">
+      <input type="checkbox" id="f_pagada" ${editing && editing.pagada ? 'checked':''}>
+      <span>Ya está pagada</span>
+    </div>
+
+    <div class="btn-row">
+      ${editing ? `<button class="btn danger" onclick="eliminarClase('${editing.id}')">Eliminar</button>` : ''}
+      <button class="btn primary" onclick="guardarClase(${editing ? `'${editing.id}'` : 'null'})">Guardar</button>
+    </div>
+  `);
+
+  if(!editing) recalcularMontoForm();
+}
+
+function recalcularMontoForm(){
+  const alumnoId = document.getElementById('f_alumnoId').value;
+  const a = getAlumno(alumnoId);
+  const h = parseFloat(document.getElementById('f_durH').value)||0;
+  const m = parseFloat(document.getElementById('f_durM').value)||0;
+  const totalHoras = h + (m/60);
+  const tarifa = a ? Number(a.tarifa)||0 : 0;
+  document.getElementById('f_monto').value = (tarifa*totalHoras).toFixed(2);
+}
+
+function guardarClase(id){
+  const alumnoId = document.getElementById('f_alumnoId').value;
+  const fecha = document.getElementById('f_fecha').value;
+  const hora = document.getElementById('f_hora').value;
+  const h = parseInt(document.getElementById('f_durH').value)||0;
+  const m = parseInt(document.getElementById('f_durM').value)||0;
+  const monto = parseFloat(document.getElementById('f_monto').value)||0;
+  const notas = document.getElementById('f_notas').value.trim();
+  const pagada = document.getElementById('f_pagada').checked;
+
+  if(!alumnoId){ showToast('Elegí un alumno'); return; }
+  if(!fecha){ showToast('Elegí una fecha'); return; }
+
+  const duracionMin = h*60+m;
+
+  if(id){
+    const c = db.clases.find(c=>c.id===id);
+    Object.assign(c, {alumnoId, fecha, hora, duracionMin, monto, notas, pagada});
+  }else{
+    db.clases.push({id: uid(), alumnoId, fecha, hora, duracionMin, monto, notas, pagada});
+  }
+  saveDB();
+  closeSheet();
+  renderAll();
+  showToast('Clase guardada');
+}
+
+function eliminarClase(id){
+  if(!confirm('¿Eliminar esta clase?')) return;
+  db.clases = db.clases.filter(c=>c.id!==id);
+  saveDB();
+  closeSheet();
+  renderAll();
+  showToast('Clase eliminada');
+}
+
+function togglePagada(id, ev){
+  if(ev) ev.stopPropagation();
+  const c = db.clases.find(c=>c.id===id);
+  c.pagada = !c.pagada;
+  saveDB();
+  renderAll();
+}
+
+function marcarTodasPagadas(){
+  const objetivo = filtroClasesAlumno;
+  const afectadas = db.clases.filter(c => !c.pagada && (objetivo==='todos' || c.alumnoId===objetivo));
+  if(afectadas.length===0){ showToast('No hay clases pendientes en este filtro'); return; }
+  if(!confirm(`Marcar ${afectadas.length} clase(s) como pagadas?`)) return;
+  afectadas.forEach(c=>c.pagada=true);
+  saveDB();
+  renderAll();
+  showToast('Clases marcadas como pagadas');
+}
+
+function renderFiltroClases(){
+  const cont = document.getElementById('filtroAlumnoClases');
+  let chips = `<button class="filter-chip ${filtroClasesAlumno==='todos'?'active':''}" onclick="setFiltroClases('todos')">Todos</button>`;
+  chips += db.alumnos.map(a=>`<button class="filter-chip ${filtroClasesAlumno===a.id?'active':''}" onclick="setFiltroClases('${a.id}')">${escapeHtml(a.nombre)}</button>`).join('');
+  cont.innerHTML = chips;
+}
+function setFiltroClases(v){ filtroClasesAlumno = v; renderAll(); }
+
+function renderClases(){
+  renderFiltroClases();
+  const cont = document.getElementById('listaClases');
+  let lista = db.clases.slice();
+  if(filtroClasesAlumno!=='todos') lista = lista.filter(c=>c.alumnoId===filtroClasesAlumno);
+  lista.sort((a,b)=> fechaHoraClase(b) - fechaHoraClase(a)); // más reciente primero
+
+  if(lista.length===0){
+    cont.innerHTML = '<div class="card"><div class="empty-msg">No hay clases cargadas. Tocá + para agregar una.</div></div>';
+    return;
+  }
+
+  cont.innerHTML = '<div class="card">' + lista.map(c=>{
+    const dur = `${Math.floor(c.duracionMin/60)}h${(c.duracionMin%60)?' '+(c.duracionMin%60)+'m':''}`;
+    return `
+    <div class="list-item" onclick="openClaseForm('${c.id}')" style="cursor:pointer;">
+      <div class="dot" style="background:${alumnoColor(c.alumnoId)}"></div>
+      <div class="item-main">
+        <div class="item-title">${escapeHtml(alumnoNombre(c.alumnoId))}</div>
+        <div class="item-sub">${fmtFecha(c.fecha)} ${c.hora||''} · ${dur}</div>
+      </div>
+      <div class="item-right">
+        <div>${money(c.monto)}</div>
+        <button class="toggle-pill ${c.pagada?'pagada':'pendiente'}" onclick="togglePagada('${c.id}', event)">${c.pagada?'Pagada':'Pendiente'}</button>
+      </div>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+/* =========================================================
+   TAREAS (material a preparar)
+   ========================================================= */
+let filtroTareasAlumno = 'todos';
+
+function openTareaForm(id){
+  const editing = id ? db.tareas.find(t=>t.id===id) : null;
+  const opciones = `<option value="">General (sin alumno)</option>` + alumnoOptionsHtml(editing ? editing.alumnoId : (filtroTareasAlumno!=='todos'?filtroTareasAlumno:''));
+
+  openSheet(`
+    <h3>${editing ? 'Editar tarea' : 'Nuevo material / tarea'}</h3>
+    <label>Alumno (opcional)</label>
+    <select id="f_t_alumnoId">${opciones}</select>
+
+    <label>Descripción</label>
+    <textarea id="f_t_texto" placeholder="Ej: preparar ejercicios de escalas...">${editing ? escapeHtml(editing.texto) : ''}</textarea>
+
+    <div class="btn-row">
+      ${editing ? `<button class="btn danger" onclick="eliminarTarea('${editing.id}')">Eliminar</button>` : ''}
+      <button class="btn primary" onclick="guardarTarea(${editing ? `'${editing.id}'` : 'null'})">Guardar</button>
+    </div>
+  `);
+}
+
+function guardarTarea(id){
+  const alumnoId = document.getElementById('f_t_alumnoId').value || null;
+  const texto = document.getElementById('f_t_texto').value.trim();
+  if(!texto){ showToast('Escribí una descripción'); return; }
+
+  if(id){
+    const t = db.tareas.find(t=>t.id===id);
+    t.alumnoId = alumnoId; t.texto = texto;
+  }else{
+    db.tareas.push({id: uid(), alumnoId, claseId:null, texto, hecha:false});
+  }
+  saveDB();
+  closeSheet();
+  renderAll();
+  showToast('Tarea guardada');
+}
+
+function eliminarTarea(id){
+  if(!confirm('¿Eliminar esta tarea?')) return;
+  db.tareas = db.tareas.filter(t=>t.id!==id);
+  saveDB();
+  closeSheet();
+  renderAll();
+  showToast('Tarea eliminada');
+}
+
+function toggleTarea(id, ev){
+  if(ev) ev.stopPropagation();
+  const t = db.tareas.find(t=>t.id===id);
+  t.hecha = !t.hecha;
+  saveDB();
+  renderAll();
+}
+
+function renderFiltroTareas(){
+  const cont = document.getElementById('filtroAlumnoTareas');
+  let chips = `<button class="filter-chip ${filtroTareasAlumno==='todos'?'active':''}" onclick="setFiltroTareas('todos')">Todos</button>`;
+  chips += db.alumnos.map(a=>`<button class="filter-chip ${filtroTareasAlumno===a.id?'active':''}" onclick="setFiltroTareas('${a.id}')">${escapeHtml(a.nombre)}</button>`).join('');
+  cont.innerHTML = chips;
+}
+function setFiltroTareas(v){ filtroTareasAlumno = v; renderAll(); }
+
+function renderTareas(){
+  renderFiltroTareas();
+  const cont = document.getElementById('listaTareas');
+  let lista = db.tareas.slice();
+  if(filtroTareasAlumno!=='todos') lista = lista.filter(t=>t.alumnoId===filtroTareasAlumno);
+  lista.sort((a,b)=> (a.hecha - b.hecha)); // pendientes primero
+
+  if(lista.length===0){
+    cont.innerHTML = '<div class="card"><div class="empty-msg">No hay tareas cargadas. Tocá + para agregar una.</div></div>';
+    return;
+  }
+
+  cont.innerHTML = '<div class="card">' + lista.map(t=>`
+    <div class="checkbox-line ${t.hecha?'done':''}" style="border-bottom:1px solid var(--border);">
+      <input type="checkbox" ${t.hecha?'checked':''} onclick="toggleTarea('${t.id}', event)">
+      <span onclick="openTareaForm('${t.id}')" style="flex:1;">
+        ${t.alumnoId ? `<b>${escapeHtml(alumnoNombre(t.alumnoId))}:</b> `:''}${escapeHtml(t.texto)}
+      </span>
+    </div>
+  `).join('') + '</div>';
+}
+
+/* =========================================================
+   DASHBOARD
+   ========================================================= */
+function renderDashboard(){
+  const ahora = new Date();
+
+  // Próximas clases (futuras, no pagas o pagas da igual, orden ascendente)
+  const proximas = db.clases
+    .filter(c => fechaHoraClase(c) >= ahora)
+    .sort((a,b)=> fechaHoraClase(a) - fechaHoraClase(b))
+    .slice(0,5);
+
+  document.getElementById('statProximas').textContent = db.clases.filter(c=>fechaHoraClase(c)>=ahora).length;
+
+  const proxCont = document.getElementById('dashProximas');
+  proxCont.innerHTML = proximas.length ? proximas.map(c=>{
+    const dur = `${Math.floor(c.duracionMin/60)}h${(c.duracionMin%60)?' '+(c.duracionMin%60)+'m':''}`;
+    return `
+    <div class="list-item" onclick="goTo('clases')" style="cursor:pointer;">
+      <div class="dot" style="background:${alumnoColor(c.alumnoId)}"></div>
+      <div class="item-main">
+        <div class="item-title">${escapeHtml(alumnoNombre(c.alumnoId))}</div>
+        <div class="item-sub">${fmtFecha(c.fecha)} ${c.hora||''} · ${dur}</div>
+      </div>
+      <div class="item-right">${money(c.monto)}</div>
+    </div>`;
+  }).join('') : '<div class="empty-msg">No hay clases próximas agendadas.</div>';
+
+  // Pagos pendientes por alumno
+  const deudores = db.alumnos
+    .map(a=>({alumno:a, deuda: sumaPendiente(a.id)}))
+    .filter(x=>x.deuda>0)
+    .sort((a,b)=>b.deuda-a.deuda);
+
+  const totalPendiente = deudores.reduce((s,x)=>s+x.deuda,0);
+  document.getElementById('statPendienteMonto').textContent = money(totalPendiente);
+
+  const pendCont = document.getElementById('dashPendientes');
+  pendCont.innerHTML = deudores.length ? deudores.map(x=>`
+    <div class="list-item" onclick="setFiltroClases('${x.alumno.id}'); goTo('clases');" style="cursor:pointer;">
+      <div class="dot" style="background:${x.alumno.color}"></div>
+      <div class="item-main">
+        <div class="item-title">${escapeHtml(x.alumno.nombre)}</div>
+      </div>
+      <div class="item-right" style="color:var(--warn);">${money(x.deuda)}</div>
+    </div>
+  `).join('') : '<div class="empty-msg">Ningún alumno tiene pagos pendientes 🎉</div>';
+
+  // Tareas pendientes
+  const tareasPend = db.tareas.filter(t=>!t.hecha);
+  document.getElementById('statTareas').textContent = tareasPend.length;
+
+  const tareasCont = document.getElementById('dashTareas');
+  tareasCont.innerHTML = tareasPend.length ? tareasPend.slice(0,6).map(t=>`
+    <div class="checkbox-line" onclick="goTo('tareas')" style="cursor:pointer;">
+      <input type="checkbox" onclick="toggleTarea('${t.id}', event)">
+      <span>${t.alumnoId ? `<b>${escapeHtml(alumnoNombre(t.alumnoId))}:</b> `:''}${escapeHtml(t.texto)}</span>
+    </div>
+  `).join('') + (tareasPend.length>6 ? `<div class="empty-msg">y ${tareasPend.length-6} más...</div>` : '')
+    : '<div class="empty-msg">No tenés material pendiente de preparar 🎉</div>';
+}
+
+/* =========================================================
+   RENDER GENERAL
+   ========================================================= */
+function renderAll(){
+  renderDashboard();
+  renderAlumnos();
+  renderClases();
+  renderTareas();
+}
+
+/* =========================================================
+   AJUSTES: EXPORTAR / IMPORTAR
+   ========================================================= */
+function openSettings(){
+  openSheet(`
+    <h3>Ajustes y respaldo</h3>
+    <p style="color:var(--text-dim);font-size:14px;">Tus datos se guardan solo en este dispositivo (localStorage). Exportá un respaldo periódicamente por si cambiás de celular o borrás el navegador.</p>
+
+    <button class="btn primary" onclick="exportarDatos()">⬇️ Exportar datos (JSON)</button>
+
+    <label style="margin-top:18px;">Importar datos desde archivo</label>
+    <input type="file" id="importFile" accept="application/json,.json">
+    <button class="btn secondary" onclick="importarDatos()">⬆️ Importar (reemplaza los datos actuales)</button>
+
+    <div style="margin-top:18px;border-top:1px solid var(--border);padding-top:14px;">
+      <div style="font-size:13px;color:var(--text-dim);">Alumnos: ${db.alumnos.length} · Clases: ${db.clases.length} · Tareas: ${db.tareas.length}</div>
+    </div>
+
+    <button class="btn danger" style="margin-top:18px;" onclick="borrarTodo()">🗑️ Borrar todos los datos</button>
+  `);
+}
+
+function exportarDatos(){
+  const data = JSON.stringify(db, null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const fecha = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `estudiantes_backup_${fecha}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Datos exportados');
+}
+
+function importarDatos(){
+  const input = document.getElementById('importFile');
+  const file = input.files[0];
+  if(!file){ showToast('Elegí un archivo primero'); return; }
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    try{
+      const parsed = JSON.parse(e.target.result);
+      if(!parsed || typeof parsed !== 'object') throw new Error('formato inválido');
+      if(!confirm('Esto reemplazará TODOS tus datos actuales. ¿Continuar?')) return;
+      db.alumnos = Array.isArray(parsed.alumnos) ? parsed.alumnos : [];
+      db.clases = Array.isArray(parsed.clases) ? parsed.clases : [];
+      db.tareas = Array.isArray(parsed.tareas) ? parsed.tareas : [];
+      saveDB();
+      closeSheet();
+      renderAll();
+      showToast('Datos importados correctamente');
+    }catch(err){
+      showToast('Archivo inválido');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function borrarTodo(){
+  if(!confirm('Esto borra TODOS los alumnos, clases y tareas. ¿Estás seguro?')) return;
+  if(!confirm('Última confirmación: se perderá todo lo que no hayas exportado. ¿Continuar?')) return;
+  db.alumnos = []; db.clases = []; db.tareas = [];
+  saveDB();
+  closeSheet();
+  renderAll();
+  showToast('Datos borrados');
+}
+
+/* =========================================================
+   INIT
+   ========================================================= */
+loadDB();
+renderAll();
+document.getElementById('fabBtn').style.display = 'none';
+</script>
+</body>
+</html>
