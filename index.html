@@ -43,7 +43,7 @@
     display:flex;align-items:center;justify-content:space-between;
     box-shadow:0 3px 12px rgba(120,70,30,.22);
   }
-  header.topbar h1{font-family:var(--font-agenda);font-size:20px;margin:0;font-weight:700;letter-spacing:.2px;}
+  header.topbar h1{font-family:var(--font-agenda);font-size:20px;margin:0;font-weight:700;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   header.topbar .icon-btn{
     background:rgba(255,255,255,.18);
     border:none;color:#fff;
@@ -277,6 +277,13 @@
   .clase-tareas .checkbox-line input[type=checkbox]{width:18px;height:18px;}
   .clase-tareas .checkbox-line.done span{text-decoration:line-through;color:var(--text-dim);}
 
+  .tema-grupo{margin-bottom:14px;}
+  .tema-grupo:last-child{margin-bottom:0;}
+  .tema-grupo-titulo{
+    font-family:var(--font-agenda);font-size:14px;font-weight:700;
+    color:var(--primary-dark);margin-bottom:4px;
+  }
+
   body::before{
     content:'';position:fixed;top:-90px;right:-70px;width:240px;height:240px;
     background:radial-gradient(circle at 30% 30%, #f2ddba, transparent 70%);
@@ -292,7 +299,10 @@
 <body>
 
 <header class="topbar">
-  <h1 id="pageTitle">estudiAntes</h1>
+  <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+    <button class="icon-btn" id="backBtn" onclick="goTo('alumnos')" style="display:none;" aria-label="Volver">←</button>
+    <h1 id="pageTitle">estudiAntes</h1>
+  </div>
   <button class="icon-btn" onclick="openSettings()" aria-label="Ajustes">⚙️</button>
 </header>
 
@@ -405,6 +415,30 @@
     </div>
   </section>
 
+  <!-- DETALLE DE ALUMNO -->
+  <section class="view" id="view-alumno-detalle">
+    <div class="card" id="detalleAlumnoHeader"></div>
+
+    <div class="card">
+      <h2>Próximas clases</h2>
+      <div id="detalleProximasClases"></div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <h2 style="margin:0;">Temas</h2>
+        <button type="button" class="btn secondary" style="width:auto;margin:0;padding:6px 12px;font-size:12px;" onclick="abrirGestionTemas()">✎ Gestionar</button>
+      </div>
+      <div id="detalleTemas"></div>
+    </div>
+
+    <div class="card">
+      <h2>Tareas por tema</h2>
+      <div id="detalleTareasPorTema"></div>
+      <button type="button" class="btn secondary" onclick="openTareaForm(null, currentAlumnoDetalleId)">+ Agregar tarea</button>
+    </div>
+  </section>
+
 </main>
 
 <button class="fab" id="fabBtn">+</button>
@@ -431,9 +465,9 @@
 const STORAGE_KEY = 'estudiantes_app_data_v1';
 
 let db = {
-  alumnos: [],  // {id, nombre, tarifa, color, contacto, activo}
+  alumnos: [],  // {id, nombre, tarifa, color, contacto, activo, temasIds:[]}
   clases:  [],  // {id, serieId|null, alumnoId, fecha:'YYYY-MM-DD', horaEntrada:'HH:MM', horaSalida:'HH:MM'|null, duracionMin, monto, pagada, notas}
-  temas:   [],  // {id, alumnoId, nombre}
+  temas:   [],  // {id, nombre} -- temas globales del profesor, se vinculan a alumnos vía alumno.temasIds
   tareas:  [],  // {id, alumnoId|null, temaId|null, claseId|null, texto, hecha}
   config:  {tarifaMin:7000, tarifaMax:15000}
 };
@@ -466,11 +500,21 @@ function loadDB(){
     // migración de alumnos sin tipo definido: antes todo el mundo se trataba como "niño" (mensaje al contacto)
     db.alumnos.forEach(a=>{
       if(!a.tipo) a.tipo = 'nino';
+      if(!Array.isArray(a.temasIds)) a.temasIds = [];
     });
     // migración de tareas sin temaId/claseId definidos
     db.tareas.forEach(t=>{
       if(t.temaId===undefined) t.temaId = null;
       if(t.claseId===undefined) t.claseId = null;
+    });
+    // migración de temas: antes eran propios de un alumno (alumnoId), ahora son un catálogo
+    // global del profesor y se vinculan a cada alumno vía alumno.temasIds
+    db.temas.forEach(t=>{
+      if(t.alumnoId){
+        const alumno = db.alumnos.find(a=>a.id===t.alumnoId);
+        if(alumno && !alumno.temasIds.includes(t.id)) alumno.temasIds.push(t.id);
+        delete t.alumnoId;
+      }
     });
   }catch(e){
     console.error('Error leyendo datos', e);
@@ -495,6 +539,9 @@ const views = ['dashboard','alumnos','clases','tareas','stats'];
 const titles = {dashboard:'🌿 estudiAntes', alumnos:'👤 Alumnos', clases:'📅 Clases', tareas:'📝 Material a preparar', stats:'📊 Estadísticas'};
 
 function goTo(view){
+  currentAlumnoDetalleId = null;
+  document.getElementById('view-alumno-detalle').classList.remove('active');
+  document.getElementById('backBtn').style.display = 'none';
   views.forEach(v=>{
     document.getElementById('view-'+v).classList.toggle('active', v===view);
   });
@@ -650,6 +697,13 @@ function openAlumnoForm(id){
       <input type="text" id="f_contacto" value="${editing ? escapeAttr(editing.contacto||'') : ''}" placeholder="Ej: Mamá de Pepito">
     </div>
 
+    <label>Temas que le doy</label>
+    <div class="dias-chips" id="temasChipsBox">${temasChipsPickerHtml(editing ? editing.temasIds : [])}</div>
+    <div class="row2" style="margin-top:8px;">
+      <input type="text" id="f_temaNuevoInline" placeholder="Nuevo tema (ej: Biología)">
+      <button type="button" class="btn secondary" style="margin-top:0;" onclick="crearTemaInlineDesdeAlumno()">+ Crear</button>
+    </div>
+
     <label>Color identificador</label>
     <div class="row2" style="align-items:center;">
       <input type="color" id="f_color" value="${editing ? editing.color : COLOR_SWATCHES[db.alumnos.length % COLOR_SWATCHES.length]}">
@@ -691,14 +745,15 @@ function guardarAlumno(id){
   const tipo = document.querySelector('input[name="f_tipo"]:checked').value;
   const contacto = document.getElementById('f_contacto').value.trim();
   const color = document.getElementById('f_color').value;
+  const temasIds = leerTemasSeleccionadosForm();
 
   if(!nombre){ showToast('Poné un nombre'); return; }
 
   if(id){
     const a = getAlumno(id);
-    a.nombre = nombre; a.tarifa = tarifa; a.tipo = tipo; a.contacto = contacto; a.color = color;
+    a.nombre = nombre; a.tarifa = tarifa; a.tipo = tipo; a.contacto = contacto; a.color = color; a.temasIds = temasIds;
   }else{
-    db.alumnos.push({id: uid(), nombre, tarifa, tipo, contacto, color, activo:true});
+    db.alumnos.push({id: uid(), nombre, tarifa, tipo, contacto, color, temasIds, activo:true});
   }
   saveDB();
   closeSheet();
@@ -712,13 +767,13 @@ function eliminarAlumno(id){
     ? '¿Eliminar alumno? También se borrarán sus clases y tareas asociadas.'
     : '¿Eliminar alumno?';
   if(!confirm(msg)) return;
+  const eraElAbierto = currentAlumnoDetalleId === id;
   db.alumnos = db.alumnos.filter(a=>a.id!==id);
   db.clases = db.clases.filter(c=>c.alumnoId!==id);
-  db.temas = db.temas.filter(te=>te.alumnoId!==id);
   db.tareas = db.tareas.filter(t=>t.alumnoId!==id);
   saveDB();
   closeSheet();
-  renderAll();
+  if(eraElAbierto){ goTo('alumnos'); } else { renderAll(); }
   showToast('Alumno eliminado');
 }
 
@@ -731,7 +786,7 @@ function renderAlumnos(){
   cont.innerHTML = db.alumnos.map(a=>{
     const deuda = sumaPendiente(a.id);
     return `
-    <div class="card" onclick="openAlumnoForm('${a.id}')" style="cursor:pointer;">
+    <div class="card" onclick="abrirDetalleAlumno('${a.id}')" style="cursor:pointer;">
       <div class="list-item" style="border:none;padding:0;">
         <div class="dot" style="background:${a.color}"></div>
         <div class="item-main">
@@ -773,6 +828,104 @@ function nombreDiaFecha(fechaStr){
   const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   const f = new Date(fechaStr+'T00:00:00');
   return `${dias[f.getDay()]} ${f.getDate()}`;
+}
+
+/* =========================================================
+   TEMAS (catálogo global del profesor)
+   ========================================================= */
+function temaNombre(id){
+  const t = db.temas.find(t=>t.id===id);
+  return t ? t.nombre : '';
+}
+
+function temasDeAlumno(alumnoId){
+  const a = getAlumno(alumnoId);
+  if(!a || !Array.isArray(a.temasIds)) return [];
+  return db.temas.filter(t=>a.temasIds.includes(t.id));
+}
+
+function temasChipsPickerHtml(seleccionados){
+  const sel = seleccionados || [];
+  if(db.temas.length===0){
+    return '<span style="font-size:13px;color:var(--text-dim);">Todavía no creaste ningún tema. Escribí uno abajo.</span>';
+  }
+  return db.temas.map(t=>`
+    <label class="dia-chip ${sel.includes(t.id)?'sel':''}">
+      <input type="checkbox" value="${t.id}" ${sel.includes(t.id)?'checked':''} onchange="this.parentElement.classList.toggle('sel', this.checked)">
+      ${escapeHtml(t.nombre)}
+    </label>
+  `).join('');
+}
+
+function leerTemasSeleccionadosForm(){
+  return Array.from(document.querySelectorAll('#temasChipsBox input:checked')).map(el=>el.value);
+}
+
+function crearTemaInlineDesdeAlumno(){
+  const input = document.getElementById('f_temaNuevoInline');
+  const nombre = input.value.trim();
+  if(!nombre){ showToast('Escribí un nombre de tema'); return; }
+  const nuevo = {id: uid(), nombre};
+  db.temas.push(nuevo);
+  saveDB();
+  input.value = '';
+  const seleccionados = leerTemasSeleccionadosForm();
+  seleccionados.push(nuevo.id);
+  document.getElementById('temasChipsBox').innerHTML = temasChipsPickerHtml(seleccionados);
+}
+
+function abrirGestionTemas(){
+  openSheet(`
+    <h3>Mis temas</h3>
+    <p style="color:var(--text-dim);font-size:13px;">Los temas son tuyos: los creás una vez y los vinculás a los alumnos que correspondan. Cambiar el nombre acá lo actualiza para todos.</p>
+    <div id="listaGestionTemas">${renderListaGestionTemas()}</div>
+    <div class="row2" style="margin-top:12px;">
+      <input type="text" id="f_nuevoTemaGestion" placeholder="Nuevo tema">
+      <button type="button" class="btn secondary" style="margin-top:0;" onclick="agregarTemaGestion()">+ Agregar</button>
+    </div>
+    <button class="btn primary" onclick="closeSheet()">Listo</button>
+  `);
+}
+
+function renderListaGestionTemas(){
+  if(db.temas.length===0) return '<div class="empty-msg">Todavía no creaste ningún tema.</div>';
+  return db.temas.map(t=>`
+    <div class="list-item" style="gap:8px;">
+      <input type="text" value="${escapeAttr(t.nombre)}" onchange="renombrarTema('${t.id}', this.value)" style="flex:1;margin:0;">
+      <button type="button" class="btn danger" style="width:auto;margin:0;padding:8px 12px;" onclick="eliminarTemaGlobal('${t.id}')">🗑</button>
+    </div>
+  `).join('');
+}
+
+function agregarTemaGestion(){
+  const input = document.getElementById('f_nuevoTemaGestion');
+  const nombre = input.value.trim();
+  if(!nombre){ showToast('Escribí un nombre'); return; }
+  db.temas.push({id: uid(), nombre});
+  saveDB();
+  input.value = '';
+  document.getElementById('listaGestionTemas').innerHTML = renderListaGestionTemas();
+  renderAll();
+}
+
+function renombrarTema(id, nuevoNombre){
+  const t = db.temas.find(t=>t.id===id);
+  if(!t) return;
+  const nombre = nuevoNombre.trim();
+  if(!nombre){ showToast('El nombre no puede quedar vacío'); document.getElementById('listaGestionTemas').innerHTML = renderListaGestionTemas(); return; }
+  t.nombre = nombre;
+  saveDB();
+  renderAll();
+}
+
+function eliminarTemaGlobal(id){
+  if(!confirm('¿Eliminar este tema? Se quitará de todos los alumnos y de las tareas que lo usaban.')) return;
+  db.temas = db.temas.filter(t=>t.id!==id);
+  db.alumnos.forEach(a=>{ if(Array.isArray(a.temasIds)) a.temasIds = a.temasIds.filter(tid=>tid!==id); });
+  db.tareas.forEach(t=>{ if(t.temaId===id) t.temaId = null; });
+  saveDB();
+  document.getElementById('listaGestionTemas').innerHTML = renderListaGestionTemas();
+  renderAll();
 }
 
 /* =========================================================
@@ -1250,13 +1403,6 @@ function abrirDiaCalendario(fechaStr){
    ========================================================= */
 let filtroTareasAlumno = 'todos';
 
-function temasDeAlumno(alumnoId){
-  return db.temas.filter(t=>t.alumnoId===alumnoId);
-}
-function temaNombre(id){
-  const t = db.temas.find(t=>t.id===id);
-  return t ? t.nombre : '';
-}
 function temaOptionsHtml(alumnoId, selectedId){
   const temas = temasDeAlumno(alumnoId);
   let html = `<option value="">-- Sin tema --</option>`;
@@ -1274,9 +1420,9 @@ function claseOptionsHtmlParaAlumno(alumnoId, selectedId){
   return html;
 }
 
-function openTareaForm(id){
+function openTareaForm(id, alumnoIdPreset){
   const editing = id ? db.tareas.find(t=>t.id===id) : null;
-  const alumnoIdInicial = editing ? (editing.alumnoId||'') : (filtroTareasAlumno!=='todos'?filtroTareasAlumno:'');
+  const alumnoIdInicial = editing ? (editing.alumnoId||'') : (alumnoIdPreset || (filtroTareasAlumno!=='todos'?filtroTareasAlumno:''));
   const opciones = `<option value="">General (sin alumno)</option>` + alumnoOptionsHtml(alumnoIdInicial);
 
   openSheet(`
@@ -1336,8 +1482,13 @@ function guardarTarea(id){
     if(temaSelVal==='__nuevo__'){
       const nombreNuevo = document.getElementById('f_t_temaNuevo').value.trim();
       if(!nombreNuevo){ showToast('Escribí el nombre del nuevo tema'); return; }
-      const nuevoTema = {id: uid(), alumnoId, nombre: nombreNuevo};
+      const nuevoTema = {id: uid(), nombre: nombreNuevo};
       db.temas.push(nuevoTema);
+      const alumno = getAlumno(alumnoId);
+      if(alumno){
+        if(!Array.isArray(alumno.temasIds)) alumno.temasIds = [];
+        alumno.temasIds.push(nuevoTema.id);
+      }
       temaId = nuevoTema.id;
     }else if(temaSelVal){
       temaId = temaSelVal;
@@ -1411,6 +1562,141 @@ function renderTareas(){
       </div>
     </div>`;
   }).join('') + '</div>';
+}
+
+/* =========================================================
+   DETALLE DE ALUMNO
+   ========================================================= */
+let currentAlumnoDetalleId = null;
+
+function abrirDetalleAlumno(alumnoId){
+  currentAlumnoDetalleId = alumnoId;
+  views.forEach(v=>document.getElementById('view-'+v).classList.remove('active'));
+  document.getElementById('view-alumno-detalle').classList.add('active');
+  document.querySelectorAll('.bottomnav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('backBtn').style.display = 'flex';
+  document.getElementById('fabBtn').style.display = 'none';
+  renderDetalleAlumno();
+}
+
+function irADiaEnCalendario(fechaStr){
+  const [y,m] = fechaStr.split('-').map(Number);
+  calendarioFecha = new Date(y, m-1, 1);
+  goTo('clases');
+  abrirDiaCalendario(fechaStr);
+}
+
+function tareaLineHtml(t){
+  return `
+    <div class="checkbox-line ${t.hecha?'done':''}" style="border-bottom:1px solid var(--border);align-items:flex-start;">
+      <input type="checkbox" ${t.hecha?'checked':''} onclick="toggleTarea('${t.id}', event)" style="margin-top:2px;">
+      <div class="item-main" onclick="openTareaForm('${t.id}')">
+        <div class="item-title" style="font-size:14px;">${escapeHtml(t.texto)}</div>
+      </div>
+    </div>`;
+}
+
+function renderDetalleTemas(alumnoId){
+  const alumno = getAlumno(alumnoId);
+  const cont = document.getElementById('detalleTemas');
+  if(!cont) return;
+  const chips = db.temas.map(t=>{
+    const linkado = alumno.temasIds.includes(t.id);
+    return `<button type="button" class="dia-chip ${linkado?'sel':''}" onclick="toggleTemaAlumno('${alumnoId}','${t.id}')">${escapeHtml(t.nombre)}</button>`;
+  }).join('');
+  cont.innerHTML = `
+    <div class="dias-chips">${chips || '<span class="empty-msg">Todavía no creaste temas.</span>'}</div>
+    <div class="row2" style="margin-top:10px;">
+      <input type="text" id="f_nuevoTemaDetalle" placeholder="Nuevo tema">
+      <button type="button" class="btn secondary" style="margin-top:0;" onclick="crearTemaDesdeDetalle('${alumnoId}')">+ Crear y vincular</button>
+    </div>
+  `;
+}
+
+function toggleTemaAlumno(alumnoId, temaId){
+  const alumno = getAlumno(alumnoId);
+  if(!Array.isArray(alumno.temasIds)) alumno.temasIds = [];
+  const idx = alumno.temasIds.indexOf(temaId);
+  if(idx>=0) alumno.temasIds.splice(idx,1); else alumno.temasIds.push(temaId);
+  saveDB();
+  renderDetalleAlumno();
+}
+
+function crearTemaDesdeDetalle(alumnoId){
+  const input = document.getElementById('f_nuevoTemaDetalle');
+  const nombre = input.value.trim();
+  if(!nombre){ showToast('Escribí un nombre de tema'); return; }
+  const nuevo = {id: uid(), nombre};
+  db.temas.push(nuevo);
+  const alumno = getAlumno(alumnoId);
+  if(!Array.isArray(alumno.temasIds)) alumno.temasIds = [];
+  alumno.temasIds.push(nuevo.id);
+  saveDB();
+  renderDetalleAlumno();
+}
+
+function renderDetalleAlumno(){
+  if(!currentAlumnoDetalleId) return;
+  const alumno = getAlumno(currentAlumnoDetalleId);
+  if(!alumno){ goTo('alumnos'); return; }
+
+  document.getElementById('pageTitle').textContent = `${alumno.tipo==='adulto'?'🧑':'🧒'} ${alumno.nombre}`;
+
+  const deuda = sumaPendiente(alumno.id);
+  document.getElementById('detalleAlumnoHeader').innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div class="dot" style="width:22px;height:22px;background:${alumno.color}"></div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-family:var(--font-agenda);font-size:19px;font-weight:700;color:var(--primary-dark);">${escapeHtml(alumno.nombre)}</div>
+        <div class="item-sub">${money(alumno.tarifa)}/hora · ${alumno.tipo==='adulto'?'Adulto':'Niño/a'}</div>
+      </div>
+      <div class="item-right" style="color:${deuda>0?'var(--warn)':'var(--ok)'}">
+        <div style="font-size:11px;font-weight:600;">${deuda>0?'Pendiente':'Al día'}</div>
+        ${deuda>0 ? `<div>${money(deuda)}</div>` : ''}
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn secondary" onclick="openAlumnoForm('${alumno.id}')">✎ Editar datos</button>
+      <button class="btn danger" onclick="eliminarAlumno('${alumno.id}')">Eliminar</button>
+    </div>
+  `;
+
+  const ahora = new Date();
+  const proximas = db.clases
+    .filter(c=>c.alumnoId===alumno.id && fechaHoraClase(c) >= ahora)
+    .sort((a,b)=> fechaHoraClase(a)-fechaHoraClase(b))
+    .slice(0,3);
+  document.getElementById('detalleProximasClases').innerHTML = proximas.length ? proximas.map(c=>{
+    const rangoHora = c.horaSalida ? `${c.horaEntrada}-${c.horaSalida}` : `${c.horaEntrada} · ${formatDuracion(c.duracionMin)} prevista`;
+    return `
+    <div class="list-item" onclick="irADiaEnCalendario('${c.fecha}')" style="cursor:pointer;">
+      <div class="dot" style="background:${alumno.color}"></div>
+      <div class="item-main">
+        <div class="item-title">${nombreDiaFecha(c.fecha)}</div>
+        <div class="item-sub">${rangoHora}</div>
+      </div>
+      <div class="item-right">📅</div>
+    </div>`;
+  }).join('') : '<div class="empty-msg">No tiene clases próximas agendadas.</div>';
+
+  renderDetalleTemas(alumno.id);
+
+  const tareasAlumno = db.tareas.filter(t=>t.alumnoId===alumno.id);
+  const temasAlumno = temasDeAlumno(alumno.id);
+  let html = '';
+  temasAlumno.forEach(tema=>{
+    const tareasTema = tareasAlumno.filter(t=>t.temaId===tema.id);
+    html += `<div class="tema-grupo"><div class="tema-grupo-titulo">${escapeHtml(tema.nombre)}</div>`;
+    html += tareasTema.length ? tareasTema.map(t=>tareaLineHtml(t)).join('') : '<div class="empty-msg">Sin tareas todavía.</div>';
+    html += `</div>`;
+  });
+  const tareasSinTema = tareasAlumno.filter(t=>!t.temaId);
+  if(tareasSinTema.length){
+    html += `<div class="tema-grupo"><div class="tema-grupo-titulo">General</div>`;
+    html += tareasSinTema.map(t=>tareaLineHtml(t)).join('');
+    html += `</div>`;
+  }
+  document.getElementById('detalleTareasPorTema').innerHTML = html || '<div class="empty-msg">No hay tareas cargadas para este alumno.</div>';
 }
 
 /* =========================================================
@@ -1578,6 +1864,7 @@ function renderAll(){
   renderClases();
   renderTareas();
   renderStats();
+  if(document.getElementById('view-alumno-detalle').classList.contains('active')) renderDetalleAlumno();
 }
 
 /* =========================================================
@@ -1596,6 +1883,8 @@ function openSettings(){
       <input type="number" id="f_tarifaMax" value="${db.config.tarifaMax}" step="1000" min="0" inputmode="numeric">
     </div>
     <button class="btn secondary" onclick="guardarRangoTarifas()">Guardar rango de tarifas</button>
+
+    <button class="btn secondary" style="margin-top:18px;" onclick="abrirGestionTemas()">📚 Gestionar mis temas</button>
 
     <label style="margin-top:18px;">Importar datos desde archivo</label>
     <input type="file" id="importFile" accept="application/json,.json">
