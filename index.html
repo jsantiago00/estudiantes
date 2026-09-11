@@ -215,6 +215,14 @@
   .tipo-option input{margin-top:2px;width:18px;height:18px;flex-shrink:0;}
   .tipo-option small{font-weight:400;color:var(--text-dim);}
   .tipo-option.sel{border-color:var(--primary);background:#eef2ff;}
+
+  .dias-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
+  .dia-chip{
+    padding:8px 10px;border-radius:20px;border:1px solid var(--border);
+    background:#fff;font-size:12px;font-weight:700;color:var(--text-dim);
+  }
+  .dia-chip input{display:none;}
+  .dia-chip.sel{background:var(--primary);color:#fff;border-color:var(--primary);}
 </style>
 </head>
 <body>
@@ -235,7 +243,7 @@
       </div>
       <div class="stat-box">
         <div class="num" id="statProximas">0</div>
-        <div class="label">Esta semana</div>
+        <div class="label">Clases esta semana</div>
       </div>
       <div class="stat-box">
         <div class="num" id="statTareas">0</div>
@@ -244,7 +252,7 @@
     </div>
 
     <div class="card">
-      <h2>Próximas clases</h2>
+      <h2 id="dashProximasTitulo">Próximas clases</h2>
       <div id="dashProximas"></div>
     </div>
 
@@ -651,10 +659,36 @@ function sumaPendiente(alumnoId){
     .reduce((s,c)=>s+Number(c.monto||0),0);
 }
 
+function esMesActual(fechaStr){
+  const [y,m] = fechaStr.split('-').map(Number);
+  const hoy = new Date();
+  return y===hoy.getFullYear() && (m-1)===hoy.getMonth();
+}
+
+function sumaPendienteMesActual(alumnoId, hoySinHora){
+  return db.clases
+    .filter(c=>{
+      if(c.alumnoId!==alumnoId || c.pagada || !esMesActual(c.fecha)) return false;
+      return new Date(c.fecha+'T00:00:00') < hoySinHora;
+    })
+    .reduce((s,c)=>s+Number(c.monto||0),0);
+}
+
+function nombreDiaFecha(fechaStr){
+  const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const f = new Date(fechaStr+'T00:00:00');
+  return `${dias[f.getDay()]} ${f.getDate()}`;
+}
+
 /* =========================================================
    CLASES
    ========================================================= */
 let filtroClasesAlumno = 'todos';
+
+const DIAS_SEMANA = [
+  {v:1,l:'Lunes'},{v:2,l:'Martes'},{v:3,l:'Miércoles'},{v:4,l:'Jueves'},
+  {v:5,l:'Viernes'},{v:6,l:'Sábado'},{v:0,l:'Domingo'}
+];
 
 function alumnoOptionsHtml(selectedId){
   if(db.alumnos.length===0) return '<option value="">-- Cargá un alumno primero --</option>';
@@ -670,6 +704,14 @@ function openClaseForm(id){
   const [entH, entM] = editing ? editing.horaEntrada.split(':') : [nowHClamped, '00'];
   const [salH, salM] = (editing && editing.horaSalida) ? editing.horaSalida.split(':') : ['', '00'];
 
+  const hoyWeekday = new Date().getDay();
+  const diasChipsHtml = DIAS_SEMANA.map(d=>`
+    <label class="dia-chip ${d.v===hoyWeekday?'sel':''}">
+      <input type="checkbox" value="${d.v}" ${d.v===hoyWeekday?'checked':''} onchange="this.parentElement.classList.toggle('sel', this.checked)">
+      ${d.l}
+    </label>
+  `).join('');
+
   const recurrenciaHtml = !editing ? `
     <div class="recurrencia-box">
       <div class="checkbox-line">
@@ -678,11 +720,17 @@ function openClaseForm(id){
       </div>
       <div id="recurrenciaPanel" style="display:none;">
         <label>Frecuencia</label>
-        <select id="f_frecuencia">
+        <select id="f_frecuencia" onchange="toggleFrecuenciaUI()">
           <option value="semanal">Semanal</option>
           <option value="quincenal">Cada 2 semanas</option>
           <option value="mensual">Mensual</option>
         </select>
+
+        <div id="diasSemanaBox">
+          <label>Días de la semana</label>
+          <div class="dias-chips" id="diasSemanaChips">${diasChipsHtml}</div>
+        </div>
+
         <label>Repetir durante</label>
         <div class="row2">
           <input type="number" id="f_duracionValor" min="1" value="2" inputmode="numeric">
@@ -745,6 +793,11 @@ function toggleRecurrenciaPanel(){
   const panel = document.getElementById('recurrenciaPanel');
   const chk = document.getElementById('f_recurrente');
   panel.style.display = chk.checked ? 'block' : 'none';
+}
+
+function toggleFrecuenciaUI(){
+  const val = document.getElementById('f_frecuencia').value;
+  document.getElementById('diasSemanaBox').style.display = val==='semanal' ? 'block' : 'none';
 }
 
 function marcarTermine(){
@@ -812,7 +865,12 @@ function guardarClase(id){
     const frecuencia = document.getElementById('f_frecuencia').value;
     const duracionValor = parseInt(document.getElementById('f_duracionValor').value)||1;
     const duracionUnidad = document.getElementById('f_duracionUnidad').value;
-    const fechas = generarFechasRecurrencia(fecha, frecuencia, duracionValor, duracionUnidad);
+    let diasSemana = [];
+    if(frecuencia==='semanal'){
+      diasSemana = Array.from(document.querySelectorAll('#diasSemanaChips input:checked')).map(el=>parseInt(el.value));
+      if(diasSemana.length===0){ showToast('Elegí al menos un día de la semana'); return; }
+    }
+    const fechas = generarFechasRecurrencia(fecha, frecuencia, duracionValor, duracionUnidad, diasSemana);
     const serieId = uid();
     fechas.forEach(f=>{
       db.clases.push({id: uid(), serieId, alumnoId, fecha:f, horaEntrada, horaSalida: horaSalida||null, duracionMin, monto, notas, pagada:false});
@@ -831,21 +889,32 @@ function guardarClase(id){
   showToast('Clase guardada');
 }
 
-function generarFechasRecurrencia(fechaInicioStr, frecuencia, duracionValor, duracionUnidad){
+function generarFechasRecurrencia(fechaInicioStr, frecuencia, duracionValor, duracionUnidad, diasSemana){
   const fechas = [];
-  let cur = new Date(fechaInicioStr+'T00:00:00');
-  const finLimite = new Date(cur);
+  const inicio = new Date(fechaInicioStr+'T00:00:00');
+  const finLimite = new Date(inicio);
   if(duracionUnidad==='semanas') finLimite.setDate(finLimite.getDate()+duracionValor*7);
   else finLimite.setMonth(finLimite.getMonth()+duracionValor);
 
+  if(frecuencia==='semanal' && diasSemana && diasSemana.length){
+    let cur = new Date(inicio);
+    while(cur <= finLimite){
+      if(diasSemana.includes(cur.getDay())){
+        fechas.push(cur.toISOString().slice(0,10));
+      }
+      cur.setDate(cur.getDate()+1);
+    }
+    return fechas;
+  }
+
   const incrementar = (d)=>{
     const nd = new Date(d);
-    if(frecuencia==='semanal') nd.setDate(nd.getDate()+7);
-    else if(frecuencia==='quincenal') nd.setDate(nd.getDate()+14);
+    if(frecuencia==='quincenal') nd.setDate(nd.getDate()+14);
     else if(frecuencia==='mensual') nd.setMonth(nd.getMonth()+1);
     return nd;
   };
 
+  let cur = new Date(inicio);
   while(cur <= finLimite){
     fechas.push(cur.toISOString().slice(0,10));
     cur = incrementar(cur);
@@ -1035,12 +1104,18 @@ function renderTareas(){
    ========================================================= */
 function renderDashboard(){
   const ahora = new Date();
+  const hoySinHora = new Date(ahora);
+  hoySinHora.setHours(0,0,0,0);
 
-  // Próximas clases (futuras, no pagas o pagas da igual, orden ascendente)
+  // Próximas clases (futuras, orden ascendente)
   const proximas = db.clases
     .filter(c => fechaHoraClase(c) >= ahora)
     .sort((a,b)=> fechaHoraClase(a) - fechaHoraClase(b))
     .slice(0,5);
+
+  const nombreMes = ahora.toLocaleDateString('es-AR', {month:'long'});
+  document.getElementById('dashProximasTitulo').textContent =
+    `Próximas clases - ${nombreMes.charAt(0).toUpperCase()+nombreMes.slice(1)}`;
 
   const monday = getMonday(ahora);
   const sunday = getSunday(monday);
@@ -1058,15 +1133,15 @@ function renderDashboard(){
       <div class="dot" style="background:${alumnoColor(c.alumnoId)}"></div>
       <div class="item-main">
         <div class="item-title">${c.serieId ? '<span class="serie-tag">🔁</span>' : ''}${escapeHtml(alumnoNombre(c.alumnoId))}</div>
-        <div class="item-sub">${fmtFecha(c.fecha)} ${rangoHora}</div>
+        <div class="item-sub">${nombreDiaFecha(c.fecha)} · ${rangoHora}</div>
       </div>
       <div class="item-right">${money(c.monto)}</div>
     </div>`;
   }).join('') : '<div class="empty-msg">No hay clases próximas agendadas.</div>';
 
-  // Pagos pendientes por alumno
+  // Pagos pendientes: solo clases de este mes que ya pasaron y siguen sin pagar
   const deudores = db.alumnos
-    .map(a=>({alumno:a, deuda: sumaPendiente(a.id)}))
+    .map(a=>({alumno:a, deuda: sumaPendienteMesActual(a.id, hoySinHora)}))
     .filter(x=>x.deuda>0)
     .sort((a,b)=>b.deuda-a.deuda);
 
