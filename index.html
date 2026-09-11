@@ -25,6 +25,35 @@
     --radius:18px;
     --font-agenda:Georgia,'Iowan Old Style','Palatino Linotype',serif;
     --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+    --input-bg:#fdf9f2;
+    --btn-secondary-bg:#f1e6d5;
+    --soft-tint-bg:#fbeee1;
+    --overlay-bg:rgba(50,30,15,.45);
+
+    /* tokens que cambian según la paleta elegida (ver PALETAS en JS) */
+    --card-grad-a:#fff2df;
+    --card-grad-b:#ffe3c4;
+    --accent-text:#7a3d1c;
+    --blob-1:#f2ddba;
+    --blob-2:#f6e7cf;
+    --blob-opacity:1;
+  }
+
+  :root[data-theme="dark"]{
+    --bg:#201914;
+    --card:#2c231d;
+    --text:#f1e8dd;
+    --text-dim:#b3a191;
+    --danger-bg:#4a2620;
+    --ok-bg:#25321f;
+    --warn-bg:#3d2f14;
+    --border:#463a2f;
+    --input-bg:#241d18;
+    --btn-secondary-bg:#3a3128;
+    --soft-tint-bg:#3a2a20;
+    --overlay-bg:rgba(0,0,0,.6);
+    --blob-opacity:.18;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;}
@@ -71,20 +100,20 @@
   .empty-msg{color:var(--text-dim);font-size:14px;padding:8px 2px;}
 
   .next-class-card{
-    background:linear-gradient(135deg,#fff2df,#ffe3c4);
-    border:1px solid #f0d6ab;
+    background:linear-gradient(135deg,var(--card-grad-a),var(--card-grad-b));
+    border:1px solid var(--border);
     border-radius:20px;
     padding:16px 18px;
     margin-bottom:14px;
     box-shadow:0 4px 16px rgba(160,100,40,.14);
   }
   .next-class-eyebrow{font-size:12px;font-weight:700;color:var(--primary-dark);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;}
-  .next-class-countdown{font-family:var(--font-agenda);font-size:26px;font-weight:700;color:#7a3d1c;margin-bottom:6px;}
+  .next-class-countdown{font-family:var(--font-agenda);font-size:26px;font-weight:700;color:var(--accent-text);margin-bottom:6px;}
   .next-class-info{font-size:14px;color:var(--text);display:flex;align-items:center;gap:6px;}
   .next-class-info .dot{width:10px;height:10px;}
 
   .stats-esperado{
-    background:#fff6e9;border:1px dashed var(--border);border-radius:14px;
+    background:var(--soft-tint-bg);border:1px dashed var(--border);border-radius:14px;
     padding:10px 14px;font-size:13px;color:var(--text-dim);margin-bottom:12px;
   }
   .stats-esperado b{color:var(--text);}
@@ -151,7 +180,7 @@
 
   /* bottom sheet modal */
   .overlay{
-    position:fixed;inset:0;background:rgba(50,30,15,.45);z-index:50;
+    position:fixed;inset:0;background:var(--overlay-bg);z-index:50;
     display:none;align-items:flex-end;justify-content:center;
   }
   .overlay.show{display:flex;}
@@ -170,7 +199,7 @@
   label:first-of-type{margin-top:0;}
   input[type=text],input[type=number],input[type=date],input[type=time],select,textarea{
     width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:10px;
-    font-size:15px;background:#fdf9f2;color:var(--text);font-family:inherit;
+    font-size:15px;background:var(--input-bg);color:var(--text);font-family:inherit;
   }
   textarea{resize:vertical;min-height:60px;}
   input[type=color]{width:44px;height:36px;border:1px solid var(--border);border-radius:8px;padding:2px;background:var(--card);}
@@ -189,7 +218,7 @@
   }
   .btn.primary{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;}
   .btn.primary:active{background:var(--primary-dark);}
-  .btn.secondary{background:#f1e6d5;color:var(--text);}
+  .btn.secondary{background:var(--btn-secondary-bg);color:var(--text);}
   .btn.danger{background:var(--danger-bg);color:var(--danger);}
   .btn-row{display:flex;gap:10px;}
   .btn-row .btn{margin-top:16px;}
@@ -224,19 +253,19 @@
   .recurrencia-box{border-top:1px dashed var(--border);margin-top:16px;padding-top:6px;}
 
   .stats-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
-  .stats-nav button{background:#f1e6d5;border:none;border-radius:10px;width:40px;height:40px;font-size:18px;font-weight:700;color:var(--text);}
+  .stats-nav button{background:var(--btn-secondary-bg);border:none;border-radius:10px;width:40px;height:40px;font-size:18px;font-weight:700;color:var(--text);}
   .stats-nav .stats-label{font-family:var(--font-agenda);font-weight:700;font-size:16px;text-transform:capitalize;color:var(--primary-dark);}
 
   .serie-tag{font-size:11px;color:var(--primary);margin-right:4px;}
 
   .tipo-option{
     flex:1;display:flex;align-items:flex-start;gap:8px;
-    background:#fdf9f2;border:1px solid var(--border);border-radius:10px;
+    background:var(--input-bg);border:1px solid var(--border);border-radius:10px;
     padding:10px;font-size:13px;font-weight:600;
   }
   .tipo-option input{margin-top:2px;width:18px;height:18px;flex-shrink:0;}
   .tipo-option small{font-weight:400;color:var(--text-dim);}
-  .tipo-option.sel{border-color:var(--primary);background:#fbeee1;}
+  .tipo-option.sel{border-color:var(--primary);background:var(--soft-tint-bg);}
 
   .dias-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
   .dia-chip{
@@ -247,7 +276,7 @@
   .dia-chip.sel{background:var(--primary);color:#fff;border-color:var(--primary);}
 
   .calendar-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
-  .calendar-nav button{background:#f1e6d5;border:none;border-radius:10px;width:38px;height:38px;font-size:17px;font-weight:700;color:var(--text);}
+  .calendar-nav button{background:var(--btn-secondary-bg);border:none;border-radius:10px;width:38px;height:38px;font-size:17px;font-weight:700;color:var(--text);}
   .calendar-label{font-family:var(--font-agenda);font-weight:700;font-size:16px;color:var(--primary-dark);text-transform:capitalize;}
 
   .calendar-weekdays{
@@ -258,13 +287,13 @@
   .calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
   .cal-cell{
     appearance:none;-webkit-appearance:none;margin:0;cursor:pointer;font-family:inherit;
-    aspect-ratio:1;background:#fdf9f2;border:1px solid var(--border);border-radius:12px;
+    aspect-ratio:1;background:var(--input-bg);border:1px solid var(--border);border-radius:12px;
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
     font-size:13px;font-weight:600;color:var(--text);padding:2px;
   }
   .cal-cell.empty{background:transparent;border:none;cursor:default;}
-  .cal-cell.today{border:2px solid var(--primary);background:#fff2df;}
-  .cal-cell.has-clases{background:#fffaf2;}
+  .cal-cell.today{border:2px solid var(--primary);background:var(--card-grad-a);}
+  .cal-cell.has-clases{background:var(--card);}
   .cal-dots{display:flex;gap:2px;min-height:6px;}
   .cal-dot{width:5px;height:5px;border-radius:50%;}
 
@@ -286,14 +315,23 @@
 
   body::before{
     content:'';position:fixed;top:-90px;right:-70px;width:240px;height:240px;
-    background:radial-gradient(circle at 30% 30%, #f2ddba, transparent 70%);
-    border-radius:50%;z-index:-1;pointer-events:none;
+    background:radial-gradient(circle at 30% 30%, var(--blob-1), transparent 70%);
+    border-radius:50%;z-index:-1;pointer-events:none;opacity:var(--blob-opacity);
   }
   body::after{
     content:'';position:fixed;bottom:-110px;left:-90px;width:280px;height:280px;
-    background:radial-gradient(circle at 60% 60%, #f6e7cf, transparent 70%);
-    border-radius:50%;z-index:-1;pointer-events:none;
+    background:radial-gradient(circle at 60% 60%, var(--blob-2), transparent 70%);
+    border-radius:50%;z-index:-1;pointer-events:none;opacity:var(--blob-opacity);
   }
+
+  .paleta-grid{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;}
+  .paleta-swatch{
+    width:42px;height:42px;border-radius:50%;border:3px solid transparent;
+    display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px;
+  }
+  .paleta-swatch.sel{border-color:var(--text);}
+
+  .ajustes-desc{color:var(--text-dim);font-size:13px;margin:0 0 10px;}
 </style>
 </head>
 <body>
@@ -303,7 +341,6 @@
     <button class="icon-btn" id="backBtn" onclick="goTo('alumnos')" style="display:none;" aria-label="Volver">←</button>
     <h1 id="pageTitle">estudiAntes</h1>
   </div>
-  <button class="icon-btn" onclick="openSettings()" aria-label="Ajustes">⚙️</button>
 </header>
 
 <main>
@@ -439,6 +476,49 @@
     </div>
   </section>
 
+  <!-- AJUSTES -->
+  <section class="view" id="view-ajustes">
+    <div class="card">
+      <h2>🎨 Diseño</h2>
+      <label>Paleta de color</label>
+      <div class="paleta-grid" id="paletaGrid"></div>
+      <div class="checkbox-line" style="margin-top:12px;">
+        <input type="checkbox" id="f_modoOscuro" onchange="toggleModoOscuro()">
+        <span>🌙 Modo oscuro</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📚 Temas (los de estudio)</h2>
+      <p class="ajustes-desc">Las materias que le das a tus alumnos (Matemáticas, Biología...). Se crean una vez y se vinculan a cada alumno desde su ficha.</p>
+      <button type="button" class="btn secondary" onclick="abrirGestionTemas()">Gestionar mis temas</button>
+    </div>
+
+    <div class="card">
+      <h2>💲 Rango de precios</h2>
+      <p class="ajustes-desc">Piso y techo del selector de tarifa por hora al cargar un alumno.</p>
+      <div class="row2">
+        <input type="number" id="f_tarifaMin" step="1000" min="0" inputmode="numeric">
+        <input type="number" id="f_tarifaMax" step="1000" min="0" inputmode="numeric">
+      </div>
+      <button type="button" class="btn secondary" onclick="guardarRangoTarifas()">Guardar rango</button>
+    </div>
+
+    <div class="card">
+      <h2>💾 Datos</h2>
+      <p class="ajustes-desc">Tus datos se guardan solo en este dispositivo (localStorage). Exportá un respaldo periódicamente por si cambiás de celular o borrás el navegador.</p>
+      <button type="button" class="btn primary" onclick="exportarDatos()">⬇️ Exportar datos (JSON)</button>
+
+      <label style="margin-top:16px;">Importar datos desde archivo</label>
+      <input type="file" id="importFile" accept="application/json,.json">
+      <button type="button" class="btn secondary" onclick="importarDatos()">⬆️ Importar (reemplaza los datos actuales)</button>
+
+      <div style="margin-top:16px;font-size:13px;color:var(--text-dim);" id="ajustesConteo"></div>
+
+      <button type="button" class="btn danger" style="margin-top:16px;" onclick="borrarTodo()">🗑️ Borrar todos los datos</button>
+    </div>
+  </section>
+
 </main>
 
 <button class="fab" id="fabBtn">+</button>
@@ -449,6 +529,7 @@
   <button data-view="clases"><span class="ic">📅</span>Clases</button>
   <button data-view="tareas"><span class="ic">📝</span>Tareas</button>
   <button data-view="stats"><span class="ic">📊</span>Stats</button>
+  <button data-view="ajustes"><span class="ic">⚙️</span>Config</button>
 </nav>
 
 <!-- overlay / bottom sheet -->
@@ -469,7 +550,7 @@ let db = {
   clases:  [],  // {id, serieId|null, alumnoId, fecha:'YYYY-MM-DD', horaEntrada:'HH:MM', horaSalida:'HH:MM'|null, duracionMin, monto, pagada, notas}
   temas:   [],  // {id, nombre} -- temas globales del profesor, se vinculan a alumnos vía alumno.temasIds
   tareas:  [],  // {id, alumnoId|null, temaId|null, claseId|null, texto, hecha}
-  config:  {tarifaMin:7000, tarifaMax:15000}
+  config:  {tarifaMin:7000, tarifaMax:15000, paleta:'tierra', modoOscuro:false}
 };
 
 function uid(){
@@ -486,7 +567,7 @@ function loadDB(){
       db.clases = parsed.clases || [];
       db.temas = parsed.temas || [];
       db.tareas = parsed.tareas || [];
-      db.config = Object.assign({tarifaMin:7000, tarifaMax:15000}, parsed.config||{});
+      db.config = Object.assign({tarifaMin:7000, tarifaMax:15000, paleta:'tierra', modoOscuro:false}, parsed.config||{});
     }
     // migración de clases con el esquema viejo (hora + duracionMin -> horaEntrada/horaSalida)
     db.clases.forEach(c=>{
@@ -535,8 +616,8 @@ const COLOR_SWATCHES = ['#ef4444','#f97316','#f59e0b','#84cc16','#22c55e','#14b8
 /* =========================================================
    NAVEGACIÓN
    ========================================================= */
-const views = ['dashboard','alumnos','clases','tareas','stats'];
-const titles = {dashboard:'🌿 estudiAntes', alumnos:'👤 Alumnos', clases:'📅 Clases', tareas:'📝 Material a preparar', stats:'📊 Estadísticas'};
+const views = ['dashboard','alumnos','clases','tareas','stats','ajustes'];
+const titles = {dashboard:'🌿 estudiAntes', alumnos:'👤 Alumnos', clases:'📅 Clases', tareas:'📝 Material a preparar', stats:'📊 Estadísticas', ajustes:'⚙️ Ajustes'};
 
 function goTo(view){
   currentAlumnoDetalleId = null;
@@ -549,7 +630,7 @@ function goTo(view){
     b.classList.toggle('active', b.dataset.view===view);
   });
   document.getElementById('pageTitle').textContent = titles[view];
-  document.getElementById('fabBtn').style.display = (view==='dashboard'||view==='stats') ? 'none' : 'flex';
+  document.getElementById('fabBtn').style.display = (view==='dashboard'||view==='stats'||view==='ajustes') ? 'none' : 'flex';
   renderAll();
 }
 
@@ -1864,38 +1945,73 @@ function renderAll(){
   renderClases();
   renderTareas();
   renderStats();
+  renderAjustes();
   if(document.getElementById('view-alumno-detalle').classList.contains('active')) renderDetalleAlumno();
 }
 
 /* =========================================================
    AJUSTES: EXPORTAR / IMPORTAR
    ========================================================= */
-function openSettings(){
-  openSheet(`
-    <h3>Ajustes y respaldo</h3>
-    <p style="color:var(--text-dim);font-size:14px;">Tus datos se guardan solo en este dispositivo (localStorage). Exportá un respaldo periódicamente por si cambiás de celular o borrás el navegador.</p>
+const PALETAS = {
+  tierra:   {label:'Tierra',   primary:'#c1683d', primaryDark:'#9c522e', cardGradA:'#fff2df', cardGradB:'#ffe3c4', accentText:'#7a3d1c', blob1:'#f2ddba', blob2:'#f6e7cf'},
+  azul:     {label:'Azul',     primary:'#3f6ea8', primaryDark:'#2d5480', cardGradA:'#e3edf9', cardGradB:'#cfe0f4', accentText:'#20456e', blob1:'#c9dcf2', blob2:'#dfeafb'},
+  rojo:     {label:'Rojo',     primary:'#c1493f', primaryDark:'#96362e', cardGradA:'#fbe4e0', cardGradB:'#f6cdc6', accentText:'#7a2a22', blob1:'#f3c9c1', blob2:'#f8ded8'},
+  lila:     {label:'Lila',     primary:'#8a67ab', primaryDark:'#6a4c87', cardGradA:'#efe5f7', cardGradB:'#e2cef0', accentText:'#4f3468', blob1:'#ddc7ec', blob2:'#ece0f5'},
+  amarillo: {label:'Amarillo', primary:'#b6892a', primaryDark:'#8f6a1c', cardGradA:'#fbf1d9', cardGradB:'#f6e3b4', accentText:'#6b4e12', blob1:'#f0dfa0', blob2:'#f7ecc9'},
+  verde:    {label:'Verde',    primary:'#5f8f52', primaryDark:'#456b3a', cardGradA:'#e7f0e0', cardGradB:'#d3e6c4', accentText:'#33501f', blob1:'#cfe3bd', blob2:'#e2eed8'},
+};
 
-    <button class="btn primary" onclick="exportarDatos()">⬇️ Exportar datos (JSON)</button>
+function aplicarPaleta(){
+  const p = PALETAS[db.config.paleta] || PALETAS.tierra;
+  const root = document.documentElement;
+  root.style.setProperty('--primary', p.primary);
+  root.style.setProperty('--primary-dark', p.primaryDark);
+  root.style.setProperty('--card-grad-a', p.cardGradA);
+  root.style.setProperty('--card-grad-b', p.cardGradB);
+  root.style.setProperty('--accent-text', p.accentText);
+  root.style.setProperty('--blob-1', p.blob1);
+  root.style.setProperty('--blob-2', p.blob2);
+  const metaTheme = document.querySelector('meta[name="theme-color"]');
+  if(metaTheme) metaTheme.setAttribute('content', p.primary);
+}
 
-    <label style="margin-top:18px;">Rango de tarifas (piso y techo del selector de precio)</label>
-    <div class="row2">
-      <input type="number" id="f_tarifaMin" value="${db.config.tarifaMin}" step="1000" min="0" inputmode="numeric">
-      <input type="number" id="f_tarifaMax" value="${db.config.tarifaMax}" step="1000" min="0" inputmode="numeric">
-    </div>
-    <button class="btn secondary" onclick="guardarRangoTarifas()">Guardar rango de tarifas</button>
+function elegirPaleta(key){
+  db.config.paleta = key;
+  saveDB();
+  aplicarPaleta();
+  renderPaletaGrid();
+}
 
-    <button class="btn secondary" style="margin-top:18px;" onclick="abrirGestionTemas()">📚 Gestionar mis temas</button>
+function renderPaletaGrid(){
+  const cont = document.getElementById('paletaGrid');
+  if(!cont) return;
+  cont.innerHTML = Object.keys(PALETAS).map(key=>{
+    const p = PALETAS[key];
+    const sel = (db.config.paleta||'tierra')===key;
+    return `<button type="button" class="paleta-swatch ${sel?'sel':''}" style="background:${p.primary};" onclick="elegirPaleta('${key}')" aria-label="${p.label}">${sel?'✓':''}</button>`;
+  }).join('');
+}
 
-    <label style="margin-top:18px;">Importar datos desde archivo</label>
-    <input type="file" id="importFile" accept="application/json,.json">
-    <button class="btn secondary" onclick="importarDatos()">⬆️ Importar (reemplaza los datos actuales)</button>
+function aplicarModoOscuro(){
+  document.documentElement.setAttribute('data-theme', db.config.modoOscuro ? 'dark' : 'light');
+}
 
-    <div style="margin-top:18px;border-top:1px solid var(--border);padding-top:14px;">
-      <div style="font-size:13px;color:var(--text-dim);">Alumnos: ${db.alumnos.length} · Clases: ${db.clases.length} · Temas: ${db.temas.length} · Tareas: ${db.tareas.length}</div>
-    </div>
+function toggleModoOscuro(){
+  db.config.modoOscuro = document.getElementById('f_modoOscuro').checked;
+  saveDB();
+  aplicarModoOscuro();
+}
 
-    <button class="btn danger" style="margin-top:18px;" onclick="borrarTodo()">🗑️ Borrar todos los datos</button>
-  `);
+function renderAjustes(){
+  const fMin = document.getElementById('f_tarifaMin');
+  const fMax = document.getElementById('f_tarifaMax');
+  if(fMin) fMin.value = db.config.tarifaMin;
+  if(fMax) fMax.value = db.config.tarifaMax;
+  const fModo = document.getElementById('f_modoOscuro');
+  if(fModo) fModo.checked = !!db.config.modoOscuro;
+  renderPaletaGrid();
+  const conteo = document.getElementById('ajustesConteo');
+  if(conteo) conteo.textContent = `Alumnos: ${db.alumnos.length} · Clases: ${db.clases.length} · Temas: ${db.temas.length} · Tareas: ${db.tareas.length}`;
 }
 
 function guardarRangoTarifas(){
@@ -1937,9 +2053,11 @@ function importarDatos(){
       db.clases = Array.isArray(parsed.clases) ? parsed.clases : [];
       db.temas = Array.isArray(parsed.temas) ? parsed.temas : [];
       db.tareas = Array.isArray(parsed.tareas) ? parsed.tareas : [];
-      db.config = Object.assign({tarifaMin:7000, tarifaMax:15000}, parsed.config||{});
+      db.config = Object.assign({tarifaMin:7000, tarifaMax:15000, paleta:'tierra', modoOscuro:false}, parsed.config||{});
+      db.alumnos.forEach(a=>{ if(!Array.isArray(a.temasIds)) a.temasIds = []; });
       saveDB();
-      closeSheet();
+      aplicarPaleta();
+      aplicarModoOscuro();
       renderAll();
       showToast('Datos importados correctamente');
     }catch(err){
@@ -1954,7 +2072,6 @@ function borrarTodo(){
   if(!confirm('Última confirmación: se perderá todo lo que no hayas exportado. ¿Continuar?')) return;
   db.alumnos = []; db.clases = []; db.temas = []; db.tareas = [];
   saveDB();
-  closeSheet();
   renderAll();
   showToast('Datos borrados');
 }
@@ -1963,6 +2080,8 @@ function borrarTodo(){
    INIT
    ========================================================= */
 loadDB();
+aplicarPaleta();
+aplicarModoOscuro();
 renderAll();
 document.getElementById('fabBtn').style.display = 'none';
 
