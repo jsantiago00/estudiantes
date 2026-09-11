@@ -243,6 +243,41 @@
   }
   .dia-chip input{display:none;}
   .dia-chip.sel{background:var(--primary);color:#fff;border-color:var(--primary);}
+
+  .calendar-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .calendar-nav button{background:#f1e6d5;border:none;border-radius:10px;width:38px;height:38px;font-size:17px;font-weight:700;color:var(--text);}
+  .calendar-label{font-family:var(--font-agenda);font-weight:700;font-size:16px;color:var(--primary-dark);text-transform:capitalize;}
+
+  .calendar-weekdays{
+    display:grid;grid-template-columns:repeat(7,1fr);text-align:center;
+    font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:6px;
+  }
+
+  .calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+  .cal-cell{
+    appearance:none;-webkit-appearance:none;margin:0;cursor:pointer;font-family:inherit;
+    aspect-ratio:1;background:#fdf9f2;border:1px solid var(--border);border-radius:12px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    font-size:13px;font-weight:600;color:var(--text);padding:2px;
+  }
+  .cal-cell.empty{background:transparent;border:none;cursor:default;}
+  .cal-cell.today{border:2px solid var(--primary);background:#fff2df;}
+  .cal-cell.has-clases{background:#fffaf2;}
+  .cal-dots{display:flex;gap:2px;min-height:6px;}
+  .cal-dot{width:5px;height:5px;border-radius:50%;}
+
+  .day-detail-list{max-height:52vh;overflow-y:auto;margin-bottom:6px;}
+
+  body::before{
+    content:'';position:fixed;top:-90px;right:-70px;width:240px;height:240px;
+    background:radial-gradient(circle at 30% 30%, #f2ddba, transparent 70%);
+    border-radius:50%;z-index:-1;pointer-events:none;
+  }
+  body::after{
+    content:'';position:fixed;bottom:-110px;left:-90px;width:280px;height:280px;
+    background:radial-gradient(circle at 60% 60%, #f6e7cf, transparent 70%);
+    border-radius:50%;z-index:-1;pointer-events:none;
+  }
 </style>
 </head>
 <body>
@@ -307,7 +342,18 @@
     <div class="section-actions">
       <button class="btn secondary" onclick="marcarTodasPagadas()">✓ Marcar filtradas como pagadas</button>
     </div>
-    <div id="listaClases"></div>
+
+    <div class="card">
+      <div class="calendar-nav">
+        <button onclick="cambiarMesCalendario(-1)" aria-label="Mes anterior">←</button>
+        <div class="calendar-label" id="calendarioMesLabel"></div>
+        <button onclick="cambiarMesCalendario(1)" aria-label="Mes siguiente">→</button>
+      </div>
+      <div class="calendar-weekdays">
+        <span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span>
+      </div>
+      <div class="calendar-grid" id="calendarioGrid"></div>
+    </div>
   </section>
 
   <!-- TAREAS -->
@@ -430,7 +476,7 @@ const COLOR_SWATCHES = ['#ef4444','#f97316','#f59e0b','#84cc16','#22c55e','#14b8
    NAVEGACIÓN
    ========================================================= */
 const views = ['dashboard','alumnos','clases','tareas','stats'];
-const titles = {dashboard:'estudiAntes', alumnos:'Alumnos', clases:'Clases', tareas:'Material a preparar', stats:'Estadísticas'};
+const titles = {dashboard:'🌿 estudiAntes', alumnos:'👤 Alumnos', clases:'📅 Clases', tareas:'📝 Material a preparar', stats:'📊 Estadísticas'};
 
 function goTo(view){
   views.forEach(v=>{
@@ -725,10 +771,10 @@ function alumnoOptionsHtml(selectedId){
   return db.alumnos.map(a=>`<option value="${a.id}" ${a.id===selectedId?'selected':''}>${escapeHtml(a.nombre)}</option>`).join('');
 }
 
-function openClaseForm(id){
+function openClaseForm(id, fechaPreset){
   if(db.alumnos.length===0){ showToast('Primero agregá un alumno'); return; }
   const editing = id ? db.clases.find(c=>c.id===id) : null;
-  const today = new Date().toISOString().slice(0,10);
+  const today = fechaPreset || new Date().toISOString().slice(0,10);
 
   const nowHClamped = String(Math.min(18, Math.max(8, new Date().getHours()))).padStart(2,'0');
   const [entH, entM] = editing ? editing.horaEntrada.split(':') : [nowHClamped, '00'];
@@ -1011,34 +1057,90 @@ function renderFiltroClases(){
 }
 function setFiltroClases(v){ filtroClasesAlumno = v; renderAll(); }
 
+let calendarioFecha = new Date();
+
 function renderClases(){
   renderFiltroClases();
-  const cont = document.getElementById('listaClases');
-  let lista = db.clases.slice();
-  if(filtroClasesAlumno!=='todos') lista = lista.filter(c=>c.alumnoId===filtroClasesAlumno);
-  lista.sort((a,b)=> fechaHoraClase(b) - fechaHoraClase(a)); // más reciente primero
+  renderCalendario();
+}
 
-  if(lista.length===0){
-    cont.innerHTML = '<div class="card"><div class="empty-msg">No hay clases cargadas. Tocá + para agregar una.</div></div>';
-    return;
+function cambiarMesCalendario(delta){
+  calendarioFecha.setMonth(calendarioFecha.getMonth()+delta);
+  renderCalendario();
+}
+
+function formatoFechaLarga(fechaStr){
+  const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const f = new Date(fechaStr+'T00:00:00');
+  return `${dias[f.getDay()]} ${f.getDate()} de ${meses[f.getMonth()]}`;
+}
+
+function renderCalendario(){
+  const y = calendarioFecha.getFullYear(), m = calendarioFecha.getMonth();
+  const label = calendarioFecha.toLocaleDateString('es-AR', {month:'long', year:'numeric'});
+  document.getElementById('calendarioMesLabel').textContent = label.charAt(0).toUpperCase()+label.slice(1);
+
+  let clases = db.clases.slice();
+  if(filtroClasesAlumno!=='todos') clases = clases.filter(c=>c.alumnoId===filtroClasesAlumno);
+
+  const porDia = {};
+  clases.forEach(c=>{
+    (porDia[c.fecha] = porDia[c.fecha] || []).push(c);
+  });
+
+  const primerDiaMes = new Date(y, m, 1);
+  const diasEnMes = new Date(y, m+1, 0).getDate();
+  const offsetInicio = (primerDiaMes.getDay()+6)%7; // 0=Lunes
+  const hoyStr = new Date().toISOString().slice(0,10);
+
+  let celdas = '';
+  for(let i=0;i<offsetInicio;i++){
+    celdas += `<div class="cal-cell empty"></div>`;
+  }
+  for(let dia=1; dia<=diasEnMes; dia++){
+    const fechaStr = `${y}-${String(m+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+    const clasesDia = porDia[fechaStr] || [];
+    const esHoy = fechaStr===hoyStr;
+    const colores = [...new Set(clasesDia.map(c=>c.alumnoId))].map(id=>alumnoColor(id)).slice(0,4);
+    const dots = colores.map(col=>`<span class="cal-dot" style="background:${col}"></span>`).join('');
+    celdas += `
+      <button type="button" class="cal-cell ${esHoy?'today':''} ${clasesDia.length?'has-clases':''}" onclick="abrirDiaCalendario('${fechaStr}')">
+        <span class="cal-day-num">${dia}</span>
+        <span class="cal-dots">${dots}</span>
+      </button>
+    `;
   }
 
-  cont.innerHTML = '<div class="card">' + lista.map(c=>{
-    const dur = c.duracionMin>0 ? '· '+formatDuracion(c.duracionMin) : '· sin finalizar';
+  document.getElementById('calendarioGrid').innerHTML = celdas;
+}
+
+function abrirDiaCalendario(fechaStr){
+  const clasesDia = db.clases
+    .filter(c=>c.fecha===fechaStr)
+    .sort((a,b)=> a.horaEntrada.localeCompare(b.horaEntrada));
+
+  const listaHtml = clasesDia.length ? clasesDia.map(c=>{
     const rangoHora = c.horaEntrada + (c.horaSalida ? '-'+c.horaSalida : '');
     return `
-    <div class="list-item" onclick="openClaseForm('${c.id}')" style="cursor:pointer;">
+    <div class="list-item" onclick="closeSheet(); openClaseForm('${c.id}')" style="cursor:pointer;">
       <div class="dot" style="background:${alumnoColor(c.alumnoId)}"></div>
       <div class="item-main">
         <div class="item-title">${c.serieId ? '<span class="serie-tag">🔁</span>' : ''}${escapeHtml(alumnoNombre(c.alumnoId))}</div>
-        <div class="item-sub">${fmtFecha(c.fecha)} ${rangoHora} ${dur}</div>
+        <div class="item-sub">${rangoHora}</div>
       </div>
       <div class="item-right">
         <div>${money(c.monto)}</div>
-        <button class="toggle-pill ${c.pagada?'pagada':'pendiente'}" onclick="togglePagada('${c.id}', event)">${c.pagada?'Pagada':'Pendiente'}</button>
+        <span class="badge ${c.pagada?'pagada':'pendiente'}">${c.pagada?'Pagada':'Pendiente'}</span>
       </div>
     </div>`;
-  }).join('') + '</div>';
+  }).join('') : '<div class="empty-msg">No hay clases este día 🌿</div>';
+
+  openSheet(`
+    <h3>${formatoFechaLarga(fechaStr)}</h3>
+    <div class="day-detail-list">${listaHtml}</div>
+    <button class="btn primary" onclick="closeSheet(); openClaseForm(null, '${fechaStr}')">+ Agregar clase este día</button>
+  `);
 }
 
 /* =========================================================
