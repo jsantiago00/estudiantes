@@ -6,7 +6,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#c1683d">
-<title>estudiAntes</title>
+<title>EstudiAntes</title>
 <style>
   :root{
     --bg:#f8f1e6;
@@ -109,7 +109,7 @@
   }
   .next-class-eyebrow{font-size:12px;font-weight:700;color:var(--primary-dark);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;}
   .next-class-countdown{font-family:var(--font-agenda);font-size:26px;font-weight:700;color:var(--accent-text);margin-bottom:6px;}
-  .next-class-info{font-size:14px;color:var(--text);display:flex;align-items:center;gap:6px;}
+  .next-class-info{font-size:14px;color:var(--accent-text);display:flex;align-items:center;gap:6px;}
   .next-class-info .dot{width:10px;height:10px;}
 
   .stats-esperado{
@@ -292,7 +292,11 @@
     font-size:13px;font-weight:600;color:var(--text);padding:2px;
   }
   .cal-cell.empty{background:transparent;border:none;cursor:default;}
-  .cal-cell.today{border:2px solid var(--primary);background:var(--card-grad-a);}
+  .cal-cell.today{
+    border:2px solid var(--primary);
+    background:var(--card-grad-a);
+    background:color-mix(in srgb, var(--primary) 16%, var(--card));
+  }
   .cal-cell.has-clases{background:var(--card);}
   .cal-dots{display:flex;gap:2px;min-height:6px;}
   .cal-dot{width:5px;height:5px;border-radius:50%;}
@@ -339,7 +343,7 @@
 <header class="topbar">
   <div style="display:flex;align-items:center;gap:8px;min-width:0;">
     <button class="icon-btn" id="backBtn" onclick="goTo('alumnos')" style="display:none;" aria-label="Volver">←</button>
-    <h1 id="pageTitle">estudiAntes</h1>
+    <h1 id="pageTitle">EstudiAntes</h1>
   </div>
 </header>
 
@@ -617,7 +621,7 @@ const COLOR_SWATCHES = ['#ef4444','#f97316','#f59e0b','#84cc16','#22c55e','#14b8
    NAVEGACIÓN
    ========================================================= */
 const views = ['dashboard','alumnos','clases','tareas','stats','ajustes'];
-const titles = {dashboard:'🌿 estudiAntes', alumnos:'👤 Alumnos', clases:'📅 Clases', tareas:'📝 Material a preparar', stats:'📊 Estadísticas', ajustes:'⚙️ Ajustes'};
+const titles = {dashboard:'🌿 EstudiAntes', alumnos:'👤 Alumnos', clases:'📅 Clases', tareas:'📝 Material a preparar', stats:'📊 Estadísticas', ajustes:'⚙️ Ajustes'};
 
 function goTo(view){
   currentAlumnoDetalleId = null;
@@ -2031,7 +2035,7 @@ function exportarDatos(){
   const a = document.createElement('a');
   const fecha = new Date().toISOString().slice(0,10);
   a.href = url;
-  a.download = `estudiantes_backup_${fecha}.json`;
+  a.download = `EstudiAntes_backup_${fecha}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
