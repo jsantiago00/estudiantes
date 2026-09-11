@@ -474,15 +474,23 @@ function formatDuracionTexto(min){
   if(m>0) parts.push(`${m} minutos`);
   return parts.length ? parts.join(' y ') : '0 minutos';
 }
-function horasDisponibles(){
-  const arr = [];
-  for(let h=8; h<=18; h++){
-    for(const m of [0,15,30,45]){
-      if(h===18 && m>0) continue;
-      arr.push(String(h).padStart(2,'0')+':'+String(m).padStart(2,'0'));
-    }
+const MINUTOS_OPCIONES = ['00','15','30','45'];
+function opcionesHoras(min, max, selected){
+  let html = '';
+  for(let h=min; h<=max; h++){
+    const hh = String(h).padStart(2,'0');
+    html += `<option value="${hh}" ${hh===selected?'selected':''}>${hh}</option>`;
   }
-  return arr;
+  return html;
+}
+function opcionesMinutos(selected){
+  return MINUTOS_OPCIONES.map(m=>`<option value="${m}" ${m===selected?'selected':''}>${m}</option>`).join('');
+}
+function leerHora(idHora, idMinuto){
+  const h = document.getElementById(idHora).value;
+  if(!h) return null;
+  const m = document.getElementById(idMinuto).value;
+  return h + ':' + m;
 }
 function getMonday(d){
   const date = new Date(d);
@@ -657,12 +665,10 @@ function openClaseForm(id){
   if(db.alumnos.length===0){ showToast('Primero agregá un alumno'); return; }
   const editing = id ? db.clases.find(c=>c.id===id) : null;
   const today = new Date().toISOString().slice(0,10);
-  const horas = horasDisponibles();
-  const horaEntradaSel = editing ? editing.horaEntrada : horas[0];
 
-  const horaEntradaOptions = horas.map(h=>`<option value="${h}" ${h===horaEntradaSel?'selected':''}>${h}</option>`).join('');
-  const horaSalidaOptions = `<option value="">-- Aún no terminó --</option>` +
-    horas.map(h=>`<option value="${h}" ${editing && editing.horaSalida===h?'selected':''}>${h}</option>`).join('');
+  const nowHClamped = String(Math.min(18, Math.max(8, new Date().getHours()))).padStart(2,'0');
+  const [entH, entM] = editing ? editing.horaEntrada.split(':') : [nowHClamped, '00'];
+  const [salH, salM] = (editing && editing.horaSalida) ? editing.horaSalida.split(':') : ['', '00'];
 
   const recurrenciaHtml = !editing ? `
     <div class="recurrencia-box">
@@ -694,19 +700,21 @@ function openClaseForm(id){
     <label>Alumno</label>
     <select id="f_alumnoId" onchange="recalcularMontoForm()">${alumnoOptionsHtml(editing ? editing.alumnoId : (filtroClasesAlumno!=='todos'?filtroClasesAlumno:db.alumnos[0].id))}</select>
 
+    <label>Fecha</label>
+    <input type="date" id="f_fecha" value="${editing ? editing.fecha : today}">
+
+    <label>Hora de entrada</label>
     <div class="row2">
-      <div>
-        <label>Fecha</label>
-        <input type="date" id="f_fecha" value="${editing ? editing.fecha : today}">
-      </div>
-      <div>
-        <label>Hora de entrada</label>
-        <select id="f_horaEntrada" onchange="recalcularMontoForm()">${horaEntradaOptions}</select>
-      </div>
+      <select id="f_horaEntradaH" onchange="recalcularMontoForm()">${opcionesHoras(8,18,entH)}</select>
+      <select id="f_horaEntradaM" onchange="recalcularMontoForm()">${opcionesMinutos(entM)}</select>
     </div>
 
     <label>Hora de salida</label>
-    <select id="f_horaSalida" onchange="recalcularMontoForm()">${horaSalidaOptions}</select>
+    <div class="row2">
+      <select id="f_horaSalidaH" onchange="recalcularMontoForm()">${'<option value="">-- Aún no terminó --</option>'+opcionesHoras(8,23,salH)}</select>
+      <select id="f_horaSalidaM" onchange="recalcularMontoForm()">${opcionesMinutos(salM)}</select>
+    </div>
+    <button type="button" class="btn secondary" onclick="marcarTermine()">✅ Marqué que terminé ahora</button>
     <div class="duracion-display" id="f_duracionDisplay"></div>
 
     <label>Monto a cobrar</label>
@@ -739,12 +747,23 @@ function toggleRecurrenciaPanel(){
   panel.style.display = chk.checked ? 'block' : 'none';
 }
 
+function marcarTermine(){
+  const ahora = new Date();
+  let h = ahora.getHours();
+  let m = Math.round(ahora.getMinutes()/15)*15;
+  if(m===60){ h+=1; m=0; }
+  h = Math.min(23, Math.max(8, h));
+  document.getElementById('f_horaSalidaH').value = String(h).padStart(2,'0');
+  document.getElementById('f_horaSalidaM').value = String(m).padStart(2,'0');
+  recalcularMontoForm();
+}
+
 function recalcularMontoForm(){
   const alumnoId = document.getElementById('f_alumnoId').value;
   const a = getAlumno(alumnoId);
   const tarifa = a ? Number(a.tarifa)||0 : 0;
-  const horaEntrada = document.getElementById('f_horaEntrada').value;
-  const horaSalida = document.getElementById('f_horaSalida').value;
+  const horaEntrada = leerHora('f_horaEntradaH','f_horaEntradaM');
+  const horaSalida = leerHora('f_horaSalidaH','f_horaSalidaM');
   const display = document.getElementById('f_duracionDisplay');
 
   if(!horaSalida){
@@ -763,8 +782,8 @@ function recalcularMontoForm(){
 function guardarClase(id){
   const alumnoId = document.getElementById('f_alumnoId').value;
   const fecha = document.getElementById('f_fecha').value;
-  const horaEntrada = document.getElementById('f_horaEntrada').value;
-  const horaSalida = document.getElementById('f_horaSalida').value;
+  const horaEntrada = leerHora('f_horaEntradaH','f_horaEntradaM');
+  const horaSalida = leerHora('f_horaSalidaH','f_horaSalidaM');
   const monto = parseFloat(document.getElementById('f_monto').value)||0;
   const notas = document.getElementById('f_notas').value.trim();
   const pagada = document.getElementById('f_pagada').checked;
@@ -836,8 +855,8 @@ function generarFechasRecurrencia(fechaInicioStr, frecuencia, duracionValor, dur
 
 function enviarWhatsappDesdeForm(){
   const alumnoId = document.getElementById('f_alumnoId').value;
-  const horaEntrada = document.getElementById('f_horaEntrada').value;
-  const horaSalida = document.getElementById('f_horaSalida').value;
+  const horaEntrada = leerHora('f_horaEntradaH','f_horaEntradaM');
+  const horaSalida = leerHora('f_horaSalidaH','f_horaSalidaM');
   const monto = parseFloat(document.getElementById('f_monto').value)||0;
 
   if(!horaSalida){ showToast('Definí la hora de salida primero'); return; }
