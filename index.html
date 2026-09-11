@@ -5,24 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#4f46e5">
+<meta name="theme-color" content="#c1683d">
 <title>estudiAntes</title>
 <style>
   :root{
-    --bg:#f2f3f7;
-    --card:#ffffff;
-    --text:#1c1e21;
-    --text-dim:#6b7280;
-    --primary:#4f46e5;
-    --primary-dark:#3730a3;
-    --danger:#e11d48;
-    --danger-bg:#fee2e2;
-    --ok:#16a34a;
-    --ok-bg:#dcfce7;
-    --warn:#d97706;
-    --warn-bg:#fef3c7;
-    --border:#e5e7eb;
-    --radius:14px;
+    --bg:#f8f1e6;
+    --card:#fffaf2;
+    --text:#3d2f26;
+    --text-dim:#8c7a6b;
+    --primary:#c1683d;
+    --primary-dark:#9c522e;
+    --danger:#b3453a;
+    --danger-bg:#f8e1da;
+    --ok:#6f8f51;
+    --ok-bg:#e8f0dc;
+    --warn:#c2872b;
+    --warn-bg:#faead0;
+    --border:#e9dcc7;
+    --radius:18px;
+    --font-agenda:Georgia,'Iowan Old Style','Palatino Linotype',serif;
     --safe-bottom: env(safe-area-inset-bottom, 0px);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -36,17 +37,17 @@
   }
   header.topbar{
     position:sticky;top:0;z-index:20;
-    background:var(--primary);
+    background:linear-gradient(135deg,var(--primary),var(--primary-dark));
     color:#fff;
-    padding:14px 16px;
+    padding:16px 18px;
     display:flex;align-items:center;justify-content:space-between;
-    box-shadow:0 2px 8px rgba(0,0,0,.12);
+    box-shadow:0 3px 12px rgba(120,70,30,.22);
   }
-  header.topbar h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.2px;}
+  header.topbar h1{font-family:var(--font-agenda);font-size:20px;margin:0;font-weight:700;letter-spacing:.2px;}
   header.topbar .icon-btn{
-    background:rgba(255,255,255,.15);
+    background:rgba(255,255,255,.18);
     border:none;color:#fff;
-    width:38px;height:38px;border-radius:10px;
+    width:38px;height:38px;border-radius:12px;
     font-size:18px;display:flex;align-items:center;justify-content:center;
   }
   main{padding:14px;max-width:640px;margin:0 auto;}
@@ -57,17 +58,36 @@
   .card{
     background:var(--card);
     border-radius:var(--radius);
-    padding:14px;
+    padding:16px;
     margin-bottom:12px;
-    box-shadow:0 1px 3px rgba(0,0,0,.06);
+    box-shadow:0 3px 14px rgba(120,80,40,.08);
     border:1px solid var(--border);
   }
-  .card h2{margin:0 0 10px;font-size:15px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;}
+  .card h2{margin:0 0 10px;font-size:13px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.6px;font-weight:700;}
   .card h2 .count{
     background:var(--primary);color:#fff;border-radius:20px;
     padding:1px 9px;font-size:12px;margin-left:6px;
   }
   .empty-msg{color:var(--text-dim);font-size:14px;padding:8px 2px;}
+
+  .next-class-card{
+    background:linear-gradient(135deg,#fff2df,#ffe3c4);
+    border:1px solid #f0d6ab;
+    border-radius:20px;
+    padding:16px 18px;
+    margin-bottom:14px;
+    box-shadow:0 4px 16px rgba(160,100,40,.14);
+  }
+  .next-class-eyebrow{font-size:12px;font-weight:700;color:var(--primary-dark);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;}
+  .next-class-countdown{font-family:var(--font-agenda);font-size:26px;font-weight:700;color:#7a3d1c;margin-bottom:6px;}
+  .next-class-info{font-size:14px;color:var(--text);display:flex;align-items:center;gap:6px;}
+  .next-class-info .dot{width:10px;height:10px;}
+
+  .stats-esperado{
+    background:#fff6e9;border:1px dashed var(--border);border-radius:14px;
+    padding:10px 14px;font-size:13px;color:var(--text-dim);margin-bottom:12px;
+  }
+  .stats-esperado b{color:var(--text);}
 
   .stat-row{display:flex;gap:10px;margin-bottom:12px;}
   .stat-box{
@@ -98,10 +118,10 @@
 
   nav.bottomnav{
     position:fixed;bottom:0;left:0;right:0;z-index:20;
-    background:#fff;border-top:1px solid var(--border);
+    background:var(--card);border-top:1px solid var(--border);
     display:flex;
     padding-bottom:var(--safe-bottom);
-    box-shadow:0 -2px 10px rgba(0,0,0,.06);
+    box-shadow:0 -2px 12px rgba(120,80,40,.08);
   }
   nav.bottomnav button{
     flex:1;background:none;border:none;
@@ -115,8 +135,8 @@
   .fab{
     position:fixed;right:18px;bottom:calc(84px + var(--safe-bottom));z-index:15;
     width:58px;height:58px;border-radius:50%;
-    background:var(--primary);color:#fff;border:none;
-    font-size:28px;box-shadow:0 4px 14px rgba(79,70,229,.45);
+    background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;border:none;
+    font-size:28px;box-shadow:0 4px 14px rgba(160,90,40,.4);
     display:flex;align-items:center;justify-content:center;
     line-height:0;
   }
@@ -125,51 +145,51 @@
   .filter-row{display:flex;gap:8px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px;}
   .filter-chip{
     flex-shrink:0;padding:8px 14px;border-radius:20px;border:1px solid var(--border);
-    background:#fff;font-size:13px;font-weight:600;color:var(--text-dim);white-space:nowrap;
+    background:var(--card);font-size:13px;font-weight:600;color:var(--text-dim);white-space:nowrap;
   }
   .filter-chip.active{background:var(--primary);color:#fff;border-color:var(--primary);}
 
   /* bottom sheet modal */
   .overlay{
-    position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;
+    position:fixed;inset:0;background:rgba(50,30,15,.45);z-index:50;
     display:none;align-items:flex-end;justify-content:center;
   }
   .overlay.show{display:flex;}
   .sheet{
-    background:#fff;width:100%;max-width:640px;
-    border-radius:18px 18px 0 0;
+    background:var(--card);width:100%;max-width:640px;
+    border-radius:22px 22px 0 0;
     padding:16px 16px calc(20px + var(--safe-bottom));
     max-height:88vh;overflow-y:auto;
     animation:slideup .18s ease;
   }
   @keyframes slideup{from{transform:translateY(30px);opacity:.4;}to{transform:translateY(0);opacity:1;}}
   .sheet-handle{width:40px;height:4px;background:var(--border);border-radius:4px;margin:0 auto 12px;}
-  .sheet h3{margin:0 0 14px;font-size:17px;}
+  .sheet h3{font-family:var(--font-agenda);margin:0 0 14px;font-size:19px;color:var(--primary-dark);}
 
   label{display:block;font-size:13px;font-weight:600;color:var(--text-dim);margin:12px 0 5px;}
   label:first-of-type{margin-top:0;}
   input[type=text],input[type=number],input[type=date],input[type=time],select,textarea{
     width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:10px;
-    font-size:15px;background:#fafafa;color:var(--text);font-family:inherit;
+    font-size:15px;background:#fdf9f2;color:var(--text);font-family:inherit;
   }
   textarea{resize:vertical;min-height:60px;}
-  input[type=color]{width:44px;height:36px;border:1px solid var(--border);border-radius:8px;padding:2px;background:#fff;}
+  input[type=color]{width:44px;height:36px;border:1px solid var(--border);border-radius:8px;padding:2px;background:var(--card);}
 
   .swatches{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
   .swatch{width:30px;height:30px;border-radius:50%;border:2px solid transparent;}
-  .swatch.sel{border-color:#1c1e21;}
+  .swatch.sel{border-color:var(--text);}
 
   .row2{display:flex;gap:10px;}
   .row2 > *{flex:1;}
 
   .btn{
     display:inline-flex;align-items:center;justify-content:center;gap:6px;
-    padding:12px 16px;border-radius:12px;border:none;font-size:15px;font-weight:700;
+    padding:12px 16px;border-radius:14px;border:none;font-size:15px;font-weight:700;
     width:100%;margin-top:16px;
   }
-  .btn.primary{background:var(--primary);color:#fff;}
+  .btn.primary{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;}
   .btn.primary:active{background:var(--primary-dark);}
-  .btn.secondary{background:#f0f0f3;color:var(--text);}
+  .btn.secondary{background:#f1e6d5;color:var(--text);}
   .btn.danger{background:var(--danger-bg);color:var(--danger);}
   .btn-row{display:flex;gap:10px;}
   .btn-row .btn{margin-top:16px;}
@@ -187,7 +207,7 @@
 
   .toast{
     position:fixed;left:50%;bottom:calc(90px + var(--safe-bottom));transform:translateX(-50%);
-    background:#1c1e21;color:#fff;padding:10px 18px;border-radius:30px;font-size:13px;
+    background:#3d2f26;color:#fff;padding:10px 18px;border-radius:30px;font-size:13px;
     z-index:60;opacity:0;pointer-events:none;transition:opacity .2s;
   }
   .toast.show{opacity:1;}
@@ -202,24 +222,24 @@
   .recurrencia-box{border-top:1px dashed var(--border);margin-top:16px;padding-top:6px;}
 
   .stats-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
-  .stats-nav button{background:#f0f0f3;border:none;border-radius:10px;width:40px;height:40px;font-size:18px;font-weight:700;}
-  .stats-nav .stats-label{font-weight:700;font-size:15px;text-transform:capitalize;}
+  .stats-nav button{background:#f1e6d5;border:none;border-radius:10px;width:40px;height:40px;font-size:18px;font-weight:700;color:var(--text);}
+  .stats-nav .stats-label{font-family:var(--font-agenda);font-weight:700;font-size:16px;text-transform:capitalize;color:var(--primary-dark);}
 
   .serie-tag{font-size:11px;color:var(--primary);margin-right:4px;}
 
   .tipo-option{
     flex:1;display:flex;align-items:flex-start;gap:8px;
-    background:#fafafa;border:1px solid var(--border);border-radius:10px;
+    background:#fdf9f2;border:1px solid var(--border);border-radius:10px;
     padding:10px;font-size:13px;font-weight:600;
   }
   .tipo-option input{margin-top:2px;width:18px;height:18px;flex-shrink:0;}
   .tipo-option small{font-weight:400;color:var(--text-dim);}
-  .tipo-option.sel{border-color:var(--primary);background:#eef2ff;}
+  .tipo-option.sel{border-color:var(--primary);background:#fbeee1;}
 
   .dias-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
   .dia-chip{
     padding:8px 10px;border-radius:20px;border:1px solid var(--border);
-    background:#fff;font-size:12px;font-weight:700;color:var(--text-dim);
+    background:var(--card);font-size:12px;font-weight:700;color:var(--text-dim);
   }
   .dia-chip input{display:none;}
   .dia-chip.sel{background:var(--primary);color:#fff;border-color:var(--primary);}
@@ -236,6 +256,15 @@
 
   <!-- DASHBOARD -->
   <section class="view active" id="view-dashboard">
+    <div class="next-class-card" id="nextClassCard" hidden>
+      <div class="next-class-eyebrow">⏳ Tu próxima clase</div>
+      <div class="next-class-countdown" id="nextClassCountdown">—</div>
+      <div class="next-class-info">
+        <span class="dot" id="nextClassDot"></span>
+        con <b id="nextClassAlumno"></b> · <span id="nextClassCuando"></span>
+      </div>
+    </div>
+
     <div class="stat-row">
       <div class="stat-box warn">
         <div class="num" id="statPendienteMonto">$0</div>
@@ -301,7 +330,7 @@
       </div>
       <div class="stat-box">
         <div class="num" id="statsMonto">$0</div>
-        <div class="label">Total facturado</div>
+        <div class="label">Monto dado</div>
       </div>
     </div>
     <div class="stat-row">
@@ -314,8 +343,9 @@
         <div class="label">Pendiente</div>
       </div>
     </div>
+    <div class="stats-esperado" id="statsEsperado"></div>
     <div class="card">
-      <h2>Por alumno este mes</h2>
+      <h2>Por alumno este mes (dado)</h2>
       <div id="statsPorAlumno"></div>
     </div>
   </section>
@@ -1102,6 +1132,27 @@ function renderTareas(){
 /* =========================================================
    DASHBOARD
    ========================================================= */
+function formatCuentaRegresiva(ms){
+  if(ms<=0) return '¡Es ahora!';
+  const totalMin = Math.round(ms/60000);
+  const dias = Math.floor(totalMin/1440);
+  const horas = Math.floor((totalMin%1440)/60);
+  const mins = totalMin%60;
+  if(dias>0) return `${dias} día${dias!==1?'s':''} y ${horas} hora${horas!==1?'s':''}`;
+  if(horas>0) return `${horas} hora${horas!==1?'s':''} y ${mins} min`;
+  return `${mins} min`;
+}
+
+function renderProximaClaseCountdown(c, ahora){
+  const card = document.getElementById('nextClassCard');
+  if(!c){ card.hidden = true; return; }
+  card.hidden = false;
+  document.getElementById('nextClassCountdown').textContent = formatCuentaRegresiva(fechaHoraClase(c)-ahora);
+  document.getElementById('nextClassAlumno').textContent = alumnoNombre(c.alumnoId);
+  document.getElementById('nextClassDot').style.background = alumnoColor(c.alumnoId);
+  document.getElementById('nextClassCuando').textContent = `${nombreDiaFecha(c.fecha)} · ${c.horaEntrada}`;
+}
+
 function renderDashboard(){
   const ahora = new Date();
   const hoySinHora = new Date(ahora);
@@ -1112,6 +1163,8 @@ function renderDashboard(){
     .filter(c => fechaHoraClase(c) >= ahora)
     .sort((a,b)=> fechaHoraClase(a) - fechaHoraClase(b))
     .slice(0,5);
+
+  renderProximaClaseCountdown(proximas[0], ahora);
 
   const nombreMes = ahora.toLocaleDateString('es-AR', {month:'long'});
   document.getElementById('dashProximasTitulo').textContent =
@@ -1183,7 +1236,13 @@ function cambiarMesStats(delta){
   renderStats();
 }
 
+function claseYaOcurrida(c, ahora){
+  const horaRef = c.horaSalida || c.horaEntrada;
+  return new Date(`${c.fecha}T${horaRef}`) <= ahora;
+}
+
 function renderStats(){
+  const ahora = new Date();
   const y = statsFecha.getFullYear(), m = statsFecha.getMonth();
   const label = statsFecha.toLocaleDateString('es-AR', {month:'long', year:'numeric'});
   document.getElementById('statsMesLabel').textContent = label.charAt(0).toUpperCase()+label.slice(1);
@@ -1192,19 +1251,23 @@ function renderStats(){
     const [cy,cm] = c.fecha.split('-').map(Number);
     return cy===y && (cm-1)===m;
   });
+  const clasesDadas = clasesMes.filter(c=>claseYaOcurrida(c, ahora));
 
-  const horas = clasesMes.reduce((s,c)=>s+(c.duracionMin||0),0)/60;
-  const total = clasesMes.reduce((s,c)=>s+Number(c.monto||0),0);
+  const horas = clasesDadas.reduce((s,c)=>s+(c.duracionMin||0),0)/60;
+  const dado = clasesDadas.reduce((s,c)=>s+Number(c.monto||0),0);
+  const esperado = clasesMes.reduce((s,c)=>s+Number(c.monto||0),0);
   const cobrado = clasesMes.filter(c=>c.pagada).reduce((s,c)=>s+Number(c.monto||0),0);
-  const pendiente = total-cobrado;
+  const pendiente = Math.max(0, dado-cobrado);
 
   document.getElementById('statsHoras').textContent = horas.toLocaleString('es-AR',{maximumFractionDigits:1});
-  document.getElementById('statsMonto').textContent = money(total);
+  document.getElementById('statsMonto').textContent = money(dado);
   document.getElementById('statsCobrado').textContent = money(cobrado);
   document.getElementById('statsPendiente').textContent = money(pendiente);
+  document.getElementById('statsEsperado').innerHTML =
+    `📅 Monto esperado este mes si dicto todas las clases programadas: <b>${money(esperado)}</b>`;
 
   const porAlumno = db.alumnos.map(a=>{
-    const cs = clasesMes.filter(c=>c.alumnoId===a.id);
+    const cs = clasesDadas.filter(c=>c.alumnoId===a.id);
     const h = cs.reduce((s,c)=>s+(c.duracionMin||0),0)/60;
     const mo = cs.reduce((s,c)=>s+Number(c.monto||0),0);
     return {alumno:a, horas:h, monto:mo, cantidad:cs.length};
@@ -1219,7 +1282,7 @@ function renderStats(){
       </div>
       <div class="item-right">${money(x.monto)}</div>
     </div>
-  `).join('') : '<div class="empty-msg">Sin clases este mes.</div>';
+  `).join('') : '<div class="empty-msg">Sin clases dadas este mes todavía.</div>';
 }
 
 /* =========================================================
@@ -1328,6 +1391,10 @@ function borrarTodo(){
 loadDB();
 renderAll();
 document.getElementById('fabBtn').style.display = 'none';
+
+setInterval(()=>{
+  if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
+}, 60000);
 </script>
 </body>
 </html>
