@@ -194,6 +194,18 @@
 
   .section-actions{display:flex;gap:8px;margin-bottom:12px;}
   .section-actions .btn{margin-top:0;flex:1;padding:10px;font-size:13px;}
+
+  .btn.whatsapp{background:#25D366;color:#fff;}
+  .btn.whatsapp:active{background:#1ea952;}
+  .duracion-display{font-size:13px;color:var(--text-dim);margin:4px 0 2px;min-height:16px;}
+
+  .recurrencia-box{border-top:1px dashed var(--border);margin-top:16px;padding-top:6px;}
+
+  .stats-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+  .stats-nav button{background:#f0f0f3;border:none;border-radius:10px;width:40px;height:40px;font-size:18px;font-weight:700;}
+  .stats-nav .stats-label{font-weight:700;font-size:15px;text-transform:capitalize;}
+
+  .serie-tag{font-size:11px;color:var(--primary);margin-right:4px;}
 </style>
 </head>
 <body>
@@ -214,7 +226,7 @@
       </div>
       <div class="stat-box">
         <div class="num" id="statProximas">0</div>
-        <div class="label">Próximas clases</div>
+        <div class="label">Esta semana</div>
       </div>
       <div class="stat-box">
         <div class="num" id="statTareas">0</div>
@@ -258,6 +270,39 @@
     <div id="listaTareas"></div>
   </section>
 
+  <!-- ESTADÍSTICAS -->
+  <section class="view" id="view-stats">
+    <div class="stats-nav">
+      <button onclick="cambiarMesStats(-1)" aria-label="Mes anterior">←</button>
+      <div class="stats-label" id="statsMesLabel"></div>
+      <button onclick="cambiarMesStats(1)" aria-label="Mes siguiente">→</button>
+    </div>
+    <div class="stat-row">
+      <div class="stat-box">
+        <div class="num" id="statsHoras">0</div>
+        <div class="label">Horas dadas</div>
+      </div>
+      <div class="stat-box">
+        <div class="num" id="statsMonto">$0</div>
+        <div class="label">Total facturado</div>
+      </div>
+    </div>
+    <div class="stat-row">
+      <div class="stat-box ok">
+        <div class="num" id="statsCobrado">$0</div>
+        <div class="label">Cobrado</div>
+      </div>
+      <div class="stat-box warn">
+        <div class="num" id="statsPendiente">$0</div>
+        <div class="label">Pendiente</div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Por alumno este mes</h2>
+      <div id="statsPorAlumno"></div>
+    </div>
+  </section>
+
 </main>
 
 <button class="fab" id="fabBtn">+</button>
@@ -267,6 +312,7 @@
   <button data-view="alumnos"><span class="ic">👤</span>Alumnos</button>
   <button data-view="clases"><span class="ic">📅</span>Clases</button>
   <button data-view="tareas"><span class="ic">📝</span>Tareas</button>
+  <button data-view="stats"><span class="ic">📊</span>Stats</button>
 </nav>
 
 <!-- overlay / bottom sheet -->
@@ -283,9 +329,10 @@
 const STORAGE_KEY = 'estudiantes_app_data_v1';
 
 let db = {
-  alumnos: [],  // {id, nombre, tarifa, color, activo}
-  clases:  [],  // {id, alumnoId, fecha:'YYYY-MM-DD', hora:'HH:MM', duracionMin, monto, pagada, notas}
-  tareas:  []   // {id, alumnoId|null, claseId|null, texto, hecha}
+  alumnos: [],  // {id, nombre, tarifa, color, contacto, activo}
+  clases:  [],  // {id, serieId|null, alumnoId, fecha:'YYYY-MM-DD', horaEntrada:'HH:MM', horaSalida:'HH:MM'|null, duracionMin, monto, pagada, notas}
+  tareas:  [],  // {id, alumnoId|null, claseId|null, texto, hecha}
+  config:  {tarifaMin:7000, tarifaMax:15000}
 };
 
 function uid(){
@@ -301,7 +348,17 @@ function loadDB(){
       db.alumnos = parsed.alumnos || [];
       db.clases = parsed.clases || [];
       db.tareas = parsed.tareas || [];
+      db.config = Object.assign({tarifaMin:7000, tarifaMax:15000}, parsed.config||{});
     }
+    // migración de clases con el esquema viejo (hora + duracionMin -> horaEntrada/horaSalida)
+    db.clases.forEach(c=>{
+      if(!c.horaEntrada && c.hora){
+        c.horaEntrada = c.hora;
+        c.horaSalida = c.duracionMin ? sumarMinutos(c.hora, c.duracionMin) : null;
+        delete c.hora;
+      }
+      if(c.serieId===undefined) c.serieId = null;
+    });
   }catch(e){
     console.error('Error leyendo datos', e);
   }
@@ -321,8 +378,8 @@ const COLOR_SWATCHES = ['#ef4444','#f97316','#f59e0b','#84cc16','#22c55e','#14b8
 /* =========================================================
    NAVEGACIÓN
    ========================================================= */
-const views = ['dashboard','alumnos','clases','tareas'];
-const titles = {dashboard:'estudiAntes', alumnos:'Alumnos', clases:'Clases', tareas:'Material a preparar'};
+const views = ['dashboard','alumnos','clases','tareas','stats'];
+const titles = {dashboard:'estudiAntes', alumnos:'Alumnos', clases:'Clases', tareas:'Material a preparar', stats:'Estadísticas'};
 
 function goTo(view){
   views.forEach(v=>{
@@ -332,7 +389,7 @@ function goTo(view){
     b.classList.toggle('active', b.dataset.view===view);
   });
   document.getElementById('pageTitle').textContent = titles[view];
-  document.getElementById('fabBtn').style.display = view==='dashboard' ? 'none' : 'flex';
+  document.getElementById('fabBtn').style.display = (view==='dashboard'||view==='stats') ? 'none' : 'flex';
   renderAll();
 }
 
@@ -380,7 +437,62 @@ function fmtFecha(iso){
   return `${d}/${m}/${y}`;
 }
 function fechaHoraClase(c){
-  return new Date(`${c.fecha}T${c.hora||'00:00'}`);
+  return new Date(`${c.fecha}T${c.horaEntrada||'00:00'}`);
+}
+function sumarMinutos(horaStr, minutos){
+  const [h,m] = horaStr.split(':').map(Number);
+  const total = h*60+m+minutos;
+  const hh = Math.floor(total/60)%24, mm = total%60;
+  return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');
+}
+function diffMinutos(horaA, horaB){
+  const [ha,ma] = horaA.split(':').map(Number);
+  const [hb,mb] = horaB.split(':').map(Number);
+  return (hb*60+mb) - (ha*60+ma);
+}
+function formatDuracion(min){
+  const h = Math.floor(min/60), m = min%60;
+  return `${h>0?h+'h ':''}${m>0?m+'m':''}`.trim() || '0m';
+}
+function formatDuracionTexto(min){
+  const h = Math.floor(min/60), m = min%60;
+  const parts = [];
+  if(h>0) parts.push(`${h} ${h===1?'hora':'horas'}`);
+  if(m>0) parts.push(`${m} minutos`);
+  return parts.length ? parts.join(' y ') : '0 minutos';
+}
+function horasDisponibles(){
+  const arr = [];
+  for(let h=8; h<=18; h++){
+    for(const m of [0,15,30,45]){
+      if(h===18 && m>0) continue;
+      arr.push(String(h).padStart(2,'0')+':'+String(m).padStart(2,'0'));
+    }
+  }
+  return arr;
+}
+function getMonday(d){
+  const date = new Date(d);
+  const day = date.getDay();
+  const diff = (day===0 ? -6 : 1-day);
+  date.setDate(date.getDate()+diff);
+  date.setHours(0,0,0,0);
+  return date;
+}
+function getSunday(monday){
+  const s = new Date(monday);
+  s.setDate(s.getDate()+6);
+  s.setHours(23,59,59,999);
+  return s;
+}
+function tarifaOptionsHtml(selected){
+  const min = db.config.tarifaMin, max = db.config.tarifaMax;
+  const opts = [];
+  for(let v=min; v<=max; v+=1000) opts.push(v);
+  const sel = Number(selected);
+  if(sel && !opts.includes(sel)) opts.push(sel);
+  opts.sort((a,b)=>a-b);
+  return opts.map(v=>`<option value="${v}" ${sel===v?'selected':''}>${money(v)}</option>`).join('');
 }
 
 /* =========================================================
@@ -398,7 +510,10 @@ function openAlumnoForm(id){
     <input type="text" id="f_nombre" value="${editing ? escapeAttr(editing.nombre) : ''}" placeholder="Nombre del alumno">
 
     <label>Tarifa por hora</label>
-    <input type="number" id="f_tarifa" value="${editing ? editing.tarifa : ''}" placeholder="0" min="0" step="0.01" inputmode="decimal">
+    <select id="f_tarifa">${tarifaOptionsHtml(editing ? editing.tarifa : db.config.tarifaMin)}</select>
+
+    <label>Contacto (para el mensaje de WhatsApp, opcional)</label>
+    <input type="text" id="f_contacto" value="${editing ? escapeAttr(editing.contacto||'') : ''}" placeholder="Ej: Mamá de Pepito">
 
     <label>Color identificador</label>
     <div class="row2" style="align-items:center;">
@@ -431,15 +546,16 @@ function escapeHtml(s){
 function guardarAlumno(id){
   const nombre = document.getElementById('f_nombre').value.trim();
   const tarifa = parseFloat(document.getElementById('f_tarifa').value) || 0;
+  const contacto = document.getElementById('f_contacto').value.trim();
   const color = document.getElementById('f_color').value;
 
   if(!nombre){ showToast('Poné un nombre'); return; }
 
   if(id){
     const a = getAlumno(id);
-    a.nombre = nombre; a.tarifa = tarifa; a.color = color;
+    a.nombre = nombre; a.tarifa = tarifa; a.contacto = contacto; a.color = color;
   }else{
-    db.alumnos.push({id: uid(), nombre, tarifa, color, activo:true});
+    db.alumnos.push({id: uid(), nombre, tarifa, contacto, color, activo:true});
   }
   saveDB();
   closeSheet();
@@ -506,7 +622,37 @@ function openClaseForm(id){
   if(db.alumnos.length===0){ showToast('Primero agregá un alumno'); return; }
   const editing = id ? db.clases.find(c=>c.id===id) : null;
   const today = new Date().toISOString().slice(0,10);
-  const nowHM = new Date().toTimeString().slice(0,5);
+  const horas = horasDisponibles();
+  const horaEntradaSel = editing ? editing.horaEntrada : horas[0];
+
+  const horaEntradaOptions = horas.map(h=>`<option value="${h}" ${h===horaEntradaSel?'selected':''}>${h}</option>`).join('');
+  const horaSalidaOptions = `<option value="">-- Aún no terminó --</option>` +
+    horas.map(h=>`<option value="${h}" ${editing && editing.horaSalida===h?'selected':''}>${h}</option>`).join('');
+
+  const recurrenciaHtml = !editing ? `
+    <div class="recurrencia-box">
+      <div class="checkbox-line">
+        <input type="checkbox" id="f_recurrente" onchange="toggleRecurrenciaPanel()">
+        <span>🔁 Repetir esta clase (crear una serie)</span>
+      </div>
+      <div id="recurrenciaPanel" style="display:none;">
+        <label>Frecuencia</label>
+        <select id="f_frecuencia">
+          <option value="semanal">Semanal</option>
+          <option value="quincenal">Cada 2 semanas</option>
+          <option value="mensual">Mensual</option>
+        </select>
+        <label>Repetir durante</label>
+        <div class="row2">
+          <input type="number" id="f_duracionValor" min="1" value="2" inputmode="numeric">
+          <select id="f_duracionUnidad">
+            <option value="semanas">Semanas</option>
+            <option value="meses" selected>Meses</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  ` : '';
 
   openSheet(`
     <h3>${editing ? 'Editar clase' : 'Nueva clase'}</h3>
@@ -519,24 +665,19 @@ function openClaseForm(id){
         <input type="date" id="f_fecha" value="${editing ? editing.fecha : today}">
       </div>
       <div>
-        <label>Hora</label>
-        <input type="time" id="f_hora" value="${editing ? editing.hora : nowHM}">
+        <label>Hora de entrada</label>
+        <select id="f_horaEntrada" onchange="recalcularMontoForm()">${horaEntradaOptions}</select>
       </div>
     </div>
 
-    <div class="row2">
-      <div>
-        <label>Duración (horas)</label>
-        <input type="number" id="f_durH" min="0" step="1" value="${editing ? Math.floor(editing.duracionMin/60) : 1}" oninput="recalcularMontoForm()" inputmode="numeric">
-      </div>
-      <div>
-        <label>Duración (minutos)</label>
-        <input type="number" id="f_durM" min="0" max="59" step="5" value="${editing ? editing.duracionMin%60 : 0}" oninput="recalcularMontoForm()" inputmode="numeric">
-      </div>
-    </div>
+    <label>Hora de salida</label>
+    <select id="f_horaSalida" onchange="recalcularMontoForm()">${horaSalidaOptions}</select>
+    <div class="duracion-display" id="f_duracionDisplay"></div>
 
     <label>Monto a cobrar</label>
     <input type="number" id="f_monto" min="0" step="0.01" value="${editing ? editing.monto : ''}" inputmode="decimal">
+
+    <button type="button" class="btn whatsapp" onclick="enviarWhatsappDesdeForm()">📲 Enviar resumen por WhatsApp</button>
 
     <label>Notas (opcional)</label>
     <textarea id="f_notas" placeholder="Temas vistos, observaciones...">${editing ? escapeHtml(editing.notas||'') : ''}</textarea>
@@ -546,31 +687,49 @@ function openClaseForm(id){
       <span>Ya está pagada</span>
     </div>
 
+    ${recurrenciaHtml}
+
     <div class="btn-row">
       ${editing ? `<button class="btn danger" onclick="eliminarClase('${editing.id}')">Eliminar</button>` : ''}
       <button class="btn primary" onclick="guardarClase(${editing ? `'${editing.id}'` : 'null'})">Guardar</button>
     </div>
   `);
 
-  if(!editing) recalcularMontoForm();
+  recalcularMontoForm();
+}
+
+function toggleRecurrenciaPanel(){
+  const panel = document.getElementById('recurrenciaPanel');
+  const chk = document.getElementById('f_recurrente');
+  panel.style.display = chk.checked ? 'block' : 'none';
 }
 
 function recalcularMontoForm(){
   const alumnoId = document.getElementById('f_alumnoId').value;
   const a = getAlumno(alumnoId);
-  const h = parseFloat(document.getElementById('f_durH').value)||0;
-  const m = parseFloat(document.getElementById('f_durM').value)||0;
-  const totalHoras = h + (m/60);
   const tarifa = a ? Number(a.tarifa)||0 : 0;
-  document.getElementById('f_monto').value = (tarifa*totalHoras).toFixed(2);
+  const horaEntrada = document.getElementById('f_horaEntrada').value;
+  const horaSalida = document.getElementById('f_horaSalida').value;
+  const display = document.getElementById('f_duracionDisplay');
+
+  if(!horaSalida){
+    display.textContent = 'Definí la hora de salida para calcular el monto';
+    return;
+  }
+  const durMin = diffMinutos(horaEntrada, horaSalida);
+  if(durMin<=0){
+    display.textContent = 'La hora de salida debe ser posterior a la de entrada';
+    return;
+  }
+  display.textContent = 'Duración: ' + formatDuracion(durMin);
+  document.getElementById('f_monto').value = (tarifa*(durMin/60)).toFixed(2);
 }
 
 function guardarClase(id){
   const alumnoId = document.getElementById('f_alumnoId').value;
   const fecha = document.getElementById('f_fecha').value;
-  const hora = document.getElementById('f_hora').value;
-  const h = parseInt(document.getElementById('f_durH').value)||0;
-  const m = parseInt(document.getElementById('f_durM').value)||0;
+  const horaEntrada = document.getElementById('f_horaEntrada').value;
+  const horaSalida = document.getElementById('f_horaSalida').value;
   const monto = parseFloat(document.getElementById('f_monto').value)||0;
   const notas = document.getElementById('f_notas').value.trim();
   const pagada = document.getElementById('f_pagada').checked;
@@ -578,18 +737,84 @@ function guardarClase(id){
   if(!alumnoId){ showToast('Elegí un alumno'); return; }
   if(!fecha){ showToast('Elegí una fecha'); return; }
 
-  const duracionMin = h*60+m;
+  let duracionMin = 0;
+  if(horaSalida){
+    duracionMin = diffMinutos(horaEntrada, horaSalida);
+    if(duracionMin<=0){ showToast('La hora de salida debe ser posterior a la de entrada'); return; }
+  }
 
   if(id){
     const c = db.clases.find(c=>c.id===id);
-    Object.assign(c, {alumnoId, fecha, hora, duracionMin, monto, notas, pagada});
-  }else{
-    db.clases.push({id: uid(), alumnoId, fecha, hora, duracionMin, monto, notas, pagada});
+    Object.assign(c, {alumnoId, fecha, horaEntrada, horaSalida: horaSalida||null, duracionMin, monto, notas, pagada});
+    saveDB();
+    closeSheet();
+    renderAll();
+    showToast('Clase guardada');
+    return;
   }
+
+  const recurrenteChk = document.getElementById('f_recurrente');
+  if(recurrenteChk && recurrenteChk.checked){
+    const frecuencia = document.getElementById('f_frecuencia').value;
+    const duracionValor = parseInt(document.getElementById('f_duracionValor').value)||1;
+    const duracionUnidad = document.getElementById('f_duracionUnidad').value;
+    const fechas = generarFechasRecurrencia(fecha, frecuencia, duracionValor, duracionUnidad);
+    const serieId = uid();
+    fechas.forEach(f=>{
+      db.clases.push({id: uid(), serieId, alumnoId, fecha:f, horaEntrada, horaSalida: horaSalida||null, duracionMin, monto, notas, pagada:false});
+    });
+    saveDB();
+    closeSheet();
+    renderAll();
+    showToast(`Se crearon ${fechas.length} clases`);
+    return;
+  }
+
+  db.clases.push({id: uid(), serieId:null, alumnoId, fecha, horaEntrada, horaSalida: horaSalida||null, duracionMin, monto, notas, pagada});
   saveDB();
   closeSheet();
   renderAll();
   showToast('Clase guardada');
+}
+
+function generarFechasRecurrencia(fechaInicioStr, frecuencia, duracionValor, duracionUnidad){
+  const fechas = [];
+  let cur = new Date(fechaInicioStr+'T00:00:00');
+  const finLimite = new Date(cur);
+  if(duracionUnidad==='semanas') finLimite.setDate(finLimite.getDate()+duracionValor*7);
+  else finLimite.setMonth(finLimite.getMonth()+duracionValor);
+
+  const incrementar = (d)=>{
+    const nd = new Date(d);
+    if(frecuencia==='semanal') nd.setDate(nd.getDate()+7);
+    else if(frecuencia==='quincenal') nd.setDate(nd.getDate()+14);
+    else if(frecuencia==='mensual') nd.setMonth(nd.getMonth()+1);
+    return nd;
+  };
+
+  while(cur <= finLimite){
+    fechas.push(cur.toISOString().slice(0,10));
+    cur = incrementar(cur);
+  }
+  return fechas;
+}
+
+function enviarWhatsappDesdeForm(){
+  const alumnoId = document.getElementById('f_alumnoId').value;
+  const horaEntrada = document.getElementById('f_horaEntrada').value;
+  const horaSalida = document.getElementById('f_horaSalida').value;
+  const monto = parseFloat(document.getElementById('f_monto').value)||0;
+
+  if(!horaSalida){ showToast('Definí la hora de salida primero'); return; }
+  const durMin = diffMinutos(horaEntrada, horaSalida);
+  if(durMin<=0){ showToast('Horario inválido'); return; }
+
+  const a = getAlumno(alumnoId);
+  const horasTexto = formatDuracionTexto(durMin);
+  const contacto = a.contacto ? a.contacto.trim() : '';
+  const saludo = contacto ? `Hola ${contacto}, ¿cómo estás?` : 'Hola, ¿cómo estás?';
+  const msg = `${saludo}\nYa terminamos de estudiar con ${a.nombre} por hoy, estuvimos ${horasTexto} y el total es ${money(monto)}. Cualquier cosa estoy atenta, muchas gracias!`;
+  window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
 function eliminarClase(id){
@@ -641,13 +866,14 @@ function renderClases(){
   }
 
   cont.innerHTML = '<div class="card">' + lista.map(c=>{
-    const dur = `${Math.floor(c.duracionMin/60)}h${(c.duracionMin%60)?' '+(c.duracionMin%60)+'m':''}`;
+    const dur = c.duracionMin>0 ? '· '+formatDuracion(c.duracionMin) : '· sin finalizar';
+    const rangoHora = c.horaEntrada + (c.horaSalida ? '-'+c.horaSalida : '');
     return `
     <div class="list-item" onclick="openClaseForm('${c.id}')" style="cursor:pointer;">
       <div class="dot" style="background:${alumnoColor(c.alumnoId)}"></div>
       <div class="item-main">
-        <div class="item-title">${escapeHtml(alumnoNombre(c.alumnoId))}</div>
-        <div class="item-sub">${fmtFecha(c.fecha)} ${c.hora||''} · ${dur}</div>
+        <div class="item-title">${c.serieId ? '<span class="serie-tag">🔁</span>' : ''}${escapeHtml(alumnoNombre(c.alumnoId))}</div>
+        <div class="item-sub">${fmtFecha(c.fecha)} ${rangoHora} ${dur}</div>
       </div>
       <div class="item-right">
         <div>${money(c.monto)}</div>
@@ -757,17 +983,23 @@ function renderDashboard(){
     .sort((a,b)=> fechaHoraClase(a) - fechaHoraClase(b))
     .slice(0,5);
 
-  document.getElementById('statProximas').textContent = db.clases.filter(c=>fechaHoraClase(c)>=ahora).length;
+  const monday = getMonday(ahora);
+  const sunday = getSunday(monday);
+  const clasesEstaSemana = db.clases.filter(c=>{
+    const f = new Date(c.fecha+'T00:00:00');
+    return f>=monday && f<=sunday;
+  }).length;
+  document.getElementById('statProximas').textContent = clasesEstaSemana;
 
   const proxCont = document.getElementById('dashProximas');
   proxCont.innerHTML = proximas.length ? proximas.map(c=>{
-    const dur = `${Math.floor(c.duracionMin/60)}h${(c.duracionMin%60)?' '+(c.duracionMin%60)+'m':''}`;
+    const rangoHora = c.horaEntrada + (c.horaSalida ? '-'+c.horaSalida : '');
     return `
     <div class="list-item" onclick="goTo('clases')" style="cursor:pointer;">
       <div class="dot" style="background:${alumnoColor(c.alumnoId)}"></div>
       <div class="item-main">
-        <div class="item-title">${escapeHtml(alumnoNombre(c.alumnoId))}</div>
-        <div class="item-sub">${fmtFecha(c.fecha)} ${c.hora||''} · ${dur}</div>
+        <div class="item-title">${c.serieId ? '<span class="serie-tag">🔁</span>' : ''}${escapeHtml(alumnoNombre(c.alumnoId))}</div>
+        <div class="item-sub">${fmtFecha(c.fecha)} ${rangoHora}</div>
       </div>
       <div class="item-right">${money(c.monto)}</div>
     </div>`;
@@ -808,6 +1040,55 @@ function renderDashboard(){
 }
 
 /* =========================================================
+   ESTADÍSTICAS
+   ========================================================= */
+let statsFecha = new Date();
+
+function cambiarMesStats(delta){
+  statsFecha.setMonth(statsFecha.getMonth()+delta);
+  renderStats();
+}
+
+function renderStats(){
+  const y = statsFecha.getFullYear(), m = statsFecha.getMonth();
+  const label = statsFecha.toLocaleDateString('es-AR', {month:'long', year:'numeric'});
+  document.getElementById('statsMesLabel').textContent = label.charAt(0).toUpperCase()+label.slice(1);
+
+  const clasesMes = db.clases.filter(c=>{
+    const [cy,cm] = c.fecha.split('-').map(Number);
+    return cy===y && (cm-1)===m;
+  });
+
+  const horas = clasesMes.reduce((s,c)=>s+(c.duracionMin||0),0)/60;
+  const total = clasesMes.reduce((s,c)=>s+Number(c.monto||0),0);
+  const cobrado = clasesMes.filter(c=>c.pagada).reduce((s,c)=>s+Number(c.monto||0),0);
+  const pendiente = total-cobrado;
+
+  document.getElementById('statsHoras').textContent = horas.toLocaleString('es-AR',{maximumFractionDigits:1});
+  document.getElementById('statsMonto').textContent = money(total);
+  document.getElementById('statsCobrado').textContent = money(cobrado);
+  document.getElementById('statsPendiente').textContent = money(pendiente);
+
+  const porAlumno = db.alumnos.map(a=>{
+    const cs = clasesMes.filter(c=>c.alumnoId===a.id);
+    const h = cs.reduce((s,c)=>s+(c.duracionMin||0),0)/60;
+    const mo = cs.reduce((s,c)=>s+Number(c.monto||0),0);
+    return {alumno:a, horas:h, monto:mo, cantidad:cs.length};
+  }).filter(x=>x.cantidad>0).sort((a,b)=>b.monto-a.monto);
+
+  document.getElementById('statsPorAlumno').innerHTML = porAlumno.length ? porAlumno.map(x=>`
+    <div class="list-item">
+      <div class="dot" style="background:${x.alumno.color}"></div>
+      <div class="item-main">
+        <div class="item-title">${escapeHtml(x.alumno.nombre)}</div>
+        <div class="item-sub">${x.cantidad} clase(s) · ${x.horas.toLocaleString('es-AR',{maximumFractionDigits:1})}h</div>
+      </div>
+      <div class="item-right">${money(x.monto)}</div>
+    </div>
+  `).join('') : '<div class="empty-msg">Sin clases este mes.</div>';
+}
+
+/* =========================================================
    RENDER GENERAL
    ========================================================= */
 function renderAll(){
@@ -815,6 +1096,7 @@ function renderAll(){
   renderAlumnos();
   renderClases();
   renderTareas();
+  renderStats();
 }
 
 /* =========================================================
@@ -827,6 +1109,13 @@ function openSettings(){
 
     <button class="btn primary" onclick="exportarDatos()">⬇️ Exportar datos (JSON)</button>
 
+    <label style="margin-top:18px;">Rango de tarifas (piso y techo del selector de precio)</label>
+    <div class="row2">
+      <input type="number" id="f_tarifaMin" value="${db.config.tarifaMin}" step="1000" min="0" inputmode="numeric">
+      <input type="number" id="f_tarifaMax" value="${db.config.tarifaMax}" step="1000" min="0" inputmode="numeric">
+    </div>
+    <button class="btn secondary" onclick="guardarRangoTarifas()">Guardar rango de tarifas</button>
+
     <label style="margin-top:18px;">Importar datos desde archivo</label>
     <input type="file" id="importFile" accept="application/json,.json">
     <button class="btn secondary" onclick="importarDatos()">⬆️ Importar (reemplaza los datos actuales)</button>
@@ -837,6 +1126,16 @@ function openSettings(){
 
     <button class="btn danger" style="margin-top:18px;" onclick="borrarTodo()">🗑️ Borrar todos los datos</button>
   `);
+}
+
+function guardarRangoTarifas(){
+  const min = parseInt(document.getElementById('f_tarifaMin').value)||7000;
+  const max = parseInt(document.getElementById('f_tarifaMax').value)||15000;
+  if(min>=max){ showToast('El piso debe ser menor que el techo'); return; }
+  db.config.tarifaMin = min;
+  db.config.tarifaMax = max;
+  saveDB();
+  showToast('Rango de tarifas actualizado');
 }
 
 function exportarDatos(){
@@ -867,6 +1166,7 @@ function importarDatos(){
       db.alumnos = Array.isArray(parsed.alumnos) ? parsed.alumnos : [];
       db.clases = Array.isArray(parsed.clases) ? parsed.clases : [];
       db.tareas = Array.isArray(parsed.tareas) ? parsed.tareas : [];
+      db.config = Object.assign({tarifaMin:7000, tarifaMax:15000}, parsed.config||{});
       saveDB();
       closeSheet();
       renderAll();
