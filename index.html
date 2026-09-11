@@ -206,6 +206,15 @@
   .stats-nav .stats-label{font-weight:700;font-size:15px;text-transform:capitalize;}
 
   .serie-tag{font-size:11px;color:var(--primary);margin-right:4px;}
+
+  .tipo-option{
+    flex:1;display:flex;align-items:flex-start;gap:8px;
+    background:#fafafa;border:1px solid var(--border);border-radius:10px;
+    padding:10px;font-size:13px;font-weight:600;
+  }
+  .tipo-option input{margin-top:2px;width:18px;height:18px;flex-shrink:0;}
+  .tipo-option small{font-weight:400;color:var(--text-dim);}
+  .tipo-option.sel{border-color:var(--primary);background:#eef2ff;}
 </style>
 </head>
 <body>
@@ -358,6 +367,10 @@ function loadDB(){
         delete c.hora;
       }
       if(c.serieId===undefined) c.serieId = null;
+    });
+    // migración de alumnos sin tipo definido: antes todo el mundo se trataba como "niño" (mensaje al contacto)
+    db.alumnos.forEach(a=>{
+      if(!a.tipo) a.tipo = 'nino';
     });
   }catch(e){
     console.error('Error leyendo datos', e);
@@ -512,8 +525,22 @@ function openAlumnoForm(id){
     <label>Tarifa por hora</label>
     <select id="f_tarifa">${tarifaOptionsHtml(editing ? editing.tarifa : db.config.tarifaMin)}</select>
 
-    <label>Contacto (para el mensaje de WhatsApp, opcional)</label>
-    <input type="text" id="f_contacto" value="${editing ? escapeAttr(editing.contacto||'') : ''}" placeholder="Ej: Mamá de Pepito">
+    <label>¿A quién le mando el WhatsApp?</label>
+    <div class="row2">
+      <label class="tipo-option ${(!editing || editing.tipo!=='adulto') ? 'sel':''}" id="tipoOptNino">
+        <input type="radio" name="f_tipo" value="nino" ${(!editing || editing.tipo!=='adulto') ? 'checked':''} onchange="toggleContactoField()">
+        <span>🧒 Niño/a<br><small>le escribo al padre/madre</small></span>
+      </label>
+      <label class="tipo-option ${editing && editing.tipo==='adulto' ? 'sel':''}" id="tipoOptAdulto">
+        <input type="radio" name="f_tipo" value="adulto" ${editing && editing.tipo==='adulto' ? 'checked':''} onchange="toggleContactoField()">
+        <span>🧑 Adulto<br><small>le escribo a él/ella</small></span>
+      </label>
+    </div>
+
+    <div id="contactoRow" style="display:${editing && editing.tipo==='adulto' ? 'none':'block'};">
+      <label>Contacto (madre/padre, opcional)</label>
+      <input type="text" id="f_contacto" value="${editing ? escapeAttr(editing.contacto||'') : ''}" placeholder="Ej: Mamá de Pepito">
+    </div>
 
     <label>Color identificador</label>
     <div class="row2" style="align-items:center;">
@@ -536,6 +563,13 @@ function openAlumnoForm(id){
   });
 }
 
+function toggleContactoField(){
+  const tipo = document.querySelector('input[name="f_tipo"]:checked').value;
+  document.getElementById('contactoRow').style.display = tipo==='nino' ? 'block' : 'none';
+  document.getElementById('tipoOptNino').classList.toggle('sel', tipo==='nino');
+  document.getElementById('tipoOptAdulto').classList.toggle('sel', tipo==='adulto');
+}
+
 function escapeAttr(s){
   return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
 }
@@ -546,6 +580,7 @@ function escapeHtml(s){
 function guardarAlumno(id){
   const nombre = document.getElementById('f_nombre').value.trim();
   const tarifa = parseFloat(document.getElementById('f_tarifa').value) || 0;
+  const tipo = document.querySelector('input[name="f_tipo"]:checked').value;
   const contacto = document.getElementById('f_contacto').value.trim();
   const color = document.getElementById('f_color').value;
 
@@ -553,9 +588,9 @@ function guardarAlumno(id){
 
   if(id){
     const a = getAlumno(id);
-    a.nombre = nombre; a.tarifa = tarifa; a.contacto = contacto; a.color = color;
+    a.nombre = nombre; a.tarifa = tarifa; a.tipo = tipo; a.contacto = contacto; a.color = color;
   }else{
-    db.alumnos.push({id: uid(), nombre, tarifa, contacto, color, activo:true});
+    db.alumnos.push({id: uid(), nombre, tarifa, tipo, contacto, color, activo:true});
   }
   saveDB();
   closeSheet();
@@ -591,7 +626,7 @@ function renderAlumnos(){
       <div class="list-item" style="border:none;padding:0;">
         <div class="dot" style="background:${a.color}"></div>
         <div class="item-main">
-          <div class="item-title">${escapeHtml(a.nombre)}</div>
+          <div class="item-title">${a.tipo==='adulto'?'🧑':'🧒'} ${escapeHtml(a.nombre)}</div>
           <div class="item-sub">${money(a.tarifa)}/hora</div>
         </div>
         <div class="item-right" style="color:${deuda>0?'var(--warn)':'var(--ok)'}">
@@ -811,9 +846,14 @@ function enviarWhatsappDesdeForm(){
 
   const a = getAlumno(alumnoId);
   const horasTexto = formatDuracionTexto(durMin);
-  const contacto = a.contacto ? a.contacto.trim() : '';
-  const saludo = contacto ? `Hola ${contacto}, ¿cómo estás?` : 'Hola, ¿cómo estás?';
-  const msg = `${saludo}\nYa terminamos de estudiar con ${a.nombre} por hoy, estuvimos ${horasTexto} y el total es ${money(monto)}. Cualquier cosa estoy atenta, muchas gracias!`;
+  let msg;
+  if(a.tipo === 'adulto'){
+    msg = `Hola ${a.nombre}, ¿cómo estás?\nYa terminamos de estudiar por hoy, estuvimos ${horasTexto} y el total es ${money(monto)}. Cualquier cosa estoy atenta, muchas gracias!`;
+  }else{
+    const contacto = a.contacto ? a.contacto.trim() : '';
+    const saludo = contacto ? `Hola ${contacto}, ¿cómo estás?` : 'Hola, ¿cómo estás?';
+    msg = `${saludo}\nYa terminamos de estudiar con ${a.nombre} por hoy, estuvimos ${horasTexto} y el total es ${money(monto)}. Cualquier cosa estoy atenta, muchas gracias!`;
+  }
   window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
