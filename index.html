@@ -198,6 +198,8 @@
   .checkbox-line input[type=checkbox]{width:22px;height:22px;flex-shrink:0;}
   .checkbox-line span{font-size:15px;}
   .checkbox-line.done span{text-decoration:line-through;color:var(--text-dim);}
+  .checkbox-line.done .item-title{text-decoration:line-through;color:var(--text-dim);}
+  .checkbox-line .item-main{cursor:pointer;}
 
   .toggle-pill{
     border:none;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;flex-shrink:0;
@@ -424,7 +426,8 @@ const STORAGE_KEY = 'estudiantes_app_data_v1';
 let db = {
   alumnos: [],  // {id, nombre, tarifa, color, contacto, activo}
   clases:  [],  // {id, serieId|null, alumnoId, fecha:'YYYY-MM-DD', horaEntrada:'HH:MM', horaSalida:'HH:MM'|null, duracionMin, monto, pagada, notas}
-  tareas:  [],  // {id, alumnoId|null, claseId|null, texto, hecha}
+  temas:   [],  // {id, alumnoId, nombre}
+  tareas:  [],  // {id, alumnoId|null, temaId|null, claseId|null, texto, hecha}
   config:  {tarifaMin:7000, tarifaMax:15000}
 };
 
@@ -440,6 +443,7 @@ function loadDB(){
       const parsed = JSON.parse(raw);
       db.alumnos = parsed.alumnos || [];
       db.clases = parsed.clases || [];
+      db.temas = parsed.temas || [];
       db.tareas = parsed.tareas || [];
       db.config = Object.assign({tarifaMin:7000, tarifaMax:15000}, parsed.config||{});
     }
@@ -455,6 +459,11 @@ function loadDB(){
     // migración de alumnos sin tipo definido: antes todo el mundo se trataba como "niño" (mensaje al contacto)
     db.alumnos.forEach(a=>{
       if(!a.tipo) a.tipo = 'nino';
+    });
+    // migración de tareas sin temaId/claseId definidos
+    db.tareas.forEach(t=>{
+      if(t.temaId===undefined) t.temaId = null;
+      if(t.claseId===undefined) t.claseId = null;
     });
   }catch(e){
     console.error('Error leyendo datos', e);
@@ -698,6 +707,7 @@ function eliminarAlumno(id){
   if(!confirm(msg)) return;
   db.alumnos = db.alumnos.filter(a=>a.id!==id);
   db.clases = db.clases.filter(c=>c.alumnoId!==id);
+  db.temas = db.temas.filter(te=>te.alumnoId!==id);
   db.tareas = db.tareas.filter(t=>t.alumnoId!==id);
   saveDB();
   closeSheet();
@@ -771,6 +781,15 @@ function alumnoOptionsHtml(selectedId){
   return db.alumnos.map(a=>`<option value="${a.id}" ${a.id===selectedId?'selected':''}>${escapeHtml(a.nombre)}</option>`).join('');
 }
 
+const DURACIONES_PRESET = [30,60,90,120,150,180,210,240];
+function labelDuracionPreset(min){
+  const h = Math.floor(min/60), m = min%60;
+  const partes = [];
+  if(h>0) partes.push(`${h} hora${h!==1?'s':''}`);
+  if(m>0) partes.push(`${m} minutos`);
+  return partes.join(' ');
+}
+
 function openClaseForm(id, fechaPreset){
   if(db.alumnos.length===0){ showToast('Primero agregá un alumno'); return; }
   const editing = id ? db.clases.find(c=>c.id===id) : null;
@@ -779,6 +798,16 @@ function openClaseForm(id, fechaPreset){
   const nowHClamped = String(Math.min(18, Math.max(8, new Date().getHours()))).padStart(2,'0');
   const [entH, entM] = editing ? editing.horaEntrada.split(':') : [nowHClamped, '00'];
   const [salH, salM] = (editing && editing.horaSalida) ? editing.horaSalida.split(':') : ['', '00'];
+
+  const yaTerminada = !!(editing && editing.horaSalida);
+  let presetInicial = '60', customInicial = 60;
+  if(editing){
+    if(DURACIONES_PRESET.includes(editing.duracionMin)) presetInicial = String(editing.duracionMin);
+    else if(editing.duracionMin>0){ presetInicial = 'custom'; customInicial = editing.duracionMin; }
+  }
+  const opcionesDuracionPreset = DURACIONES_PRESET
+    .map(min=>`<option value="${min}" ${String(min)===presetInicial?'selected':''}>${labelDuracionPreset(min)}</option>`).join('')
+    + `<option value="custom" ${presetInicial==='custom'?'selected':''}>Personalizada...</option>`;
 
   const hoyWeekday = new Date().getDay();
   const diasChipsHtml = DIAS_SEMANA.map(d=>`
@@ -833,12 +862,25 @@ function openClaseForm(id, fechaPreset){
       <select id="f_horaEntradaM" onchange="recalcularMontoForm()">${opcionesMinutos(entM)}</select>
     </div>
 
-    <label>Hora de salida</label>
-    <div class="row2">
-      <select id="f_horaSalidaH" onchange="recalcularMontoForm()">${'<option value="">-- Aún no terminó --</option>'+opcionesHoras(8,23,salH)}</select>
-      <select id="f_horaSalidaM" onchange="recalcularMontoForm()">${opcionesMinutos(salM)}</select>
+    <div id="duracionPrevistaBox" style="display:${yaTerminada?'none':'block'};">
+      <label>Duración prevista</label>
+      <select id="f_duracionPreset" onchange="onCambioDuracionPreset(); recalcularMontoForm();">${opcionesDuracionPreset}</select>
+      <div id="duracionCustomBox" style="display:${presetInicial==='custom'?'block':'none'};">
+        <label>Duración personalizada (minutos)</label>
+        <input type="number" id="f_duracionCustom" min="5" step="5" value="${customInicial}" oninput="recalcularMontoForm()" inputmode="numeric">
+      </div>
+      <button type="button" class="btn secondary" onclick="marcarClaseTerminada()">✅ Clase terminada</button>
     </div>
-    <button type="button" class="btn secondary" onclick="marcarTermine()">✅ Marqué que terminé ahora</button>
+
+    <div id="horaSalidaBox" style="display:${yaTerminada?'block':'none'};">
+      <label>Hora de salida</label>
+      <div class="row2">
+        <select id="f_horaSalidaH" onchange="recalcularMontoForm()">${'<option value="">-- Sin definir --</option>'+opcionesHoras(8,23,salH)}</select>
+        <select id="f_horaSalidaM" onchange="recalcularMontoForm()">${opcionesMinutos(salM)}</select>
+      </div>
+      <button type="button" class="btn secondary" onclick="marcarTermine()">✅ Marqué que terminé ahora</button>
+    </div>
+
     <div class="duracion-display" id="f_duracionDisplay"></div>
 
     <label>Monto a cobrar</label>
@@ -876,35 +918,66 @@ function toggleFrecuenciaUI(){
   document.getElementById('diasSemanaBox').style.display = val==='semanal' ? 'block' : 'none';
 }
 
-function marcarTermine(){
+function horaRedondeadaActual(){
   const ahora = new Date();
   let h = ahora.getHours();
   let m = Math.round(ahora.getMinutes()/15)*15;
   if(m===60){ h+=1; m=0; }
   h = Math.min(23, Math.max(8, h));
-  document.getElementById('f_horaSalidaH').value = String(h).padStart(2,'0');
-  document.getElementById('f_horaSalidaM').value = String(m).padStart(2,'0');
+  return {h: String(h).padStart(2,'0'), m: String(m).padStart(2,'0')};
+}
+
+function marcarTermine(){
+  const {h,m} = horaRedondeadaActual();
+  document.getElementById('f_horaSalidaH').value = h;
+  document.getElementById('f_horaSalidaM').value = m;
   recalcularMontoForm();
+}
+
+function marcarClaseTerminada(){
+  const {h,m} = horaRedondeadaActual();
+  document.getElementById('f_horaSalidaH').value = h;
+  document.getElementById('f_horaSalidaM').value = m;
+  document.getElementById('duracionPrevistaBox').style.display = 'none';
+  document.getElementById('horaSalidaBox').style.display = 'block';
+  recalcularMontoForm();
+}
+
+function onCambioDuracionPreset(){
+  const val = document.getElementById('f_duracionPreset').value;
+  document.getElementById('duracionCustomBox').style.display = val==='custom' ? 'block' : 'none';
+}
+
+function leerDuracionPreset(){
+  const val = document.getElementById('f_duracionPreset').value;
+  if(val==='custom') return parseInt(document.getElementById('f_duracionCustom').value)||0;
+  return parseInt(val)||0;
+}
+
+function enModoClaseTerminada(){
+  return document.getElementById('horaSalidaBox').style.display !== 'none';
 }
 
 function recalcularMontoForm(){
   const alumnoId = document.getElementById('f_alumnoId').value;
   const a = getAlumno(alumnoId);
   const tarifa = a ? Number(a.tarifa)||0 : 0;
-  const horaEntrada = leerHora('f_horaEntradaH','f_horaEntradaM');
-  const horaSalida = leerHora('f_horaSalidaH','f_horaSalidaM');
   const display = document.getElementById('f_duracionDisplay');
+  let durMin;
 
-  if(!horaSalida){
-    display.textContent = 'Definí la hora de salida para calcular el monto';
-    return;
+  if(enModoClaseTerminada()){
+    const horaEntrada = leerHora('f_horaEntradaH','f_horaEntradaM');
+    const horaSalida = leerHora('f_horaSalidaH','f_horaSalidaM');
+    if(!horaSalida){ display.textContent = 'Definí la hora de salida'; return; }
+    durMin = diffMinutos(horaEntrada, horaSalida);
+    if(durMin<=0){ display.textContent = 'La hora de salida debe ser posterior a la de entrada'; return; }
+    display.textContent = 'Duración real: ' + formatDuracion(durMin);
+  }else{
+    durMin = leerDuracionPreset();
+    if(durMin<=0){ display.textContent = 'Elegí una duración válida'; return; }
+    display.textContent = 'Duración prevista: ' + formatDuracion(durMin);
   }
-  const durMin = diffMinutos(horaEntrada, horaSalida);
-  if(durMin<=0){
-    display.textContent = 'La hora de salida debe ser posterior a la de entrada';
-    return;
-  }
-  display.textContent = 'Duración: ' + formatDuracion(durMin);
+
   document.getElementById('f_monto').value = (tarifa*(durMin/60)).toFixed(2);
 }
 
@@ -912,7 +985,6 @@ function guardarClase(id){
   const alumnoId = document.getElementById('f_alumnoId').value;
   const fecha = document.getElementById('f_fecha').value;
   const horaEntrada = leerHora('f_horaEntradaH','f_horaEntradaM');
-  const horaSalida = leerHora('f_horaSalidaH','f_horaSalidaM');
   const monto = parseFloat(document.getElementById('f_monto').value)||0;
   const notas = document.getElementById('f_notas').value.trim();
   const pagada = document.getElementById('f_pagada').checked;
@@ -920,10 +992,16 @@ function guardarClase(id){
   if(!alumnoId){ showToast('Elegí un alumno'); return; }
   if(!fecha){ showToast('Elegí una fecha'); return; }
 
-  let duracionMin = 0;
-  if(horaSalida){
+  let horaSalida = null;
+  let duracionMin;
+  if(enModoClaseTerminada()){
+    horaSalida = leerHora('f_horaSalidaH','f_horaSalidaM');
+    if(!horaSalida){ showToast('Definí la hora de salida'); return; }
     duracionMin = diffMinutos(horaEntrada, horaSalida);
     if(duracionMin<=0){ showToast('La hora de salida debe ser posterior a la de entrada'); return; }
+  }else{
+    duracionMin = leerDuracionPreset();
+    if(duracionMin<=0){ showToast('Elegí una duración válida'); return; }
   }
 
   if(id){
@@ -999,6 +1077,7 @@ function generarFechasRecurrencia(fechaInicioStr, frecuencia, duracionValor, dur
 }
 
 function enviarWhatsappDesdeForm(){
+  if(!enModoClaseTerminada()){ showToast('Marcá "Clase terminada" primero para poder enviar el resumen'); return; }
   const alumnoId = document.getElementById('f_alumnoId').value;
   const horaEntrada = leerHora('f_horaEntradaH','f_horaEntradaM');
   const horaSalida = leerHora('f_horaSalidaH','f_horaSalidaM');
@@ -1121,7 +1200,7 @@ function abrirDiaCalendario(fechaStr){
     .sort((a,b)=> a.horaEntrada.localeCompare(b.horaEntrada));
 
   const listaHtml = clasesDia.length ? clasesDia.map(c=>{
-    const rangoHora = c.horaEntrada + (c.horaSalida ? '-'+c.horaSalida : '');
+    const rangoHora = c.horaSalida ? `${c.horaEntrada}-${c.horaSalida}` : `${c.horaEntrada} · ${formatDuracion(c.duracionMin)} prevista`;
     return `
     <div class="list-item" onclick="closeSheet(); openClaseForm('${c.id}')" style="cursor:pointer;">
       <div class="dot" style="background:${alumnoColor(c.alumnoId)}"></div>
@@ -1148,14 +1227,53 @@ function abrirDiaCalendario(fechaStr){
    ========================================================= */
 let filtroTareasAlumno = 'todos';
 
+function temasDeAlumno(alumnoId){
+  return db.temas.filter(t=>t.alumnoId===alumnoId);
+}
+function temaNombre(id){
+  const t = db.temas.find(t=>t.id===id);
+  return t ? t.nombre : '';
+}
+function temaOptionsHtml(alumnoId, selectedId){
+  const temas = temasDeAlumno(alumnoId);
+  let html = `<option value="">-- Sin tema --</option>`;
+  html += temas.map(t=>`<option value="${t.id}" ${t.id===selectedId?'selected':''}>${escapeHtml(t.nombre)}</option>`).join('');
+  html += `<option value="__nuevo__">+ Nuevo tema...</option>`;
+  return html;
+}
+function claseOptionsHtmlParaAlumno(alumnoId, selectedId){
+  const ahora = new Date();
+  const clases = db.clases
+    .filter(c=>c.alumnoId===alumnoId && fechaHoraClase(c) >= ahora)
+    .sort((a,b)=> fechaHoraClase(a)-fechaHoraClase(b));
+  let html = `<option value="">-- Sin clase asociada --</option>`;
+  html += clases.map(c=>`<option value="${c.id}" ${c.id===selectedId?'selected':''}>${nombreDiaFecha(c.fecha)} · ${c.horaEntrada}</option>`).join('');
+  return html;
+}
+
 function openTareaForm(id){
   const editing = id ? db.tareas.find(t=>t.id===id) : null;
-  const opciones = `<option value="">General (sin alumno)</option>` + alumnoOptionsHtml(editing ? editing.alumnoId : (filtroTareasAlumno!=='todos'?filtroTareasAlumno:''));
+  const alumnoIdInicial = editing ? (editing.alumnoId||'') : (filtroTareasAlumno!=='todos'?filtroTareasAlumno:'');
+  const opciones = `<option value="">General (sin alumno)</option>` + alumnoOptionsHtml(alumnoIdInicial);
 
   openSheet(`
     <h3>${editing ? 'Editar tarea' : 'Nuevo material / tarea'}</h3>
     <label>Alumno (opcional)</label>
-    <select id="f_t_alumnoId">${opciones}</select>
+    <select id="f_t_alumnoId" onchange="actualizarTemaYClaseForm()">${opciones}</select>
+
+    <div id="temaBox" style="display:${alumnoIdInicial?'block':'none'};">
+      <label>Tema</label>
+      <select id="f_t_temaId" onchange="onCambioTema()">${temaOptionsHtml(alumnoIdInicial, editing?editing.temaId:null)}</select>
+      <div id="temaNuevoBox" style="display:none;">
+        <label>Nombre del nuevo tema</label>
+        <input type="text" id="f_t_temaNuevo" placeholder="Ej: Matemáticas">
+      </div>
+    </div>
+
+    <div id="claseBox" style="display:${alumnoIdInicial?'block':'none'};">
+      <label>Clase asociada (opcional)</label>
+      <select id="f_t_claseId">${claseOptionsHtmlParaAlumno(alumnoIdInicial, editing?editing.claseId:null)}</select>
+    </div>
 
     <label>Descripción</label>
     <textarea id="f_t_texto" placeholder="Ej: preparar ejercicios de escalas...">${editing ? escapeHtml(editing.texto) : ''}</textarea>
@@ -1167,16 +1285,48 @@ function openTareaForm(id){
   `);
 }
 
+function actualizarTemaYClaseForm(){
+  const alumnoId = document.getElementById('f_t_alumnoId').value;
+  document.getElementById('temaBox').style.display = alumnoId ? 'block' : 'none';
+  document.getElementById('claseBox').style.display = alumnoId ? 'block' : 'none';
+  if(alumnoId){
+    document.getElementById('f_t_temaId').innerHTML = temaOptionsHtml(alumnoId, null);
+    document.getElementById('temaNuevoBox').style.display = 'none';
+    document.getElementById('f_t_claseId').innerHTML = claseOptionsHtmlParaAlumno(alumnoId, null);
+  }
+}
+
+function onCambioTema(){
+  const val = document.getElementById('f_t_temaId').value;
+  document.getElementById('temaNuevoBox').style.display = val==='__nuevo__' ? 'block' : 'none';
+}
+
 function guardarTarea(id){
   const alumnoId = document.getElementById('f_t_alumnoId').value || null;
   const texto = document.getElementById('f_t_texto').value.trim();
   if(!texto){ showToast('Escribí una descripción'); return; }
 
+  let temaId = null;
+  let claseId = null;
+  if(alumnoId){
+    const temaSelVal = document.getElementById('f_t_temaId').value;
+    if(temaSelVal==='__nuevo__'){
+      const nombreNuevo = document.getElementById('f_t_temaNuevo').value.trim();
+      if(!nombreNuevo){ showToast('Escribí el nombre del nuevo tema'); return; }
+      const nuevoTema = {id: uid(), alumnoId, nombre: nombreNuevo};
+      db.temas.push(nuevoTema);
+      temaId = nuevoTema.id;
+    }else if(temaSelVal){
+      temaId = temaSelVal;
+    }
+    claseId = document.getElementById('f_t_claseId').value || null;
+  }
+
   if(id){
     const t = db.tareas.find(t=>t.id===id);
-    t.alumnoId = alumnoId; t.texto = texto;
+    t.alumnoId = alumnoId; t.temaId = temaId; t.claseId = claseId; t.texto = texto;
   }else{
-    db.tareas.push({id: uid(), alumnoId, claseId:null, texto, hecha:false});
+    db.tareas.push({id: uid(), alumnoId, temaId, claseId, texto, hecha:false});
   }
   saveDB();
   closeSheet();
@@ -1221,14 +1371,23 @@ function renderTareas(){
     return;
   }
 
-  cont.innerHTML = '<div class="card">' + lista.map(t=>`
-    <div class="checkbox-line ${t.hecha?'done':''}" style="border-bottom:1px solid var(--border);">
-      <input type="checkbox" ${t.hecha?'checked':''} onclick="toggleTarea('${t.id}', event)">
-      <span onclick="openTareaForm('${t.id}')" style="flex:1;">
-        ${t.alumnoId ? `<b>${escapeHtml(alumnoNombre(t.alumnoId))}:</b> `:''}${escapeHtml(t.texto)}
-      </span>
-    </div>
-  `).join('') + '</div>';
+  cont.innerHTML = '<div class="card">' + lista.map(t=>{
+    const claseInfo = t.claseId ? db.clases.find(c=>c.id===t.claseId) : null;
+    const partesSub = [];
+    if(t.alumnoId) partesSub.push(escapeHtml(alumnoNombre(t.alumnoId)));
+    if(t.temaId) partesSub.push(escapeHtml(temaNombre(t.temaId)));
+    if(claseInfo) partesSub.push(`Clase: ${nombreDiaFecha(claseInfo.fecha)}`);
+    const subLine = partesSub.length ? `<div class="item-sub">${partesSub.join(' · ')}</div>` : '';
+
+    return `
+    <div class="checkbox-line ${t.hecha?'done':''}" style="border-bottom:1px solid var(--border);align-items:flex-start;">
+      <input type="checkbox" ${t.hecha?'checked':''} onclick="toggleTarea('${t.id}', event)" style="margin-top:2px;">
+      <div class="item-main" onclick="openTareaForm('${t.id}')">
+        <div class="item-title">${escapeHtml(t.texto)}</div>
+        ${subLine}
+      </div>
+    </div>`;
+  }).join('') + '</div>';
 }
 
 /* =========================================================
@@ -1282,7 +1441,7 @@ function renderDashboard(){
 
   const proxCont = document.getElementById('dashProximas');
   proxCont.innerHTML = proximas.length ? proximas.map(c=>{
-    const rangoHora = c.horaEntrada + (c.horaSalida ? '-'+c.horaSalida : '');
+    const rangoHora = c.horaSalida ? `${c.horaEntrada}-${c.horaSalida}` : `${c.horaEntrada} · ${formatDuracion(c.duracionMin)} prevista`;
     return `
     <div class="list-item" onclick="goTo('clases')" style="cursor:pointer;">
       <div class="dot" style="background:${alumnoColor(c.alumnoId)}"></div>
@@ -1420,7 +1579,7 @@ function openSettings(){
     <button class="btn secondary" onclick="importarDatos()">⬆️ Importar (reemplaza los datos actuales)</button>
 
     <div style="margin-top:18px;border-top:1px solid var(--border);padding-top:14px;">
-      <div style="font-size:13px;color:var(--text-dim);">Alumnos: ${db.alumnos.length} · Clases: ${db.clases.length} · Tareas: ${db.tareas.length}</div>
+      <div style="font-size:13px;color:var(--text-dim);">Alumnos: ${db.alumnos.length} · Clases: ${db.clases.length} · Temas: ${db.temas.length} · Tareas: ${db.tareas.length}</div>
     </div>
 
     <button class="btn danger" style="margin-top:18px;" onclick="borrarTodo()">🗑️ Borrar todos los datos</button>
@@ -1464,6 +1623,7 @@ function importarDatos(){
       if(!confirm('Esto reemplazará TODOS tus datos actuales. ¿Continuar?')) return;
       db.alumnos = Array.isArray(parsed.alumnos) ? parsed.alumnos : [];
       db.clases = Array.isArray(parsed.clases) ? parsed.clases : [];
+      db.temas = Array.isArray(parsed.temas) ? parsed.temas : [];
       db.tareas = Array.isArray(parsed.tareas) ? parsed.tareas : [];
       db.config = Object.assign({tarifaMin:7000, tarifaMax:15000}, parsed.config||{});
       saveDB();
@@ -1480,7 +1640,7 @@ function importarDatos(){
 function borrarTodo(){
   if(!confirm('Esto borra TODOS los alumnos, clases y tareas. ¿Estás seguro?')) return;
   if(!confirm('Última confirmación: se perderá todo lo que no hayas exportado. ¿Continuar?')) return;
-  db.alumnos = []; db.clases = []; db.tareas = [];
+  db.alumnos = []; db.clases = []; db.temas = []; db.tareas = [];
   saveDB();
   closeSheet();
   renderAll();
