@@ -269,6 +269,13 @@
   .cal-dot{width:5px;height:5px;border-radius:50%;}
 
   .day-detail-list{max-height:52vh;overflow-y:auto;margin-bottom:6px;}
+  .dia-clase-block{border-bottom:1px solid var(--border);padding-bottom:6px;margin-bottom:6px;}
+  .dia-clase-block:last-child{border-bottom:none;}
+  .dia-clase-block .list-item{border-bottom:none;padding-bottom:2px;}
+  .clase-tareas{padding:0 4px 2px 34px;}
+  .clase-tareas .checkbox-line{padding:4px 0;}
+  .clase-tareas .checkbox-line input[type=checkbox]{width:18px;height:18px;}
+  .clase-tareas .checkbox-line.done span{text-decoration:line-through;color:var(--text-dim);}
 
   body::before{
     content:'';position:fixed;top:-90px;right:-70px;width:240px;height:240px;
@@ -732,7 +739,8 @@ function renderAlumnos(){
           <div class="item-sub">${money(a.tarifa)}/hora</div>
         </div>
         <div class="item-right" style="color:${deuda>0?'var(--warn)':'var(--ok)'}">
-          ${deuda>0 ? money(deuda) : 'Al día'}
+          <div style="font-size:11px;font-weight:600;">${deuda>0?'Pendiente':'Al día'}</div>
+          ${deuda>0 ? `<div>${money(deuda)}</div>` : ''}
         </div>
       </div>
     </div>`;
@@ -740,8 +748,9 @@ function renderAlumnos(){
 }
 
 function sumaPendiente(alumnoId){
+  const ahora = new Date();
   return db.clases
-    .filter(c=>c.alumnoId===alumnoId && !c.pagada)
+    .filter(c=>c.alumnoId===alumnoId && !c.pagada && claseYaOcurrida(c, ahora))
     .reduce((s,c)=>s+Number(c.monto||0),0);
 }
 
@@ -1201,17 +1210,31 @@ function abrirDiaCalendario(fechaStr){
 
   const listaHtml = clasesDia.length ? clasesDia.map(c=>{
     const rangoHora = c.horaSalida ? `${c.horaEntrada}-${c.horaSalida}` : `${c.horaEntrada} · ${formatDuracion(c.duracionMin)} prevista`;
+    const tareasClase = db.tareas.filter(t=>t.claseId===c.id);
+    const tareasHtml = tareasClase.length ? `
+      <div class="clase-tareas">
+        ${tareasClase.map(t=>`
+          <div class="checkbox-line ${t.hecha?'done':''}" style="padding:4px 0;">
+            <input type="checkbox" ${t.hecha?'checked':''} onclick="toggleTarea('${t.id}', event); abrirDiaCalendario('${fechaStr}')">
+            <span style="font-size:13px;">${t.temaId ? `<b>${escapeHtml(temaNombre(t.temaId))}:</b> ` : '📌 '}${escapeHtml(t.texto)}</span>
+          </div>
+        `).join('')}
+      </div>
+    ` : '';
     return `
-    <div class="list-item" onclick="closeSheet(); openClaseForm('${c.id}')" style="cursor:pointer;">
-      <div class="dot" style="background:${alumnoColor(c.alumnoId)}"></div>
-      <div class="item-main">
-        <div class="item-title">${c.serieId ? '<span class="serie-tag">🔁</span>' : ''}${escapeHtml(alumnoNombre(c.alumnoId))}</div>
-        <div class="item-sub">${rangoHora}</div>
+    <div class="dia-clase-block">
+      <div class="list-item" onclick="closeSheet(); openClaseForm('${c.id}')" style="cursor:pointer;">
+        <div class="dot" style="background:${alumnoColor(c.alumnoId)}"></div>
+        <div class="item-main">
+          <div class="item-title">${c.serieId ? '<span class="serie-tag">🔁</span>' : ''}${escapeHtml(alumnoNombre(c.alumnoId))}</div>
+          <div class="item-sub">${rangoHora}</div>
+        </div>
+        <div class="item-right">
+          <div>${money(c.monto)}</div>
+          <span class="badge ${c.pagada?'pagada':'pendiente'}">${c.pagada?'Pagada':'Pendiente'}</span>
+        </div>
       </div>
-      <div class="item-right">
-        <div>${money(c.monto)}</div>
-        <span class="badge ${c.pagada?'pagada':'pendiente'}">${c.pagada?'Pagada':'Pendiente'}</span>
-      </div>
+      ${tareasHtml}
     </div>`;
   }).join('') : '<div class="empty-msg">No hay clases este día 🌿</div>';
 
