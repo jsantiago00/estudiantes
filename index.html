@@ -6,6 +6,11 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#c1683d">
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
 <title>EstudiAntes</title>
 <style>
   :root{
@@ -336,6 +341,29 @@
   .paleta-swatch.sel{border-color:var(--text);}
 
   .ajustes-desc{color:var(--text-dim);font-size:13px;margin:0 0 10px;}
+
+  .tutorial-overlay{
+    position:fixed;inset:0;background:var(--overlay-bg);z-index:100;
+    display:none;align-items:center;justify-content:center;padding:20px;
+  }
+  .tutorial-overlay.show{display:flex;}
+  .tutorial-card{
+    background:var(--card);border-radius:22px;padding:30px 22px 22px;
+    max-width:380px;width:100%;text-align:center;position:relative;
+    box-shadow:0 10px 40px rgba(0,0,0,.25);animation:slideup .18s ease;
+  }
+  .tutorial-skip{
+    position:absolute;top:14px;right:14px;background:none;border:none;
+    color:var(--text-dim);font-size:13px;font-weight:600;padding:6px 8px;
+  }
+  .tutorial-icon{font-size:52px;margin-bottom:10px;line-height:1;}
+  .tutorial-title{font-family:var(--font-agenda);font-size:20px;color:var(--primary-dark);margin:0 0 10px;}
+  .tutorial-desc{font-size:14px;color:var(--text);line-height:1.55;margin:0 0 20px;}
+  .tutorial-dots{display:flex;gap:6px;justify-content:center;margin-bottom:20px;}
+  .tutorial-dot{width:7px;height:7px;border-radius:50%;background:var(--border);transition:width .15s;}
+  .tutorial-dot.active{background:var(--primary);width:18px;border-radius:4px;}
+  .tutorial-nav{display:flex;gap:10px;}
+  .tutorial-nav .btn{margin-top:0;}
 </style>
 </head>
 <body>
@@ -509,6 +537,12 @@
     </div>
 
     <div class="card">
+      <h2>❓ Ayuda</h2>
+      <p class="ajustes-desc">¿Te olvidaste cómo se usa alguna parte? Volvé a ver la introducción rápida.</p>
+      <button type="button" class="btn secondary" onclick="mostrarTutorial()">Ver el tutorial otra vez</button>
+    </div>
+
+    <div class="card">
       <h2>💾 Datos</h2>
       <p class="ajustes-desc">Tus datos se guardan solo en este dispositivo (localStorage). Exportá un respaldo periódicamente por si cambiás de celular o borrás el navegador.</p>
       <button type="button" class="btn primary" onclick="exportarDatos()">⬇️ Exportar datos (JSON)</button>
@@ -543,6 +577,21 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- tutorial de bienvenida -->
+<div class="tutorial-overlay" id="tutorialOverlay">
+  <div class="tutorial-card">
+    <button type="button" class="tutorial-skip" id="tutorialSkipBtn" onclick="cerrarTutorial()">Saltar</button>
+    <div class="tutorial-icon" id="tutorialIcon">🌿</div>
+    <h2 class="tutorial-title" id="tutorialTitle"></h2>
+    <p class="tutorial-desc" id="tutorialDesc"></p>
+    <div class="tutorial-dots" id="tutorialDots"></div>
+    <div class="tutorial-nav">
+      <button type="button" class="btn secondary" id="tutorialBackBtn" onclick="tutorialPaso(-1)">Atrás</button>
+      <button type="button" class="btn primary" id="tutorialNextBtn" onclick="tutorialPaso(1)">Siguiente</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* =========================================================
    ESTRUCTURA DE DATOS
@@ -554,7 +603,7 @@ let db = {
   clases:  [],  // {id, serieId|null, alumnoId, fecha:'YYYY-MM-DD', horaEntrada:'HH:MM', horaSalida:'HH:MM'|null, duracionMin, monto, pagada, notas}
   temas:   [],  // {id, nombre} -- temas globales del profesor, se vinculan a alumnos vía alumno.temasIds
   tareas:  [],  // {id, alumnoId|null, temaId|null, claseId|null, texto, hecha}
-  config:  {tarifaMin:7000, tarifaMax:15000, paleta:'tierra', modoOscuro:false}
+  config:  {tarifaMin:7000, tarifaMax:15000, paleta:'tierra', modoOscuro:false, tutorialVisto:false}
 };
 
 function uid(){
@@ -571,7 +620,7 @@ function loadDB(){
       db.clases = parsed.clases || [];
       db.temas = parsed.temas || [];
       db.tareas = parsed.tareas || [];
-      db.config = Object.assign({tarifaMin:7000, tarifaMax:15000, paleta:'tierra', modoOscuro:false}, parsed.config||{});
+      db.config = Object.assign({tarifaMin:7000, tarifaMax:15000, paleta:'tierra', modoOscuro:false, tutorialVisto:false}, parsed.config||{});
     }
     // migración de clases con el esquema viejo (hora + duracionMin -> horaEntrada/horaSalida)
     db.clases.forEach(c=>{
@@ -2057,7 +2106,7 @@ function importarDatos(){
       db.clases = Array.isArray(parsed.clases) ? parsed.clases : [];
       db.temas = Array.isArray(parsed.temas) ? parsed.temas : [];
       db.tareas = Array.isArray(parsed.tareas) ? parsed.tareas : [];
-      db.config = Object.assign({tarifaMin:7000, tarifaMax:15000, paleta:'tierra', modoOscuro:false}, parsed.config||{});
+      db.config = Object.assign({tarifaMin:7000, tarifaMax:15000, paleta:'tierra', modoOscuro:false, tutorialVisto:false}, parsed.config||{});
       db.alumnos.forEach(a=>{ if(!Array.isArray(a.temasIds)) a.temasIds = []; });
       saveDB();
       aplicarPaleta();
@@ -2081,6 +2130,49 @@ function borrarTodo(){
 }
 
 /* =========================================================
+   TUTORIAL DE BIENVENIDA
+   ========================================================= */
+const TUTORIAL_PASOS = [
+  {icon:'🌿', titulo:'¡Bienvenido/a a EstudiAntes!', desc:'Organizá tus clases particulares: alumnos, horarios, pagos y tareas, todo en un solo lugar. Tus datos se guardan solo en este dispositivo.'},
+  {icon:'👤', titulo:'Cargá tus alumnos', desc:'Agregá cada alumno con su tarifa por hora, un color identificador y los temas que le das. Desde su ficha vas a ver sus próximas clases y lo que le falta.'},
+  {icon:'📅', titulo:'Organizá tus clases', desc:'Tocá un día del calendario para agregar o ver clases. Podés crearlas recurrentes (semanales, quincenales o mensuales) y marcarlas como pagadas de a una o todas juntas.'},
+  {icon:'📝', titulo:'Anotá el material a preparar', desc:'Cargá tareas o temas pendientes por alumno para no olvidarte de qué preparar antes de cada clase.'},
+  {icon:'🏠', titulo:'Todo de un vistazo', desc:'En Inicio ves tu próxima clase, cuánto te deben y qué falta preparar. En Estadísticas, cuánto diste y cobraste cada mes.'},
+  {icon:'⚙️', titulo:'Hacela tuya', desc:'En Ajustes podés elegir una paleta de color, activar el modo oscuro y exportar tus datos como respaldo cuando quieras.'}
+];
+let tutorialPasoActual = 0;
+
+function mostrarTutorial(){
+  tutorialPasoActual = 0;
+  renderTutorialPaso();
+  document.getElementById('tutorialOverlay').classList.add('show');
+}
+
+function renderTutorialPaso(){
+  const paso = TUTORIAL_PASOS[tutorialPasoActual];
+  document.getElementById('tutorialIcon').textContent = paso.icon;
+  document.getElementById('tutorialTitle').textContent = paso.titulo;
+  document.getElementById('tutorialDesc').textContent = paso.desc;
+  document.getElementById('tutorialDots').innerHTML = TUTORIAL_PASOS.map((_,i)=>
+    `<div class="tutorial-dot ${i===tutorialPasoActual?'active':''}"></div>`
+  ).join('');
+  document.getElementById('tutorialBackBtn').style.visibility = tutorialPasoActual===0 ? 'hidden' : 'visible';
+  document.getElementById('tutorialNextBtn').textContent = tutorialPasoActual===TUTORIAL_PASOS.length-1 ? 'Empezar' : 'Siguiente';
+}
+
+function tutorialPaso(dir){
+  if(dir>0 && tutorialPasoActual===TUTORIAL_PASOS.length-1){ cerrarTutorial(); return; }
+  tutorialPasoActual = Math.min(TUTORIAL_PASOS.length-1, Math.max(0, tutorialPasoActual+dir));
+  renderTutorialPaso();
+}
+
+function cerrarTutorial(){
+  document.getElementById('tutorialOverlay').classList.remove('show');
+  db.config.tutorialVisto = true;
+  saveDB();
+}
+
+/* =========================================================
    INIT
    ========================================================= */
 loadDB();
@@ -2088,6 +2180,7 @@ aplicarPaleta();
 aplicarModoOscuro();
 renderAll();
 document.getElementById('fabBtn').style.display = 'none';
+if(!db.config.tutorialVisto) mostrarTutorial();
 
 setInterval(()=>{
   if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
