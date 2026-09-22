@@ -1,7 +1,17 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-palette="terracota">
 <head>
 <meta charset="UTF-8">
+<script>
+(function(){
+  try {
+    var p = localStorage.getItem('estudiantes_palette_v1');
+    if (p) document.documentElement.setAttribute('data-palette', p);
+    var t = localStorage.getItem('estudiantes_theme_v1');
+    if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+  } catch (e) {}
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -11,80 +21,116 @@
 <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 <title>EstudiAntes</title>
 <style>
   :root{
-    --bg:#f8f1e6;
-    --card:#fffaf2;
-    --text:#3d2f26;
-    --text-dim:#8c7a6b;
-    --primary:#c1683d;
-    --primary-dark:#9c522e;
-    --danger:#b3453a;
-    --danger-bg:#f8e1da;
-    --ok:#6f8f51;
-    --ok-bg:#e8f0dc;
-    --warn:#c2872b;
-    --warn-bg:#faead0;
-    --border:#e9dcc7;
     --radius:18px;
-    --font-agenda:Georgia,'Iowan Old Style','Palatino Linotype',serif;
+    --font-agenda:'Fraunces',Georgia,'Iowan Old Style','Palatino Linotype',serif;
     --safe-bottom: env(safe-area-inset-bottom, 0px);
-
-    --input-bg:#fdf9f2;
-    --btn-secondary-bg:#f1e6d5;
-    --soft-tint-bg:#fbeee1;
     --overlay-bg:rgba(50,30,15,.45);
-
-    /* tokens que cambian según la paleta elegida (ver PALETAS en JS) */
-    --card-grad-a:#fff2df;
-    --card-grad-b:#ffe3c4;
-    --accent-text:#7a3d1c;
-    --blob-1:#f2ddba;
-    --blob-2:#f6e7cf;
-    --blob-opacity:1;
   }
 
-  :root[data-theme="dark"]{
-    --bg:#201914;
-    --card:#2c231d;
-    --text:#f1e8dd;
-    --text-dim:#b3a191;
-    --danger-bg:#4a2620;
-    --ok-bg:#25321f;
-    --warn-bg:#3d2f14;
-    --border:#463a2f;
-    --input-bg:#241d18;
-    --btn-secondary-bg:#3a3128;
-    --soft-tint-bg:#3a2a20;
-    --overlay-bg:rgba(0,0,0,.6);
-    --blob-opacity:.18;
+  /* Terracota */
+  :root[data-palette="terracota"]{
+    --bg:#faf3ea; --card:#ffffff; --text:#3a2b22; --text-dim:#8a7360; --border:#e8d8c3;
+    --primary:#c1673b; --primary-dark:#a34f28;
+    --ok:#6b8f4e; --ok-bg:#e8f0dd; --warn:#c98a2c; --warn-bg:#fbeed7; --danger:#c1453a; --danger-bg:#f8e1de;
+    --input-bg:#f3e7d8; --btn-secondary-bg:#f3e7d8; --soft-tint-bg:#f3e7d8;
+  }
+  /* Salvia */
+  :root[data-palette="salvia"]{
+    --bg:#f4f6f1; --card:#ffffff; --text:#2b332a; --text-dim:#71806c; --border:#dbe4d3;
+    --primary:#6f8f5c; --primary-dark:#556e46;
+    --ok:#4f8f5e; --ok-bg:#e2f0e2; --warn:#b98a3a; --warn-bg:#f6ecd8; --danger:#b85c4d; --danger-bg:#f6e2dd;
+    --input-bg:#e9efe2; --btn-secondary-bg:#e9efe2; --soft-tint-bg:#e9efe2;
+  }
+  /* Lavanda */
+  :root[data-palette="lavanda"]{
+    --bg:#f6f3f8; --card:#ffffff; --text:#322b3a; --text-dim:#7d7189; --border:#ddd2e6;
+    --primary:#8067a8; --primary-dark:#6a5290;
+    --ok:#5a9470; --ok-bg:#e2f0e7; --warn:#bd8a3f; --warn-bg:#f6edd9; --danger:#b3576b; --danger-bg:#f5e0e5;
+    --input-bg:#ece5f1; --btn-secondary-bg:#ece5f1; --soft-tint-bg:#ece5f1;
+  }
+
+  @media (prefers-color-scheme: dark){
+    :root[data-palette="terracota"]:not([data-theme="light"]){
+      --bg:#211a15; --card:#2c2119; --text:#f1e4d6; --text-dim:#b6a08a; --border:#4a392c;
+      --primary:#e08a5b; --primary-dark:#c1673b;
+      --ok:#8fb96b; --ok-bg:#2c3a22; --warn:#e0aa53; --warn-bg:#3e2f14; --danger:#e0776a; --danger-bg:#3e211d;
+      --input-bg:#382a1f; --btn-secondary-bg:#382a1f; --soft-tint-bg:#382a1f; --overlay-bg:rgba(0,0,0,.6);
+    }
+    :root[data-palette="salvia"]:not([data-theme="light"]){
+      --bg:#171c15; --card:#212820; --text:#e6ede1; --text-dim:#a2b099; --border:#3a4535;
+      --primary:#93b97e; --primary-dark:#6f8f5c;
+      --ok:#7cbf87; --ok-bg:#223829; --warn:#d4a75d; --warn-bg:#3e3018; --danger:#d68a78; --danger-bg:#3e2622;
+      --input-bg:#2a3327; --btn-secondary-bg:#2a3327; --soft-tint-bg:#2a3327; --overlay-bg:rgba(0,0,0,.6);
+    }
+    :root[data-palette="lavanda"]:not([data-theme="light"]){
+      --bg:#1c1721; --card:#26202c; --text:#ece6f0; --text-dim:#ab9fb8; --border:#453a4f;
+      --primary:#ab8ed4; --primary-dark:#8067a8;
+      --ok:#7fbf96; --ok-bg:#223a2c; --warn:#d9ac60; --warn-bg:#3e2f16; --danger:#d98297; --danger-bg:#3e2028;
+      --input-bg:#322a3a; --btn-secondary-bg:#322a3a; --soft-tint-bg:#322a3a; --overlay-bg:rgba(0,0,0,.6);
+    }
+  }
+  :root[data-palette="terracota"][data-theme="dark"]{
+    --bg:#211a15; --card:#2c2119; --text:#f1e4d6; --text-dim:#b6a08a; --border:#4a392c;
+    --primary:#e08a5b; --primary-dark:#c1673b;
+    --ok:#8fb96b; --ok-bg:#2c3a22; --warn:#e0aa53; --warn-bg:#3e2f14; --danger:#e0776a; --danger-bg:#3e211d;
+    --input-bg:#382a1f; --btn-secondary-bg:#382a1f; --soft-tint-bg:#382a1f; --overlay-bg:rgba(0,0,0,.6);
+  }
+  :root[data-palette="salvia"][data-theme="dark"]{
+    --bg:#171c15; --card:#212820; --text:#e6ede1; --text-dim:#a2b099; --border:#3a4535;
+    --primary:#93b97e; --primary-dark:#6f8f5c;
+    --ok:#7cbf87; --ok-bg:#223829; --warn:#d4a75d; --warn-bg:#3e3018; --danger:#d68a78; --danger-bg:#3e2622;
+    --input-bg:#2a3327; --btn-secondary-bg:#2a3327; --soft-tint-bg:#2a3327; --overlay-bg:rgba(0,0,0,.6);
+  }
+  :root[data-palette="lavanda"][data-theme="dark"]{
+    --bg:#1c1721; --card:#26202c; --text:#ece6f0; --text-dim:#ab9fb8; --border:#453a4f;
+    --primary:#ab8ed4; --primary-dark:#8067a8;
+    --ok:#7fbf96; --ok-bg:#223a2c; --warn:#d9ac60; --warn-bg:#3e2f16; --danger:#d98297; --danger-bg:#3e2028;
+    --input-bg:#322a3a; --btn-secondary-bg:#322a3a; --soft-tint-bg:#322a3a; --overlay-bg:rgba(0,0,0,.6);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;}
   body{
     background:var(--bg);
     color:var(--text);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    padding-bottom:calc(72px + var(--safe-bottom));
+    font-family:'Nunito',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    padding-bottom:calc(90px + var(--safe-bottom));
     min-height:100vh;
   }
-  header.topbar{
+  header.app-header{
+    background:var(--card);
+    padding:14px 16px calc(10px + env(safe-area-inset-top, 0px));
+    padding-top:calc(14px + env(safe-area-inset-top, 0px));
+    border-bottom:1px solid var(--border);
     position:sticky;top:0;z-index:20;
-    background:linear-gradient(135deg,var(--primary),var(--primary-dark));
-    color:#fff;
-    padding:16px 18px;
-    display:flex;align-items:center;justify-content:space-between;
-    box-shadow:0 3px 12px rgba(120,70,30,.22);
+    display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
   }
-  header.topbar h1{font-family:var(--font-agenda);font-size:20px;margin:0;font-weight:700;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  header.topbar .icon-btn{
-    background:rgba(255,255,255,.18);
-    border:none;color:#fff;
-    width:38px;height:38px;border-radius:12px;
-    font-size:18px;display:flex;align-items:center;justify-content:center;
+  header.app-header .header-text{min-width:0;display:flex;align-items:center;gap:8px;}
+  header.app-header .icon-btn{
+    background:var(--btn-secondary-bg);border:none;color:var(--text);
+    width:32px;height:32px;border-radius:10px;flex-shrink:0;
+    font-size:16px;display:flex;align-items:center;justify-content:center;
   }
-  main{padding:14px;max-width:640px;margin:0 auto;}
+  header.app-header h1{margin:0;font-family:var(--font-agenda);font-size:22px;font-weight:600;color:var(--primary-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  header.app-header .sub{margin:2px 0 0;font-size:12.5px;color:var(--text-dim);}
+  .theme-switch{display:flex;gap:7px;flex-shrink:0;margin-top:3px;}
+  .theme-switch button{
+    width:22px;height:22px;border-radius:50%;border:2px solid var(--card);
+    box-shadow:0 0 0 1px var(--border);padding:0;cursor:pointer;
+  }
+  .theme-switch button.active{box-shadow:0 0 0 2px var(--text);}
+  .header-controls{display:flex;flex-direction:column;align-items:flex-end;gap:7px;flex-shrink:0;}
+  .mode-toggle{
+    border:1px solid var(--border);background:var(--btn-secondary-bg);color:var(--text);
+    width:26px;height:26px;border-radius:50%;font-size:12.5px;line-height:1;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;padding:0;
+  }
+  main{padding:12px 16px 24px;max-width:640px;margin:0 auto;}
   section.view{display:none;}
   section.view.active{display:block;animation:fadein .15s ease;}
   @keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
@@ -94,7 +140,7 @@
     border-radius:var(--radius);
     padding:16px;
     margin-bottom:12px;
-    box-shadow:0 3px 14px rgba(120,80,40,.08);
+    box-shadow:0 2px 10px rgba(0,0,0,.04);
     border:1px solid var(--border);
   }
   .card h2{margin:0 0 10px;font-size:13px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.6px;font-weight:700;}
@@ -105,19 +151,32 @@
   .empty-msg{color:var(--text-dim);font-size:14px;padding:8px 2px;}
 
   .next-class-card{
-    background:linear-gradient(135deg,var(--card-grad-a),var(--card-grad-b));
-    border:1px solid var(--border);
+    background:linear-gradient(150deg,var(--primary),var(--primary-dark));
+    color:#fff;
     border-radius:20px;
     padding:16px 18px;
-    margin-bottom:14px;
-    box-shadow:0 4px 16px rgba(160,100,40,.14);
+    margin:14px 16px 0;
+    position:relative;overflow:hidden;
+    box-shadow:0 8px 20px -8px var(--primary-dark);
   }
-  .next-class-eyebrow{font-size:12px;font-weight:700;color:var(--primary-dark);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;}
-  .next-class-countdown{font-family:var(--font-agenda);font-size:26px;font-weight:700;color:var(--accent-text);margin-bottom:6px;}
-  .next-class-info{font-size:14px;color:var(--accent-text);display:flex;align-items:center;gap:6px;}
+  .next-class-card::after{
+    content:'';position:absolute;top:-40px;right:-40px;width:140px;height:140px;
+    border-radius:50%;background:rgba(255,255,255,.08);pointer-events:none;
+  }
+  .next-class-card.empty{
+    background:var(--btn-secondary-bg);color:var(--text-dim);box-shadow:none;border:1px dashed var(--border);
+  }
+  .next-class-eyebrow{font-size:11.5px;font-weight:700;color:inherit;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;opacity:.85;}
+  .next-class-countdown{font-family:var(--font-agenda);font-size:22px;font-weight:600;color:inherit;margin-bottom:4px;}
+  .next-class-info{font-size:13.5px;color:inherit;display:flex;align-items:center;gap:6px;opacity:.95;}
   .next-class-info .dot{width:10px;height:10px;}
-  .next-class-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
-  .next-class-actions .btn{width:auto;margin-top:0;padding:8px 14px;font-size:13px;}
+  .next-class-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;position:relative;}
+  .next-class-actions .btn{
+    width:auto;margin-top:0;padding:7px 13px;font-size:13px;border-radius:999px;
+    background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);color:#fff;
+  }
+  .next-class-card.empty .next-class-actions .btn{background:var(--card);border-color:var(--border);color:var(--text);}
+  .next-class-actions .btn.whatsapp{background:rgba(255,255,255,.18);}
 
   .stats-esperado{
     background:var(--soft-tint-bg);border:1px dashed var(--border);border-radius:14px;
@@ -146,42 +205,45 @@
   .item-sub{font-size:13px;color:var(--text-dim);margin-top:1px;}
   .item-right{text-align:right;font-size:14px;font-weight:700;white-space:nowrap;}
 
+  .home-card{
+    background:var(--card);border:1px solid var(--border);border-radius:18px;
+    padding:13px 15px;margin-bottom:10px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.03);
+  }
+  .home-card .name{font-family:var(--font-agenda);font-weight:600;font-size:16px;margin-bottom:2px;display:flex;align-items:center;gap:6px;}
+  .home-card .name .dot{width:10px;height:10px;flex-shrink:0;}
+  .home-card .row{display:flex;justify-content:space-between;font-size:12.5px;color:var(--text-dim);}
+  .home-card .rate{font-weight:700;color:var(--text);}
+
   .badge{
     display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;
   }
   .badge.pendiente{background:var(--warn-bg);color:var(--warn);}
   .badge.pagada{background:var(--ok-bg);color:var(--ok);}
 
-  nav.bottomnav{
-    position:fixed;bottom:0;left:0;right:0;z-index:20;
-    background:var(--card);border-top:1px solid var(--border);
-    display:flex;
-    padding-bottom:var(--safe-bottom);
-    box-shadow:0 -2px 12px rgba(120,80,40,.08);
+  nav.tabs{
+    display:flex;gap:6px;margin:16px 16px 4px;
+    background:var(--btn-secondary-bg);padding:5px;border-radius:999px;
   }
-  nav.bottomnav button{
-    flex:1;background:none;border:none;
-    padding:9px 2px 8px;
-    display:flex;flex-direction:column;align-items:center;gap:3px;
-    color:var(--text-dim);font-size:11px;font-weight:600;
+  nav.tabs button{
+    flex:1;border:none;background:transparent;padding:9px 6px;border-radius:999px;
+    font-size:13.5px;font-weight:700;color:var(--text-dim);cursor:pointer;
   }
-  nav.bottomnav button .ic{font-size:20px;}
-  nav.bottomnav button.active{color:var(--primary);}
+  nav.tabs button.active{background:var(--card);color:var(--primary-dark);box-shadow:0 2px 6px rgba(0,0,0,.08);}
 
   .fab{
-    position:fixed;right:18px;bottom:calc(84px + var(--safe-bottom));z-index:15;
-    width:58px;height:58px;border-radius:50%;
-    background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;border:none;
-    font-size:28px;box-shadow:0 4px 14px rgba(160,90,40,.4);
+    position:fixed;right:18px;bottom:calc(20px + var(--safe-bottom));z-index:30;
+    width:56px;height:56px;border-radius:50%;
+    background:var(--primary);color:#fff;border:none;
+    font-size:26px;box-shadow:0 6px 16px -2px var(--primary-dark);
     display:flex;align-items:center;justify-content:center;
     line-height:0;
   }
   .fab:active{background:var(--primary-dark);}
 
-  .filter-row{display:flex;gap:8px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px;}
+  .filter-row{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px;}
   .filter-chip{
-    flex-shrink:0;padding:8px 14px;border-radius:20px;border:1px solid var(--border);
-    background:var(--card);font-size:13px;font-weight:600;color:var(--text-dim);white-space:nowrap;
+    flex-shrink:0;padding:8px 12px;border-radius:10px;border:1px solid var(--border);
+    background:var(--btn-secondary-bg);font-size:12.5px;font-weight:700;color:var(--text-dim);white-space:nowrap;
   }
   .filter-chip.active{background:var(--primary);color:#fff;border-color:var(--primary);}
 
@@ -193,19 +255,19 @@
   .overlay.show{display:flex;}
   .sheet{
     background:var(--card);width:100%;max-width:640px;
-    border-radius:22px 22px 0 0;
-    padding:16px 16px calc(20px + var(--safe-bottom));
-    max-height:88vh;overflow-y:auto;
+    border-radius:20px 20px 0 0;
+    padding:16px 18px calc(16px + var(--safe-bottom));
+    max-height:92vh;overflow-y:auto;
     animation:slideup .18s ease;
   }
   @keyframes slideup{from{transform:translateY(30px);opacity:.4;}to{transform:translateY(0);opacity:1;}}
   .sheet-handle{width:40px;height:4px;background:var(--border);border-radius:4px;margin:0 auto 12px;}
-  .sheet h3{font-family:var(--font-agenda);margin:0 0 14px;font-size:19px;color:var(--primary-dark);}
+  .sheet h3{font-family:var(--font-agenda);margin:0 0 12px;font-size:19px;font-weight:600;color:var(--text);}
 
-  label{display:block;font-size:13px;font-weight:600;color:var(--text-dim);margin:12px 0 5px;}
+  label{display:block;font-size:12.5px;font-weight:600;color:var(--text-dim);margin:12px 0 4px;}
   label:first-of-type{margin-top:0;}
-  input[type=text],input[type=number],input[type=date],input[type=time],select,textarea{
-    width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:10px;
+  input[type=text],input[type=tel],input[type=number],input[type=date],input[type=time],select,textarea{
+    width:100%;padding:10px 11px;border:1px solid var(--border);border-radius:10px;
     font-size:15px;background:var(--input-bg);color:var(--text);font-family:inherit;
   }
   textarea{resize:vertical;min-height:60px;}
@@ -220,15 +282,15 @@
 
   .btn{
     display:inline-flex;align-items:center;justify-content:center;gap:6px;
-    padding:12px 16px;border-radius:14px;border:none;font-size:15px;font-weight:700;
+    padding:12px 10px;border-radius:13px;border:none;font-size:14px;font-weight:700;
     width:100%;margin-top:16px;
   }
-  .btn.primary{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;}
+  .btn.primary{background:var(--primary);color:#fff;box-shadow:0 4px 12px -3px var(--primary-dark);}
   .btn.primary:active{background:var(--primary-dark);}
   .btn.secondary{background:var(--btn-secondary-bg);color:var(--text);}
   .btn.danger{background:var(--danger-bg);color:var(--danger);}
-  .btn-row{display:flex;gap:10px;}
-  .btn-row .btn{margin-top:16px;}
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap;}
+  .btn-row .btn{margin-top:16px;flex:1;min-width:100px;}
 
   .checkbox-line{display:flex;align-items:center;gap:10px;padding:10px 0;}
   .checkbox-line input[type=checkbox]{width:22px;height:22px;flex-shrink:0;}
@@ -245,8 +307,8 @@
 
   .toast{
     position:fixed;left:50%;bottom:calc(90px + var(--safe-bottom));transform:translateX(-50%);
-    background:#3d2f26;color:#fff;padding:10px 18px;border-radius:30px;font-size:13px;
-    z-index:60;opacity:0;pointer-events:none;transition:opacity .2s;
+    background:var(--text);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:13px;
+    z-index:60;opacity:0;pointer-events:none;transition:opacity .2s;box-shadow:0 4px 14px rgba(0,0,0,.2);
   }
   .toast.show{opacity:1;}
 
@@ -282,36 +344,72 @@
   .dia-chip input{display:none;}
   .dia-chip.sel{background:var(--primary);color:#fff;border-color:var(--primary);}
 
-  .calendar-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
-  .calendar-nav button{background:var(--btn-secondary-bg);border:none;border-radius:10px;width:38px;height:38px;font-size:17px;font-weight:700;color:var(--text);}
-  .calendar-label{font-family:var(--font-agenda);font-weight:700;font-size:16px;color:var(--primary-dark);text-transform:capitalize;}
+  .calendar-nav{display:flex;align-items:center;gap:4px;margin-bottom:14px;}
+  .calendar-nav button{
+    flex-shrink:0;background:var(--card);border:none;color:var(--text-dim);
+    width:30px;height:46px;border-radius:13px;font-size:16px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.05);
+  }
+  .calendar-label{flex:1;text-align:center;font-family:var(--font-agenda);font-weight:600;font-size:15.5px;color:var(--text);text-transform:capitalize;}
 
   .calendar-weekdays{
     display:grid;grid-template-columns:repeat(7,1fr);text-align:center;
-    font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:6px;
+    font-size:9px;font-weight:800;text-transform:uppercase;color:var(--text-dim);margin-bottom:4px;
   }
 
-  .calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
-  .cal-cell{
-    appearance:none;-webkit-appearance:none;margin:0;cursor:pointer;font-family:inherit;
-    aspect-ratio:1;background:var(--input-bg);border:1px solid var(--border);border-radius:12px;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
-    font-size:13px;font-weight:600;color:var(--text);padding:2px;
+  /* vista semana */
+  .day-strip{display:flex;flex:1;gap:3px;}
+  .day-chip{
+    flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;font-family:inherit;
+    border:none;background:transparent;border-radius:14px;padding:7px 2px 8px;cursor:pointer;
   }
-  .cal-cell.empty{background:transparent;border:none;cursor:default;}
-  .cal-cell.today{
-    border:2px solid var(--primary);
-    background:var(--card-grad-a);
-    background:color-mix(in srgb, var(--primary) 16%, var(--card));
-  }
-  .cal-cell.has-clases{background:var(--card);}
-  .cal-dots{display:flex;gap:2px;min-height:6px;}
-  .cal-dot{width:5px;height:5px;border-radius:50%;}
+  .day-chip.selected{background:var(--card);box-shadow:0 2px 8px rgba(0,0,0,.08);}
+  .day-chip .dow{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;color:var(--text-dim);}
+  .day-chip .dnum{width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:14px;font-weight:700;color:var(--text);}
+  .day-chip.today .dnum{box-shadow:inset 0 0 0 2px var(--primary);}
+  .day-chip.selected .dnum{background:var(--primary);color:#fff;box-shadow:none;}
+  .day-chip .cdot{width:5px;height:5px;border-radius:50%;background:var(--primary);}
+  .day-chip .cdot.hidden-dot{background:transparent;}
 
-  .day-detail-list{max-height:52vh;overflow-y:auto;margin-bottom:6px;}
-  .dia-clase-block{border-bottom:1px solid var(--border);padding-bottom:6px;margin-bottom:6px;}
-  .dia-clase-block:last-child{border-bottom:none;}
-  .dia-clase-block .list-item{border-bottom:none;padding-bottom:2px;}
+  /* vista mes */
+  .month-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+  .mg-dow{font-size:9px;font-weight:800;text-transform:uppercase;text-align:center;color:var(--text-dim);padding-bottom:4px;}
+  .month-cell{
+    aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    border:none;background:transparent;border-radius:10px;cursor:pointer;color:var(--text);font-family:inherit;
+    font-size:12px;font-weight:700;
+  }
+  .month-cell.other-month{opacity:.35;}
+  .month-cell.today{box-shadow:inset 0 0 0 2px var(--primary);}
+  .month-cell.selected{background:var(--primary);color:#fff;box-shadow:none;}
+  .mc-dots{display:flex;gap:2px;height:4px;}
+  .mc-dot{width:4px;height:4px;border-radius:50%;background:var(--primary);}
+  .month-cell.selected .mc-dot{background:#fff;}
+
+  /* detalle del dia (panel fijo debajo de la grilla) */
+  .day-detail{background:var(--card);border-radius:20px;border:1px solid var(--border);overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.04);margin-top:12px;}
+  .day-detail-head{display:flex;align-items:center;gap:8px;padding:15px 16px 8px;}
+  .day-detail-head .title{font-family:var(--font-agenda);font-weight:600;font-size:16px;}
+  .day-detail-head .badge-today{background:var(--primary);color:#fff;font-size:10.5px;padding:2px 8px;border-radius:999px;font-weight:700;}
+  .day-detail-body{padding:4px 10px 12px;}
+
+  .shift-block{
+    display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:13px;cursor:pointer;
+    border-left:4px solid var(--warn);background:var(--btn-secondary-bg);margin:5px 0;
+  }
+  .shift-block.pagada{border-left-color:var(--ok);}
+  .shift-block .time{font-weight:700;font-size:13.5px;min-width:40px;}
+  .shift-block .info{flex:1;min-width:0;}
+  .shift-block .home-name{font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .shift-block .sub{font-size:11.5px;color:var(--text-dim);}
+  .pay-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+
+  .day-add-btn{
+    width:100%;border:1.5px dashed var(--border);background:transparent;color:var(--primary-dark);
+    border-radius:13px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;margin-top:6px;
+  }
+  .day-empty{color:var(--text-dim);font-size:12.5px;padding:12px 8px 16px;}
+
   .clase-tareas{padding:0 4px 2px 34px;}
   .clase-tareas .checkbox-line{padding:4px 0;}
   .clase-tareas .checkbox-line input[type=checkbox]{width:18px;height:18px;}
@@ -323,24 +421,6 @@
     font-family:var(--font-agenda);font-size:14px;font-weight:700;
     color:var(--primary-dark);margin-bottom:4px;
   }
-
-  body::before{
-    content:'';position:fixed;top:-90px;right:-70px;width:240px;height:240px;
-    background:radial-gradient(circle at 30% 30%, var(--blob-1), transparent 70%);
-    border-radius:50%;z-index:-1;pointer-events:none;opacity:var(--blob-opacity);
-  }
-  body::after{
-    content:'';position:fixed;bottom:-110px;left:-90px;width:280px;height:280px;
-    background:radial-gradient(circle at 60% 60%, var(--blob-2), transparent 70%);
-    border-radius:50%;z-index:-1;pointer-events:none;opacity:var(--blob-opacity);
-  }
-
-  .paleta-grid{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;}
-  .paleta-swatch{
-    width:42px;height:42px;border-radius:50%;border:3px solid transparent;
-    display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px;
-  }
-  .paleta-swatch.sel{border-color:var(--text);}
 
   .ajustes-desc{color:var(--text-dim);font-size:13px;margin:0 0 10px;}
 
@@ -370,27 +450,49 @@
 </head>
 <body>
 
-<header class="topbar">
-  <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+<header class="app-header">
+  <div class="header-text">
     <button class="icon-btn" id="backBtn" onclick="goTo('alumnos')" style="display:none;" aria-label="Volver">←</button>
-    <h1 id="pageTitle">EstudiAntes</h1>
+    <div style="min-width:0;">
+      <h1>EstudiAntes</h1>
+      <p class="sub" id="headerSub">Tu semana de clases</p>
+    </div>
+  </div>
+  <div class="header-controls">
+    <div class="theme-switch" id="themeSwitch"></div>
+    <div style="display:flex;gap:7px;">
+      <button class="mode-toggle" id="settingsToggle" type="button" title="Ajustes" onclick="abrirAjustes()">⚙️</button>
+      <button class="mode-toggle" id="modeToggle" type="button" title="Modo claro/oscuro"></button>
+    </div>
   </div>
 </header>
 
+<div class="next-class-card" id="nextClassCard" hidden>
+  <div class="next-class-eyebrow">⏳ Tu próxima clase</div>
+  <div class="next-class-countdown" id="nextClassCountdown">—</div>
+  <div class="next-class-info">
+    <span class="dot" id="nextClassDot"></span>
+    con <b id="nextClassAlumno"></b> · <span id="nextClassCuando"></span>
+  </div>
+  <div class="next-class-actions" id="nextClassActions"></div>
+</div>
+
+<nav class="tabs">
+  <button data-view="clases" class="active">Agenda</button>
+  <button data-view="alumnos">Alumnos</button>
+  <button data-view="tareas">Tareas</button>
+  <button data-view="stats">Stats</button>
+</nav>
+
 <main>
 
-  <!-- DASHBOARD -->
-  <section class="view active" id="view-dashboard">
-    <div class="next-class-card" id="nextClassCard" hidden>
-      <div class="next-class-eyebrow">⏳ Tu próxima clase</div>
-      <div class="next-class-countdown" id="nextClassCountdown">—</div>
-      <div class="next-class-info">
-        <span class="dot" id="nextClassDot"></span>
-        con <b id="nextClassAlumno"></b> · <span id="nextClassCuando"></span>
-      </div>
-      <div class="next-class-actions" id="nextClassActions"></div>
-    </div>
+  <!-- ALUMNOS -->
+  <section class="view" id="view-alumnos">
+    <div id="listaAlumnos"></div>
+  </section>
 
+  <!-- CLASES / AGENDA -->
+  <section class="view active" id="view-clases">
     <div class="stat-row">
       <div class="stat-box warn">
         <div class="num" id="statPendienteMonto">$0</div>
@@ -406,54 +508,31 @@
       </div>
     </div>
 
-    <div class="card">
-      <h2 id="dashProximasTitulo">Próximas clases</h2>
-      <div id="dashProximas"></div>
-    </div>
-
-    <div class="card">
-      <h2>Alumnos con pagos pendientes</h2>
-      <div id="dashPendientes"></div>
-    </div>
-
-    <div class="card">
-      <h2>Material sin preparar</h2>
-      <div id="dashTareas"></div>
-    </div>
-  </section>
-
-  <!-- ALUMNOS -->
-  <section class="view" id="view-alumnos">
-    <div id="listaAlumnos"></div>
-  </section>
-
-  <!-- CLASES -->
-  <section class="view" id="view-clases">
     <div class="filter-row" id="filtroAlumnoClases"></div>
     <div class="section-actions">
       <button class="btn secondary" onclick="marcarTodasPagadas()">✓ Marcar filtradas como pagadas</button>
     </div>
 
-    <div class="card">
-      <div class="filter-row" id="calendarioModoToggle" style="margin-bottom:10px;">
-        <button type="button" class="filter-chip active" data-modo="mes" onclick="setCalendarioModo('mes')">Mes</button>
-        <button type="button" class="filter-chip" data-modo="semana" onclick="setCalendarioModo('semana')">Semana</button>
-      </div>
-      <div class="calendar-nav" id="calendarioNavMes">
-        <button onclick="cambiarMesCalendario(-1)" aria-label="Mes anterior">←</button>
-        <div class="calendar-label" id="calendarioMesLabel"></div>
-        <button onclick="cambiarMesCalendario(1)" aria-label="Mes siguiente">→</button>
-      </div>
-      <div class="calendar-nav" id="calendarioNavSemana" style="display:none;">
-        <button onclick="cambiarSemanaCalendario(-1)" aria-label="Semana anterior">←</button>
-        <div class="calendar-label" id="calendarioSemanaLabel"></div>
-        <button onclick="cambiarSemanaCalendario(1)" aria-label="Semana siguiente">→</button>
-      </div>
-      <div class="calendar-weekdays">
-        <span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span>
-      </div>
-      <div class="calendar-grid" id="calendarioGrid"></div>
+    <div class="filter-row" id="calendarioModoToggle" style="margin-bottom:10px;">
+      <button type="button" class="filter-chip active" data-modo="mes" onclick="setCalendarioModo('mes')">Mes</button>
+      <button type="button" class="filter-chip" data-modo="semana" onclick="setCalendarioModo('semana')">Semana</button>
     </div>
+    <div class="calendar-nav" id="calendarioNavMes">
+      <button onclick="cambiarMesCalendario(-1)" aria-label="Mes anterior">←</button>
+      <div class="calendar-label" id="calendarioMesLabel"></div>
+      <button onclick="cambiarMesCalendario(1)" aria-label="Mes siguiente">→</button>
+    </div>
+    <div class="calendar-nav" id="calendarioNavSemana" style="display:none;">
+      <button onclick="cambiarSemanaCalendario(-1)" aria-label="Semana anterior">←</button>
+      <div class="calendar-label" id="calendarioSemanaLabel"></div>
+      <button onclick="cambiarSemanaCalendario(1)" aria-label="Semana siguiente">→</button>
+    </div>
+    <div class="calendar-weekdays" id="calendarioWeekdays">
+      <span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span>
+    </div>
+    <div id="calendarioGrid"></div>
+
+    <div class="day-detail" id="calendarioDayDetail"></div>
   </section>
 
   <!-- TAREAS -->
@@ -520,67 +599,9 @@
     </div>
   </section>
 
-  <!-- AJUSTES -->
-  <section class="view" id="view-ajustes">
-    <div class="card">
-      <h2>🎨 Diseño</h2>
-      <label>Paleta de color</label>
-      <div class="paleta-grid" id="paletaGrid"></div>
-      <div class="checkbox-line" style="margin-top:12px;">
-        <input type="checkbox" id="f_modoOscuro" onchange="toggleModoOscuro()">
-        <span>🌙 Modo oscuro</span>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>📚 Temas (los de estudio)</h2>
-      <p class="ajustes-desc">Las materias que le das a tus alumnos (Matemáticas, Biología...). Se crean una vez y se vinculan a cada alumno desde su ficha.</p>
-      <button type="button" class="btn secondary" onclick="abrirGestionTemas()">Gestionar mis temas</button>
-    </div>
-
-    <div class="card">
-      <h2>💲 Rango de precios</h2>
-      <p class="ajustes-desc">Piso y techo del selector de tarifa por hora al cargar un alumno.</p>
-      <div class="row2">
-        <input type="number" id="f_tarifaMin" step="1000" min="0" inputmode="numeric">
-        <input type="number" id="f_tarifaMax" step="1000" min="0" inputmode="numeric">
-      </div>
-      <button type="button" class="btn secondary" onclick="guardarRangoTarifas()">Guardar rango</button>
-    </div>
-
-    <div class="card">
-      <h2>❓ Ayuda</h2>
-      <p class="ajustes-desc">¿Te olvidaste cómo se usa alguna parte? Volvé a ver la introducción rápida.</p>
-      <button type="button" class="btn secondary" onclick="mostrarTutorial()">Ver el tutorial otra vez</button>
-    </div>
-
-    <div class="card">
-      <h2>💾 Datos</h2>
-      <p class="ajustes-desc">Tus datos se guardan solo en este dispositivo (localStorage). Exportá un respaldo periódicamente por si cambiás de celular o borrás el navegador.</p>
-      <button type="button" class="btn primary" onclick="exportarDatos()">⬇️ Exportar datos (JSON)</button>
-
-      <label style="margin-top:16px;">Importar datos desde archivo</label>
-      <input type="file" id="importFile" accept="application/json,.json">
-      <button type="button" class="btn secondary" onclick="importarDatos()">⬆️ Importar (reemplaza los datos actuales)</button>
-
-      <div style="margin-top:16px;font-size:13px;color:var(--text-dim);" id="ajustesConteo"></div>
-
-      <button type="button" class="btn danger" style="margin-top:16px;" onclick="borrarTodo()">🗑️ Borrar todos los datos</button>
-    </div>
-  </section>
-
 </main>
 
 <button class="fab" id="fabBtn">+</button>
-
-<nav class="bottomnav">
-  <button data-view="dashboard" class="active"><span class="ic">🏠</span>Inicio</button>
-  <button data-view="alumnos"><span class="ic">👤</span>Alumnos</button>
-  <button data-view="clases"><span class="ic">📅</span>Clases</button>
-  <button data-view="tareas"><span class="ic">📝</span>Tareas</button>
-  <button data-view="stats"><span class="ic">📊</span>Stats</button>
-  <button data-view="ajustes"><span class="ic">⚙️</span>Config</button>
-</nav>
 
 <!-- overlay / bottom sheet -->
 <div class="overlay" id="overlay">
@@ -615,7 +636,7 @@ let db = {
   clases:  [],  // {id, serieId|null, alumnoId, fecha:'YYYY-MM-DD', horaEntrada:'HH:MM', horaSalida:'HH:MM'|null, duracionMin, monto, pagada, notas}
   temas:   [],  // {id, nombre} -- temas globales del profesor, se vinculan a alumnos vía alumno.temasIds
   tareas:  [],  // {id, alumnoId|null, temaId|null, claseId|null, texto, hecha}
-  config:  {tarifaMin:7000, tarifaMax:15000, paleta:'tierra', modoOscuro:false, tutorialVisto:false}
+  config:  {tarifaMin:7000, tarifaMax:15000, paleta:'terracota', tema:'auto', tutorialVisto:false}
 };
 
 function uid(){
@@ -632,8 +653,16 @@ function loadDB(){
       db.clases = parsed.clases || [];
       db.temas = parsed.temas || [];
       db.tareas = parsed.tareas || [];
-      db.config = Object.assign({tarifaMin:7000, tarifaMax:15000, paleta:'tierra', modoOscuro:false, tutorialVisto:false}, parsed.config||{});
+      db.config = Object.assign({tarifaMin:7000, tarifaMax:15000, paleta:'terracota', tema:'auto', tutorialVisto:false}, parsed.config||{});
     }
+    // migración de paletas viejas (6 opciones) a las 3 nuevas, y de modoOscuro booleano a tema auto/light/dark
+    if(!['terracota','salvia','lavanda'].includes(db.config.paleta)){
+      db.config.paleta = (db.config.paleta==='verde') ? 'salvia' : (db.config.paleta==='lila') ? 'lavanda' : 'terracota';
+    }
+    if(db.config.tema===undefined){
+      db.config.tema = db.config.modoOscuro ? 'dark' : 'auto';
+    }
+    delete db.config.modoOscuro;
     // migración de clases con el esquema viejo (hora + duracionMin -> horaEntrada/horaSalida)
     db.clases.forEach(c=>{
       if(!c.horaEntrada && c.hora){
@@ -692,8 +721,8 @@ const COLOR_SWATCHES = ['#ef4444','#f97316','#f59e0b','#84cc16','#22c55e','#14b8
 /* =========================================================
    NAVEGACIÓN
    ========================================================= */
-const views = ['dashboard','alumnos','clases','tareas','stats','ajustes'];
-const titles = {dashboard:'🌿 EstudiAntes', alumnos:'👤 Alumnos', clases:'📅 Clases', tareas:'📝 Material a preparar', stats:'📊 Estadísticas', ajustes:'⚙️ Ajustes'};
+const views = ['clases','alumnos','tareas','stats'];
+const subtitles = {clases:'Tu semana de clases', alumnos:'Tus alumnos', tareas:'Material a preparar', stats:'Cómo te fue este mes'};
 
 function goTo(view){
   currentAlumnoDetalleId = null;
@@ -702,20 +731,20 @@ function goTo(view){
   views.forEach(v=>{
     document.getElementById('view-'+v).classList.toggle('active', v===view);
   });
-  document.querySelectorAll('.bottomnav button').forEach(b=>{
+  document.querySelectorAll('nav.tabs button').forEach(b=>{
     b.classList.toggle('active', b.dataset.view===view);
   });
-  document.getElementById('pageTitle').textContent = titles[view];
-  document.getElementById('fabBtn').style.display = (view==='dashboard'||view==='stats'||view==='ajustes') ? 'none' : 'flex';
+  document.getElementById('headerSub').textContent = subtitles[view];
+  document.getElementById('fabBtn').style.display = (view==='stats') ? 'none' : 'flex';
   renderAll();
 }
 
-document.querySelectorAll('.bottomnav button').forEach(b=>{
+document.querySelectorAll('nav.tabs button').forEach(b=>{
   b.addEventListener('click', ()=>goTo(b.dataset.view));
 });
 
 document.getElementById('fabBtn').addEventListener('click', ()=>{
-  const active = document.querySelector('.bottomnav button.active').dataset.view;
+  const active = document.querySelector('nav.tabs button.active').dataset.view;
   if(active==='alumnos') openAlumnoForm();
   if(active==='clases') openClaseForm();
   if(active==='tareas') openTareaForm();
@@ -1026,19 +1055,18 @@ function renderAlumnos(){
   }
   cont.innerHTML = db.alumnos.map(a=>{
     const deuda = sumaPendiente(a.id);
+    const ahora = new Date();
+    const proxima = db.clases
+      .filter(c=>c.alumnoId===a.id && fechaHoraClase(c) >= ahora)
+      .sort((x,y)=> fechaHoraClase(x)-fechaHoraClase(y))[0];
     return `
-    <div class="card" onclick="abrirDetalleAlumno('${a.id}')" style="cursor:pointer;">
-      <div class="list-item" style="border:none;padding:0;">
-        <div class="dot" style="background:${a.color}"></div>
-        <div class="item-main">
-          <div class="item-title">${a.tipo==='adulto'?'🧑':'🧒'} ${escapeHtml(a.nombre)}</div>
-          <div class="item-sub">${money(a.tarifa)}/hora</div>
-        </div>
-        <div class="item-right" style="color:${deuda>0?'var(--warn)':'var(--ok)'}">
-          <div style="font-size:11px;font-weight:600;">${deuda>0?'Pendiente':'Al día'}</div>
-          ${deuda>0 ? `<div>${money(deuda)}</div>` : ''}
-        </div>
+    <div class="home-card" onclick="abrirDetalleAlumno('${a.id}')">
+      <div class="name"><span class="dot" style="background:${a.color}"></span>${a.tipo==='adulto'?'🧑':'🧒'} ${escapeHtml(a.nombre)}</div>
+      <div class="row">
+        <span class="rate">${money(a.tarifa)}/hora</span>
+        <span>${proxima ? 'Próx: ' + nombreDiaFecha(proxima.fecha) + ' ' + proxima.horaEntrada : 'Sin próxima clase'}</span>
       </div>
+      ${deuda>0 ? `<div class="row" style="margin-top:4px;color:var(--warn);font-weight:700;">Debe ${money(deuda)}</div>` : ''}
     </div>`;
   }).join('');
 }
@@ -1542,6 +1570,7 @@ function setFiltroClases(v){ filtroClasesAlumno = v; renderAll(); }
 let calendarioFecha = new Date();
 let calendarioModo = 'mes'; // 'mes' | 'semana'
 let calendarioSemanaInicio = getMonday(new Date());
+let calendarioSelectedDate = new Date().toISOString().slice(0,10);
 
 function renderClases(){
   renderFiltroClases();
@@ -1576,7 +1605,9 @@ function renderCalendario(){
   });
   document.getElementById('calendarioNavMes').style.display = calendarioModo==='mes' ? 'flex' : 'none';
   document.getElementById('calendarioNavSemana').style.display = calendarioModo==='semana' ? 'flex' : 'none';
+  document.getElementById('calendarioWeekdays').style.display = calendarioModo==='mes' ? 'grid' : 'none';
   if(calendarioModo==='semana') renderCalendarioSemana(); else renderCalendarioMes();
+  renderDayDetail();
 }
 
 function renderCalendarioMes(){
@@ -1597,23 +1628,24 @@ function renderCalendarioMes(){
   const offsetInicio = (primerDiaMes.getDay()+6)%7; // 0=Lunes
   const hoyStr = new Date().toISOString().slice(0,10);
 
-  let celdas = '';
+  let celdas = '<div class="month-grid">';
   for(let i=0;i<offsetInicio;i++){
-    celdas += `<div class="cal-cell empty"></div>`;
+    celdas += `<div class="month-cell other-month"></div>`;
   }
   for(let dia=1; dia<=diasEnMes; dia++){
     const fechaStr = `${y}-${String(m+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
     const clasesDia = porDia[fechaStr] || [];
     const esHoy = fechaStr===hoyStr;
-    const colores = [...new Set(clasesDia.map(c=>c.alumnoId))].map(id=>alumnoColor(id)).slice(0,4);
-    const dots = colores.map(col=>`<span class="cal-dot" style="background:${col}"></span>`).join('');
+    const seleccionado = fechaStr===calendarioSelectedDate;
+    const dots = clasesDia.slice(0,3).map(()=>`<span class="mc-dot"></span>`).join('');
     celdas += `
-      <button type="button" class="cal-cell ${esHoy?'today':''} ${clasesDia.length?'has-clases':''}" onclick="abrirDiaCalendario('${fechaStr}')">
-        <span class="cal-day-num">${dia}</span>
-        <span class="cal-dots">${dots}</span>
+      <button type="button" class="month-cell ${esHoy?'today':''} ${seleccionado?'selected':''}" onclick="abrirDiaCalendario('${fechaStr}')">
+        <span>${dia}</span>
+        <span class="mc-dots">${dots}</span>
       </button>
     `;
   }
+  celdas += '</div>';
 
   document.getElementById('calendarioGrid').innerHTML = celdas;
 }
@@ -1631,22 +1663,24 @@ function renderCalendarioSemana(){
     (porDia[c.fecha] = porDia[c.fecha] || []).push(c);
   });
 
+  const dias = ['L','M','M','J','V','S','D'];
   const hoyStr = new Date().toISOString().slice(0,10);
-  let celdas = '';
+  let celdas = '<div class="day-strip">';
   for(let i=0;i<7;i++){
     const d = addDiasCalendario(inicio, i);
     const fechaStr = toIsoCalendario(d);
     const clasesDia = porDia[fechaStr] || [];
     const esHoy = fechaStr===hoyStr;
-    const colores = [...new Set(clasesDia.map(c=>c.alumnoId))].map(id=>alumnoColor(id)).slice(0,4);
-    const dots = colores.map(col=>`<span class="cal-dot" style="background:${col}"></span>`).join('');
+    const seleccionado = fechaStr===calendarioSelectedDate;
     celdas += `
-      <button type="button" class="cal-cell ${esHoy?'today':''} ${clasesDia.length?'has-clases':''}" onclick="abrirDiaCalendario('${fechaStr}')">
-        <span class="cal-day-num">${d.getDate()}</span>
-        <span class="cal-dots">${dots}</span>
+      <button type="button" class="day-chip ${seleccionado?'selected':''} ${esHoy?'today':''}" onclick="abrirDiaCalendario('${fechaStr}')">
+        <span class="dow">${dias[i]}</span>
+        <span class="dnum">${d.getDate()}</span>
+        <span class="cdot${clasesDia.length?'':' hidden-dot'}"></span>
       </button>
     `;
   }
+  celdas += '</div>';
 
   document.getElementById('calendarioGrid').innerHTML = celdas;
 }
@@ -1655,45 +1689,57 @@ function addDiasCalendario(d, n){ const r = new Date(d); r.setDate(r.getDate()+n
 function toIsoCalendario(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 
 function abrirDiaCalendario(fechaStr){
-  const clasesDia = db.clases
-    .filter(c=>c.fecha===fechaStr)
-    .sort((a,b)=> a.horaEntrada.localeCompare(b.horaEntrada));
+  calendarioSelectedDate = fechaStr;
+  renderCalendario();
+}
 
-  const listaHtml = clasesDia.length ? clasesDia.map(c=>{
-    const rangoHora = c.horaSalida ? `${c.horaEntrada}-${c.horaSalida}` : `${c.horaEntrada} · ${formatDuracion(c.duracionMin)} prevista`;
-    const tareasClase = db.tareas.filter(t=>t.claseId===c.id);
-    const tareasHtml = tareasClase.length ? `
-      <div class="clase-tareas">
-        ${tareasClase.map(t=>`
-          <div class="checkbox-line ${t.hecha?'done':''}" style="padding:4px 0;">
-            <input type="checkbox" ${t.hecha?'checked':''} onclick="toggleTarea('${t.id}', event); abrirDiaCalendario('${fechaStr}')">
-            <span style="font-size:13px;">${t.temaId ? `<b>${escapeHtml(temaNombre(t.temaId))}:</b> ` : '📌 '}${escapeHtml(t.texto)}</span>
+function renderDayDetail(){
+  const container = document.getElementById('calendarioDayDetail');
+  if(!container) return;
+  const fechaStr = calendarioSelectedDate;
+  const hoyStr = new Date().toISOString().slice(0,10);
+  let clasesDia = db.clases.filter(c=>c.fecha===fechaStr);
+  if(filtroClasesAlumno!=='todos') clasesDia = clasesDia.filter(c=>c.alumnoId===filtroClasesAlumno);
+  clasesDia.sort((a,b)=> a.horaEntrada.localeCompare(b.horaEntrada));
+
+  let html = `<div class="day-detail-head">
+      <span class="title">${formatoFechaLarga(fechaStr)}</span>
+      ${fechaStr===hoyStr ? '<span class="badge-today">HOY</span>' : ''}
+    </div><div class="day-detail-body">`;
+
+  if(clasesDia.length===0){
+    html += '<div class="day-empty">No hay clases este día 🌿</div>';
+  }else{
+    clasesDia.forEach(c=>{
+      const rangoHora = c.horaSalida ? `${c.horaEntrada}-${c.horaSalida}` : `${c.horaEntrada} · ${formatDuracion(c.duracionMin)} prevista`;
+      const tareasClase = db.tareas.filter(t=>t.claseId===c.id);
+      const tareasHtml = tareasClase.length ? `
+        <div class="clase-tareas">
+          ${tareasClase.map(t=>`
+            <div class="checkbox-line ${t.hecha?'done':''}" style="padding:4px 0;">
+              <input type="checkbox" ${t.hecha?'checked':''} onclick="toggleTarea('${t.id}', event); renderDayDetail();">
+              <span style="font-size:13px;">${t.temaId ? `<b>${escapeHtml(temaNombre(t.temaId))}:</b> ` : '📌 '}${escapeHtml(t.texto)}</span>
+            </div>
+          `).join('')}
+        </div>
+      ` : '';
+      html += `
+      <div>
+        <div class="shift-block ${c.pagada?'pagada':''}" onclick="openClaseForm('${c.id}')">
+          <span class="pay-dot" style="background:${alumnoColor(c.alumnoId)}"></span>
+          <span class="time">${c.horaEntrada}</span>
+          <div class="info">
+            <div class="home-name">${c.serieId ? '<span class="serie-tag">🔁</span>' : ''}${escapeHtml(alumnoNombre(c.alumnoId))}</div>
+            <div class="sub">${rangoHora} · ${money(c.monto)} · ${c.pagada?'Pagada':'Pendiente'}</div>
           </div>
-        `).join('')}
-      </div>
-    ` : '';
-    return `
-    <div class="dia-clase-block">
-      <div class="list-item" onclick="closeSheet(); openClaseForm('${c.id}')" style="cursor:pointer;">
-        <div class="dot" style="background:${alumnoColor(c.alumnoId)}"></div>
-        <div class="item-main">
-          <div class="item-title">${c.serieId ? '<span class="serie-tag">🔁</span>' : ''}${escapeHtml(alumnoNombre(c.alumnoId))}</div>
-          <div class="item-sub">${rangoHora}</div>
         </div>
-        <div class="item-right">
-          <div>${money(c.monto)}</div>
-          <span class="badge ${c.pagada?'pagada':'pendiente'}">${c.pagada?'Pagada':'Pendiente'}</span>
-        </div>
-      </div>
-      ${tareasHtml}
-    </div>`;
-  }).join('') : '<div class="empty-msg">No hay clases este día 🌿</div>';
-
-  openSheet(`
-    <h3>${formatoFechaLarga(fechaStr)}</h3>
-    <div class="day-detail-list">${listaHtml}</div>
-    <button class="btn primary" onclick="closeSheet(); openClaseForm(null, '${fechaStr}')">+ Agregar clase este día</button>
-  `);
+        ${tareasHtml}
+      </div>`;
+    });
+  }
+  html += `<button class="day-add-btn" onclick="openClaseForm(null, '${fechaStr}')">+ Agregar clase este día</button>`;
+  html += '</div>';
+  container.innerHTML = html;
 }
 
 /* =========================================================
@@ -1871,7 +1917,7 @@ function abrirDetalleAlumno(alumnoId){
   currentAlumnoDetalleId = alumnoId;
   views.forEach(v=>document.getElementById('view-'+v).classList.remove('active'));
   document.getElementById('view-alumno-detalle').classList.add('active');
-  document.querySelectorAll('.bottomnav button').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
   document.getElementById('backBtn').style.display = 'flex';
   document.getElementById('fabBtn').style.display = 'none';
   renderDetalleAlumno();
@@ -1938,7 +1984,7 @@ function renderDetalleAlumno(){
   const alumno = getAlumno(currentAlumnoDetalleId);
   if(!alumno){ goTo('alumnos'); return; }
 
-  document.getElementById('pageTitle').textContent = `${alumno.tipo==='adulto'?'🧑':'🧒'} ${alumno.nombre}`;
+  document.getElementById('headerSub').textContent = `${alumno.tipo==='adulto'?'🧑':'🧒'} ${alumno.nombre}`;
 
   const deuda = sumaPendiente(alumno.id);
   document.getElementById('detalleAlumnoHeader').innerHTML = `
@@ -2031,23 +2077,18 @@ function renderProximaClaseCountdown(c, ahora){
   document.getElementById('nextClassActions').innerHTML = acciones.join('');
 }
 
-function renderDashboard(){
+function renderBannerYStats(){
   const ahora = new Date();
   const hoySinHora = new Date(ahora);
   hoySinHora.setHours(0,0,0,0);
 
-  // Próximas clases (futuras, orden ascendente)
-  const proximas = db.clases
+  // Próxima clase (banner global, visible en cualquier tab)
+  const proxima = db.clases
     .filter(c => fechaHoraClase(c) >= ahora)
-    .sort((a,b)=> fechaHoraClase(a) - fechaHoraClase(b))
-    .slice(0,5);
+    .sort((a,b)=> fechaHoraClase(a) - fechaHoraClase(b))[0];
+  renderProximaClaseCountdown(proxima, ahora);
 
-  renderProximaClaseCountdown(proximas[0], ahora);
-
-  const nombreMes = ahora.toLocaleDateString('es-AR', {month:'long'});
-  document.getElementById('dashProximasTitulo').textContent =
-    `Próximas clases - ${nombreMes.charAt(0).toUpperCase()+nombreMes.slice(1)}`;
-
+  // Clases esta semana
   const monday = getMonday(ahora);
   const sunday = getSunday(monday);
   const clasesEstaSemana = db.clases.filter(c=>{
@@ -2056,52 +2097,13 @@ function renderDashboard(){
   }).length;
   document.getElementById('statProximas').textContent = clasesEstaSemana;
 
-  const proxCont = document.getElementById('dashProximas');
-  proxCont.innerHTML = proximas.length ? proximas.map(c=>{
-    const rangoHora = c.horaSalida ? `${c.horaEntrada}-${c.horaSalida}` : `${c.horaEntrada} · ${formatDuracion(c.duracionMin)} prevista`;
-    return `
-    <div class="list-item" onclick="goTo('clases')" style="cursor:pointer;">
-      <div class="dot" style="background:${alumnoColor(c.alumnoId)}"></div>
-      <div class="item-main">
-        <div class="item-title">${c.serieId ? '<span class="serie-tag">🔁</span>' : ''}${escapeHtml(alumnoNombre(c.alumnoId))}</div>
-        <div class="item-sub">${nombreDiaFecha(c.fecha)} · ${rangoHora}</div>
-      </div>
-      <div class="item-right">${money(c.monto)}</div>
-    </div>`;
-  }).join('') : '<div class="empty-msg">No hay clases próximas agendadas.</div>';
-
-  // Pagos pendientes: solo clases de este mes que ya pasaron y siguen sin pagar
-  const deudores = db.alumnos
-    .map(a=>({alumno:a, deuda: sumaPendienteMesActual(a.id, hoySinHora)}))
-    .filter(x=>x.deuda>0)
-    .sort((a,b)=>b.deuda-a.deuda);
-
-  const totalPendiente = deudores.reduce((s,x)=>s+x.deuda,0);
+  // Total pendiente este mes
+  const totalPendiente = db.alumnos
+    .reduce((s,a)=>s+sumaPendienteMesActual(a.id, hoySinHora), 0);
   document.getElementById('statPendienteMonto').textContent = money(totalPendiente);
 
-  const pendCont = document.getElementById('dashPendientes');
-  pendCont.innerHTML = deudores.length ? deudores.map(x=>`
-    <div class="list-item" onclick="setFiltroClases('${x.alumno.id}'); goTo('clases');" style="cursor:pointer;">
-      <div class="dot" style="background:${x.alumno.color}"></div>
-      <div class="item-main">
-        <div class="item-title">${escapeHtml(x.alumno.nombre)}</div>
-      </div>
-      <div class="item-right" style="color:var(--warn);">${money(x.deuda)}</div>
-    </div>
-  `).join('') : '<div class="empty-msg">Ningún alumno tiene pagos pendientes 🎉</div>';
-
   // Tareas pendientes
-  const tareasPend = db.tareas.filter(t=>!t.hecha);
-  document.getElementById('statTareas').textContent = tareasPend.length;
-
-  const tareasCont = document.getElementById('dashTareas');
-  tareasCont.innerHTML = tareasPend.length ? tareasPend.slice(0,6).map(t=>`
-    <div class="checkbox-line" onclick="goTo('tareas')" style="cursor:pointer;">
-      <input type="checkbox" onclick="toggleTarea('${t.id}', event)">
-      <span>${t.alumnoId ? `<b>${escapeHtml(alumnoNombre(t.alumnoId))}:</b> `:''}${escapeHtml(t.texto)}</span>
-    </div>
-  `).join('') + (tareasPend.length>6 ? `<div class="empty-msg">y ${tareasPend.length-6} más...</div>` : '')
-    : '<div class="empty-msg">No tenés material pendiente de preparar 🎉</div>';
+  document.getElementById('statTareas').textContent = db.tareas.filter(t=>!t.hecha).length;
 }
 
 /* =========================================================
@@ -2167,78 +2169,114 @@ function renderStats(){
    RENDER GENERAL
    ========================================================= */
 function renderAll(){
-  renderDashboard();
+  renderBannerYStats();
   renderAlumnos();
   renderClases();
   renderTareas();
   renderStats();
-  renderAjustes();
   if(document.getElementById('view-alumno-detalle').classList.contains('active')) renderDetalleAlumno();
 }
 
 /* =========================================================
    AJUSTES: EXPORTAR / IMPORTAR
    ========================================================= */
-const PALETAS = {
-  tierra:   {label:'Tierra',   primary:'#c1683d', primaryDark:'#9c522e', cardGradA:'#fff2df', cardGradB:'#ffe3c4', accentText:'#7a3d1c', blob1:'#f2ddba', blob2:'#f6e7cf'},
-  azul:     {label:'Azul',     primary:'#3f6ea8', primaryDark:'#2d5480', cardGradA:'#e3edf9', cardGradB:'#cfe0f4', accentText:'#20456e', blob1:'#c9dcf2', blob2:'#dfeafb'},
-  rojo:     {label:'Rojo',     primary:'#c1493f', primaryDark:'#96362e', cardGradA:'#fbe4e0', cardGradB:'#f6cdc6', accentText:'#7a2a22', blob1:'#f3c9c1', blob2:'#f8ded8'},
-  lila:     {label:'Lila',     primary:'#8a67ab', primaryDark:'#6a4c87', cardGradA:'#efe5f7', cardGradB:'#e2cef0', accentText:'#4f3468', blob1:'#ddc7ec', blob2:'#ece0f5'},
-  amarillo: {label:'Amarillo', primary:'#b6892a', primaryDark:'#8f6a1c', cardGradA:'#fbf1d9', cardGradB:'#f6e3b4', accentText:'#6b4e12', blob1:'#f0dfa0', blob2:'#f7ecc9'},
-  verde:    {label:'Verde',    primary:'#5f8f52', primaryDark:'#456b3a', cardGradA:'#e7f0e0', cardGradB:'#d3e6c4', accentText:'#33501f', blob1:'#cfe3bd', blob2:'#e2eed8'},
-};
+const PALETTES = [
+  {id:'terracota', label:'Terracota', swatch:'#c1673b'},
+  {id:'salvia', label:'Salvia', swatch:'#6f8f5c'},
+  {id:'lavanda', label:'Lavanda', swatch:'#8067a8'}
+];
 
 function aplicarPaleta(){
-  const p = PALETAS[db.config.paleta] || PALETAS.tierra;
-  const root = document.documentElement;
-  root.style.setProperty('--primary', p.primary);
-  root.style.setProperty('--primary-dark', p.primaryDark);
-  root.style.setProperty('--card-grad-a', p.cardGradA);
-  root.style.setProperty('--card-grad-b', p.cardGradB);
-  root.style.setProperty('--accent-text', p.accentText);
-  root.style.setProperty('--blob-1', p.blob1);
-  root.style.setProperty('--blob-2', p.blob2);
+  document.documentElement.setAttribute('data-palette', db.config.paleta || 'terracota');
   const metaTheme = document.querySelector('meta[name="theme-color"]');
-  if(metaTheme) metaTheme.setAttribute('content', p.primary);
+  const p = PALETTES.find(x=>x.id===(db.config.paleta||'terracota'));
+  if(metaTheme && p) metaTheme.setAttribute('content', p.swatch);
 }
 
 function elegirPaleta(key){
   db.config.paleta = key;
   saveDB();
+  try{ localStorage.setItem('estudiantes_palette_v1', key); }catch(e){}
   aplicarPaleta();
-  renderPaletaGrid();
+  renderThemeSwitch();
 }
 
-function renderPaletaGrid(){
-  const cont = document.getElementById('paletaGrid');
+function renderThemeSwitch(){
+  const cont = document.getElementById('themeSwitch');
   if(!cont) return;
-  cont.innerHTML = Object.keys(PALETAS).map(key=>{
-    const p = PALETAS[key];
-    const sel = (db.config.paleta||'tierra')===key;
-    return `<button type="button" class="paleta-swatch ${sel?'sel':''}" style="background:${p.primary};" onclick="elegirPaleta('${key}')" aria-label="${p.label}">${sel?'✓':''}</button>`;
-  }).join('');
+  const current = db.config.paleta || 'terracota';
+  cont.innerHTML = PALETTES.map(p=>
+    `<button type="button" class="${p.id===current?'active':''}" style="background:${p.swatch}" onclick="elegirPaleta('${p.id}')" aria-label="Paleta ${p.label}" title="${p.label}"></button>`
+  ).join('');
 }
 
+const TEMA_ICONS = {auto:'🌓', light:'☀️', dark:'🌙'};
 function aplicarModoOscuro(){
-  document.documentElement.setAttribute('data-theme', db.config.modoOscuro ? 'dark' : 'light');
+  const tema = db.config.tema || 'auto';
+  if(tema==='auto') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', tema);
+  renderModeToggle();
 }
-
-function toggleModoOscuro(){
-  db.config.modoOscuro = document.getElementById('f_modoOscuro').checked;
+function setTema(tema){
+  db.config.tema = tema;
   saveDB();
+  try{ localStorage.setItem('estudiantes_theme_v1', tema); }catch(e){}
   aplicarModoOscuro();
 }
+function renderModeToggle(){
+  const btn = document.getElementById('modeToggle');
+  if(!btn) return;
+  const tema = db.config.tema || 'auto';
+  btn.textContent = TEMA_ICONS[tema];
+  const labels = {auto:'Modo automático (según el celular)', light:'Modo claro', dark:'Modo oscuro'};
+  btn.title = labels[tema] + ' · tocá para cambiar';
+}
+document.getElementById('modeToggle').addEventListener('click', ()=>{
+  const order = ['auto','light','dark'];
+  const tema = db.config.tema || 'auto';
+  const next = order[(order.indexOf(tema)+1) % order.length];
+  setTema(next);
+});
 
-function renderAjustes(){
-  const fMin = document.getElementById('f_tarifaMin');
-  const fMax = document.getElementById('f_tarifaMax');
-  if(fMin) fMin.value = db.config.tarifaMin;
-  if(fMax) fMax.value = db.config.tarifaMax;
-  const fModo = document.getElementById('f_modoOscuro');
-  if(fModo) fModo.checked = !!db.config.modoOscuro;
-  renderPaletaGrid();
-  const conteo = document.getElementById('ajustesConteo');
-  if(conteo) conteo.textContent = `Alumnos: ${db.alumnos.length} · Clases: ${db.clases.length} · Temas: ${db.temas.length} · Tareas: ${db.tareas.length}`;
+function abrirAjustes(){
+  openSheet(`
+    <h3>Ajustes</h3>
+    <div class="card">
+      <h2>📚 Temas (los de estudio)</h2>
+      <p class="ajustes-desc">Las materias que le das a tus alumnos (Matemáticas, Biología...). Se crean una vez y se vinculan a cada alumno desde su ficha.</p>
+      <button type="button" class="btn secondary" onclick="abrirGestionTemas()">Gestionar mis temas</button>
+    </div>
+
+    <div class="card">
+      <h2>💲 Rango de precios</h2>
+      <p class="ajustes-desc">Piso y techo del selector de tarifa por hora al cargar un alumno.</p>
+      <div class="row2">
+        <input type="number" id="f_tarifaMin" step="1000" min="0" inputmode="numeric" value="${db.config.tarifaMin}">
+        <input type="number" id="f_tarifaMax" step="1000" min="0" inputmode="numeric" value="${db.config.tarifaMax}">
+      </div>
+      <button type="button" class="btn secondary" onclick="guardarRangoTarifas()">Guardar rango</button>
+    </div>
+
+    <div class="card">
+      <h2>❓ Ayuda</h2>
+      <p class="ajustes-desc">¿Te olvidaste cómo se usa alguna parte? Volvé a ver la introducción rápida.</p>
+      <button type="button" class="btn secondary" onclick="closeSheet(); mostrarTutorial();">Ver el tutorial otra vez</button>
+    </div>
+
+    <div class="card">
+      <h2>💾 Datos</h2>
+      <p class="ajustes-desc">Tus datos se guardan solo en este dispositivo (localStorage). Exportá un respaldo periódicamente por si cambiás de celular o borrás el navegador.</p>
+      <button type="button" class="btn primary" onclick="exportarDatos()">⬇️ Exportar datos (JSON)</button>
+
+      <label style="margin-top:16px;">Importar datos desde archivo</label>
+      <input type="file" id="importFile" accept="application/json,.json">
+      <button type="button" class="btn secondary" onclick="importarDatos()">⬆️ Importar (reemplaza los datos actuales)</button>
+
+      <div style="margin-top:16px;font-size:13px;color:var(--text-dim);">Alumnos: ${db.alumnos.length} · Clases: ${db.clases.length} · Temas: ${db.temas.length} · Tareas: ${db.tareas.length}</div>
+
+      <button type="button" class="btn danger" style="margin-top:16px;" onclick="borrarTodo()">🗑️ Borrar todos los datos</button>
+    </div>
+  `);
 }
 
 function guardarRangoTarifas(){
@@ -2280,11 +2318,22 @@ function importarDatos(){
       db.clases = Array.isArray(parsed.clases) ? parsed.clases : [];
       db.temas = Array.isArray(parsed.temas) ? parsed.temas : [];
       db.tareas = Array.isArray(parsed.tareas) ? parsed.tareas : [];
-      db.config = Object.assign({tarifaMin:7000, tarifaMax:15000, paleta:'tierra', modoOscuro:false, tutorialVisto:false}, parsed.config||{});
-      db.alumnos.forEach(a=>{ if(!Array.isArray(a.temasIds)) a.temasIds = []; });
+      db.config = Object.assign({tarifaMin:7000, tarifaMax:15000, paleta:'terracota', tema:'auto', tutorialVisto:false}, parsed.config||{});
+      if(!['terracota','salvia','lavanda'].includes(db.config.paleta)){
+        db.config.paleta = (db.config.paleta==='verde') ? 'salvia' : (db.config.paleta==='lila') ? 'lavanda' : 'terracota';
+      }
+      db.alumnos.forEach(a=>{
+        if(!Array.isArray(a.temasIds)) a.temasIds = [];
+        if(typeof a.telefono !== 'string') a.telefono = '';
+        if(typeof a.direccion !== 'string') a.direccion = '';
+        if(!Array.isArray(a.mensajes)) a.mensajes = [];
+      });
       saveDB();
       aplicarPaleta();
       aplicarModoOscuro();
+      renderThemeSwitch();
+      renderModeToggle();
+      closeSheet();
       renderAll();
       showToast('Datos importados correctamente');
     }catch(err){
@@ -2299,6 +2348,7 @@ function borrarTodo(){
   if(!confirm('Última confirmación: se perderá todo lo que no hayas exportado. ¿Continuar?')) return;
   db.alumnos = []; db.clases = []; db.temas = []; db.tareas = [];
   saveDB();
+  closeSheet();
   renderAll();
   showToast('Datos borrados');
 }
@@ -2311,8 +2361,8 @@ const TUTORIAL_PASOS = [
   {icon:'👤', titulo:'Cargá tus alumnos', desc:'Agregá cada alumno con su tarifa por hora, un color identificador y los temas que le das. Desde su ficha vas a ver sus próximas clases y lo que le falta.'},
   {icon:'📅', titulo:'Organizá tus clases', desc:'Tocá un día del calendario para agregar o ver clases. Podés crearlas recurrentes (semanales, quincenales o mensuales) y marcarlas como pagadas de a una o todas juntas.'},
   {icon:'📝', titulo:'Anotá el material a preparar', desc:'Cargá tareas o temas pendientes por alumno para no olvidarte de qué preparar antes de cada clase.'},
-  {icon:'🏠', titulo:'Todo de un vistazo', desc:'En Inicio ves tu próxima clase, cuánto te deben y qué falta preparar. En Estadísticas, cuánto diste y cobraste cada mes.'},
-  {icon:'⚙️', titulo:'Hacela tuya', desc:'En Ajustes podés elegir una paleta de color, activar el modo oscuro y exportar tus datos como respaldo cuando quieras.'}
+  {icon:'🏠', titulo:'Todo de un vistazo', desc:'Arriba de todo siempre ves tu próxima clase, con accesos directos a WhatsApp y cómo llegar. En Estadísticas, cuánto diste y cobraste cada mes.'},
+  {icon:'⚙️', titulo:'Hacela tuya', desc:'Los puntitos de color y la lunita del header cambian la paleta y el modo oscuro. Desde el engranaje ⚙️ accedés a tus temas, tarifas, tutorial y respaldo de datos.'}
 ];
 let tutorialPasoActual = 0;
 
@@ -2352,13 +2402,12 @@ function cerrarTutorial(){
 loadDB();
 aplicarPaleta();
 aplicarModoOscuro();
+renderThemeSwitch();
+renderModeToggle();
 renderAll();
-document.getElementById('fabBtn').style.display = 'none';
 if(!db.config.tutorialVisto) mostrarTutorial();
 
-setInterval(()=>{
-  if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
-}, 60000);
+setInterval(renderBannerYStats, 60000);
 </script>
 </body>
 </html>
