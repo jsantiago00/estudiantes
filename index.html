@@ -116,6 +116,8 @@
   .next-class-countdown{font-family:var(--font-agenda);font-size:26px;font-weight:700;color:var(--accent-text);margin-bottom:6px;}
   .next-class-info{font-size:14px;color:var(--accent-text);display:flex;align-items:center;gap:6px;}
   .next-class-info .dot{width:10px;height:10px;}
+  .next-class-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  .next-class-actions .btn{width:auto;margin-top:0;padding:8px 14px;font-size:13px;}
 
   .stats-esperado{
     background:var(--soft-tint-bg);border:1px dashed var(--border);border-radius:14px;
@@ -386,6 +388,7 @@
         <span class="dot" id="nextClassDot"></span>
         con <b id="nextClassAlumno"></b> · <span id="nextClassCuando"></span>
       </div>
+      <div class="next-class-actions" id="nextClassActions"></div>
     </div>
 
     <div class="stat-row">
@@ -432,10 +435,19 @@
     </div>
 
     <div class="card">
-      <div class="calendar-nav">
+      <div class="filter-row" id="calendarioModoToggle" style="margin-bottom:10px;">
+        <button type="button" class="filter-chip active" data-modo="mes" onclick="setCalendarioModo('mes')">Mes</button>
+        <button type="button" class="filter-chip" data-modo="semana" onclick="setCalendarioModo('semana')">Semana</button>
+      </div>
+      <div class="calendar-nav" id="calendarioNavMes">
         <button onclick="cambiarMesCalendario(-1)" aria-label="Mes anterior">←</button>
         <div class="calendar-label" id="calendarioMesLabel"></div>
         <button onclick="cambiarMesCalendario(1)" aria-label="Mes siguiente">→</button>
+      </div>
+      <div class="calendar-nav" id="calendarioNavSemana" style="display:none;">
+        <button onclick="cambiarSemanaCalendario(-1)" aria-label="Semana anterior">←</button>
+        <div class="calendar-label" id="calendarioSemanaLabel"></div>
+        <button onclick="cambiarSemanaCalendario(1)" aria-label="Semana siguiente">→</button>
       </div>
       <div class="calendar-weekdays">
         <span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span>
@@ -635,6 +647,9 @@ function loadDB(){
     db.alumnos.forEach(a=>{
       if(!a.tipo) a.tipo = 'nino';
       if(!Array.isArray(a.temasIds)) a.temasIds = [];
+      if(typeof a.telefono !== 'string') a.telefono = '';
+      if(typeof a.direccion !== 'string') a.direccion = '';
+      if(!Array.isArray(a.mensajes)) a.mensajes = [];
     });
     // migración de tareas sin temaId/claseId definidos
     db.tareas.forEach(t=>{
@@ -663,6 +678,14 @@ function saveDB(){
 function getAlumno(id){ return db.alumnos.find(a => a.id === id); }
 function alumnoNombre(id){ const a = getAlumno(id); return a ? a.nombre : '(alumno eliminado)'; }
 function alumnoColor(id){ const a = getAlumno(id); return a ? a.color : '#999'; }
+function waUrl(phone, text){
+  const digits = (phone||'').replace(/\D/g,'');
+  const base = digits ? `https://wa.me/${digits}` : 'https://api.whatsapp.com/send';
+  return text ? `${base}?text=${encodeURIComponent(text)}` : base;
+}
+function mapsUrl(direccion){
+  return 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(direccion||'') + '&travelmode=driving';
+}
 
 const COLOR_SWATCHES = ['#ef4444','#f97316','#f59e0b','#84cc16','#22c55e','#14b8a6','#06b6d4','#3b82f6','#6366f1','#a855f7','#ec4899','#78716c'];
 
@@ -831,6 +854,22 @@ function openAlumnoForm(id){
       <input type="text" id="f_contacto" value="${editing ? escapeAttr(editing.contacto||'') : ''}" placeholder="Ej: Mamá de Pepito">
     </div>
 
+    <label>Teléfono / WhatsApp (opcional)</label>
+    <input type="tel" id="f_telefono" value="${editing ? escapeAttr(editing.telefono||'') : ''}" placeholder="Ej: 2611234567">
+
+    <label>Dirección (opcional, para "Cómo llego")</label>
+    <input type="text" id="f_direccion" value="${editing ? escapeAttr(editing.direccion||'') : ''}" placeholder="Ej: Calle Falsa 123">
+
+    ${editing ? `
+    <label>Mensajes predeterminados</label>
+    <div id="mensajesListBox">${renderMensajesAlumnoForm(editing)}</div>
+    <div class="row2" style="margin-top:8px;">
+      <input type="text" id="f_msgLabel" placeholder="Título (ej: Llego en 5 min)">
+    </div>
+    <textarea id="f_msgText" placeholder="Texto del mensaje..." style="margin-top:8px;"></textarea>
+    <button type="button" class="btn secondary" onclick="agregarMensajeAlumno('${editing.id}')">+ Guardar mensaje</button>
+    ` : ''}
+
     <label>Temas que le doy</label>
     <div class="dias-chips" id="temasChipsBox">${temasChipsPickerHtml(editing ? editing.temasIds : [])}</div>
     <div class="row2" style="margin-top:8px;">
@@ -878,6 +917,8 @@ function guardarAlumno(id){
   const tarifa = parseFloat(document.getElementById('f_tarifa').value) || 0;
   const tipo = document.querySelector('input[name="f_tipo"]:checked').value;
   const contacto = document.getElementById('f_contacto').value.trim();
+  const telefono = document.getElementById('f_telefono').value.trim();
+  const direccion = document.getElementById('f_direccion').value.trim();
   const color = document.getElementById('f_color').value;
   const temasIds = leerTemasSeleccionadosForm();
 
@@ -885,9 +926,9 @@ function guardarAlumno(id){
 
   if(id){
     const a = getAlumno(id);
-    a.nombre = nombre; a.tarifa = tarifa; a.tipo = tipo; a.contacto = contacto; a.color = color; a.temasIds = temasIds;
+    a.nombre = nombre; a.tarifa = tarifa; a.tipo = tipo; a.contacto = contacto; a.telefono = telefono; a.direccion = direccion; a.color = color; a.temasIds = temasIds;
   }else{
-    db.alumnos.push({id: uid(), nombre, tarifa, tipo, contacto, color, temasIds, activo:true});
+    db.alumnos.push({id: uid(), nombre, tarifa, tipo, contacto, telefono, direccion, mensajes:[], color, temasIds, activo:true});
   }
   saveDB();
   closeSheet();
@@ -909,6 +950,72 @@ function eliminarAlumno(id){
   closeSheet();
   if(eraElAbierto){ goTo('alumnos'); } else { renderAll(); }
   showToast('Alumno eliminado');
+}
+
+function renderMensajesAlumnoForm(alumno){
+  const msgs = alumno.mensajes || [];
+  if(msgs.length===0) return '<div class="empty-msg">Sin mensajes guardados todavía.</div>';
+  return msgs.map(m=>`
+    <div class="list-item" style="gap:8px;">
+      <div class="item-main">
+        <div class="item-title" style="font-size:14px;">${escapeHtml(m.label)}</div>
+      </div>
+      <button type="button" class="btn danger" style="width:auto;margin:0;padding:8px 12px;" onclick="eliminarMensajeAlumno('${alumno.id}','${m.id}')">🗑</button>
+    </div>
+  `).join('');
+}
+
+function agregarMensajeAlumno(alumnoId){
+  const label = document.getElementById('f_msgLabel').value.trim();
+  const text = document.getElementById('f_msgText').value.trim();
+  if(!label || !text){ showToast('Completá título y texto del mensaje'); return; }
+  const a = getAlumno(alumnoId);
+  if(!Array.isArray(a.mensajes)) a.mensajes = [];
+  a.mensajes.push({id: uid(), label, text});
+  saveDB();
+  document.getElementById('f_msgLabel').value = '';
+  document.getElementById('f_msgText').value = '';
+  document.getElementById('mensajesListBox').innerHTML = renderMensajesAlumnoForm(a);
+}
+
+function eliminarMensajeAlumno(alumnoId, msgId){
+  const a = getAlumno(alumnoId);
+  if(!a) return;
+  a.mensajes = (a.mensajes||[]).filter(m=>m.id!==msgId);
+  saveDB();
+  document.getElementById('mensajesListBox').innerHTML = renderMensajesAlumnoForm(a);
+}
+
+function abrirWhatsappAlumno(alumnoId){
+  const a = getAlumno(alumnoId);
+  if(!a) return;
+  const msgs = a.mensajes || [];
+  if(msgs.length===0){
+    window.open(waUrl(a.telefono, ''), '_blank');
+    return;
+  }
+  openSheet(`
+    <h3>Enviar WhatsApp</h3>
+    <p>${escapeHtml(a.nombre)}</p>
+    <div class="btn-row" style="flex-direction:column;">
+      ${msgs.map(m=>`<button type="button" class="btn secondary" onclick="enviarMensajePlantilla('${a.id}','${m.id}')">${escapeHtml(m.label)}</button>`).join('')}
+      <button type="button" class="btn secondary" onclick="enviarMensajePlantilla('${a.id}', null)">Sin mensaje (chat vacío)</button>
+    </div>
+  `);
+}
+
+function enviarMensajePlantilla(alumnoId, msgId){
+  const a = getAlumno(alumnoId);
+  if(!a) return;
+  const m = msgId ? (a.mensajes||[]).find(m=>m.id===msgId) : null;
+  window.open(waUrl(a.telefono, m ? m.text : ''), '_blank');
+  closeSheet();
+}
+
+function abrirComoLlego(alumnoId){
+  const a = getAlumno(alumnoId);
+  if(!a || !a.direccion) return;
+  window.open(mapsUrl(a.direccion), '_blank');
 }
 
 function renderAlumnos(){
@@ -1393,7 +1500,7 @@ function enviarWhatsappDesdeForm(){
     const saludo = contacto ? `Hola ${contacto}, ¿cómo estás?` : 'Hola, ¿cómo estás?';
     msg = `${saludo}\nYa terminamos de estudiar con ${a.nombre} por hoy, estuvimos ${horasTexto} y el total es ${money(monto)}. Cualquier cosa estoy atenta, muchas gracias!`;
   }
-  window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+  window.open(waUrl(a.telefono, msg), '_blank');
 }
 
 function eliminarClase(id){
@@ -1433,14 +1540,26 @@ function renderFiltroClases(){
 function setFiltroClases(v){ filtroClasesAlumno = v; renderAll(); }
 
 let calendarioFecha = new Date();
+let calendarioModo = 'mes'; // 'mes' | 'semana'
+let calendarioSemanaInicio = getMonday(new Date());
 
 function renderClases(){
   renderFiltroClases();
   renderCalendario();
 }
 
+function setCalendarioModo(modo){
+  calendarioModo = modo;
+  renderCalendario();
+}
+
 function cambiarMesCalendario(delta){
   calendarioFecha.setMonth(calendarioFecha.getMonth()+delta);
+  renderCalendario();
+}
+
+function cambiarSemanaCalendario(delta){
+  calendarioSemanaInicio.setDate(calendarioSemanaInicio.getDate()+7*delta);
   renderCalendario();
 }
 
@@ -1452,6 +1571,15 @@ function formatoFechaLarga(fechaStr){
 }
 
 function renderCalendario(){
+  document.querySelectorAll('#calendarioModoToggle .filter-chip').forEach(b=>{
+    b.classList.toggle('active', b.dataset.modo===calendarioModo);
+  });
+  document.getElementById('calendarioNavMes').style.display = calendarioModo==='mes' ? 'flex' : 'none';
+  document.getElementById('calendarioNavSemana').style.display = calendarioModo==='semana' ? 'flex' : 'none';
+  if(calendarioModo==='semana') renderCalendarioSemana(); else renderCalendarioMes();
+}
+
+function renderCalendarioMes(){
   const y = calendarioFecha.getFullYear(), m = calendarioFecha.getMonth();
   const label = calendarioFecha.toLocaleDateString('es-AR', {month:'long', year:'numeric'});
   document.getElementById('calendarioMesLabel').textContent = label.charAt(0).toUpperCase()+label.slice(1);
@@ -1489,6 +1617,42 @@ function renderCalendario(){
 
   document.getElementById('calendarioGrid').innerHTML = celdas;
 }
+
+function renderCalendarioSemana(){
+  const inicio = calendarioSemanaInicio;
+  const fin = addDiasCalendario(inicio, 6);
+  document.getElementById('calendarioSemanaLabel').textContent = `${fmtFecha(toIsoCalendario(inicio))} – ${fmtFecha(toIsoCalendario(fin))}`;
+
+  let clases = db.clases.slice();
+  if(filtroClasesAlumno!=='todos') clases = clases.filter(c=>c.alumnoId===filtroClasesAlumno);
+
+  const porDia = {};
+  clases.forEach(c=>{
+    (porDia[c.fecha] = porDia[c.fecha] || []).push(c);
+  });
+
+  const hoyStr = new Date().toISOString().slice(0,10);
+  let celdas = '';
+  for(let i=0;i<7;i++){
+    const d = addDiasCalendario(inicio, i);
+    const fechaStr = toIsoCalendario(d);
+    const clasesDia = porDia[fechaStr] || [];
+    const esHoy = fechaStr===hoyStr;
+    const colores = [...new Set(clasesDia.map(c=>c.alumnoId))].map(id=>alumnoColor(id)).slice(0,4);
+    const dots = colores.map(col=>`<span class="cal-dot" style="background:${col}"></span>`).join('');
+    celdas += `
+      <button type="button" class="cal-cell ${esHoy?'today':''} ${clasesDia.length?'has-clases':''}" onclick="abrirDiaCalendario('${fechaStr}')">
+        <span class="cal-day-num">${d.getDate()}</span>
+        <span class="cal-dots">${dots}</span>
+      </button>
+    `;
+  }
+
+  document.getElementById('calendarioGrid').innerHTML = celdas;
+}
+
+function addDiasCalendario(d, n){ const r = new Date(d); r.setDate(r.getDate()+n); return r; }
+function toIsoCalendario(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 
 function abrirDiaCalendario(fechaStr){
   const clasesDia = db.clases
@@ -1855,6 +2019,16 @@ function renderProximaClaseCountdown(c, ahora){
   document.getElementById('nextClassAlumno').textContent = alumnoNombre(c.alumnoId);
   document.getElementById('nextClassDot').style.background = alumnoColor(c.alumnoId);
   document.getElementById('nextClassCuando').textContent = `${nombreDiaFecha(c.fecha)} · ${c.horaEntrada}`;
+
+  const alumno = getAlumno(c.alumnoId);
+  const acciones = [];
+  if(alumno){
+    acciones.push(`<button type="button" class="btn whatsapp" onclick="abrirWhatsappAlumno('${alumno.id}')">💬 WhatsApp</button>`);
+    if(alumno.direccion){
+      acciones.push(`<button type="button" class="btn secondary" onclick="abrirComoLlego('${alumno.id}')">📍 Cómo llego</button>`);
+    }
+  }
+  document.getElementById('nextClassActions').innerHTML = acciones.join('');
 }
 
 function renderDashboard(){
