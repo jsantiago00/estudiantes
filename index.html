@@ -514,8 +514,8 @@
     </div>
 
     <div class="filter-row" id="calendarioModoToggle" style="margin-bottom:10px;">
-      <button type="button" class="filter-chip active" data-modo="mes" onclick="setCalendarioModo('mes')">Mes</button>
       <button type="button" class="filter-chip" data-modo="semana" onclick="setCalendarioModo('semana')">Semana</button>
+      <button type="button" class="filter-chip active" data-modo="mes" onclick="setCalendarioModo('mes')">Mes</button>
     </div>
     <div class="calendar-nav" id="calendarioNavMes">
       <button onclick="cambiarMesCalendario(-1)" aria-label="Mes anterior">←</button>
@@ -1652,8 +1652,6 @@ function renderCalendarioMes(){
 
 function renderCalendarioSemana(){
   const inicio = calendarioSemanaInicio;
-  const fin = addDiasCalendario(inicio, 6);
-  document.getElementById('calendarioSemanaLabel').textContent = `${fmtFecha(toIsoCalendario(inicio))} – ${fmtFecha(toIsoCalendario(fin))}`;
 
   let clases = db.clases.slice();
   if(filtroClasesAlumno!=='todos') clases = clases.filter(c=>c.alumnoId===filtroClasesAlumno);
