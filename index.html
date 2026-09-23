@@ -99,7 +99,7 @@
     background:var(--bg);
     color:var(--text);
     font-family:'Nunito',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    padding-bottom:calc(90px + var(--safe-bottom));
+    padding-bottom:calc(24px + var(--safe-bottom));
     min-height:100vh;
   }
   header.app-header{
@@ -111,7 +111,7 @@
     display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
   }
   header.app-header .header-text{min-width:0;display:flex;align-items:center;gap:8px;}
-  header.app-header .icon-btn{
+  .icon-btn{
     background:var(--btn-secondary-bg);border:none;color:var(--text);
     width:32px;height:32px;border-radius:10px;flex-shrink:0;
     font-size:16px;display:flex;align-items:center;justify-content:center;
@@ -247,6 +247,9 @@
   }
   .filter-chip.active{background:var(--primary);color:#fff;border-color:var(--primary);}
 
+  .pill-group-full{display:flex;gap:6px;margin-bottom:12px;}
+  .pill-group-full .filter-chip{flex:1;text-align:center;white-space:nowrap;}
+
   /* bottom sheet modal */
   .overlay{
     position:fixed;inset:0;background:var(--overlay-bg);z-index:50;
@@ -312,8 +315,6 @@
   }
   .toast.show{opacity:1;}
 
-  .section-actions{display:flex;gap:8px;margin-bottom:12px;}
-  .section-actions .btn{margin-top:0;flex:1;padding:10px;font-size:13px;}
 
   .btn.whatsapp{background:#25D366;color:#fff;}
   .btn.whatsapp:active{background:#1ea952;}
@@ -507,11 +508,7 @@
       </div>
     </div>
 
-    <div class="section-actions">
-      <button class="btn secondary" onclick="marcarTodasPagadas()">✓ Marcar todas como pagadas</button>
-    </div>
-
-    <div class="filter-row" id="calendarioModoToggle" style="margin-bottom:10px;">
+    <div class="pill-group-full" id="calendarioModoToggle">
       <button type="button" class="filter-chip active" data-modo="semana" onclick="setCalendarioModo('semana')">Semana</button>
       <button type="button" class="filter-chip" data-modo="mes" onclick="setCalendarioModo('mes')">Mes</button>
     </div>
@@ -1495,16 +1492,6 @@ function togglePagada(id, ev){
   renderAll();
 }
 
-function marcarTodasPagadas(){
-  const afectadas = db.clases.filter(c => !c.pagada);
-  if(afectadas.length===0){ showToast('No hay clases pendientes'); return; }
-  if(!confirm(`Marcar ${afectadas.length} clase(s) como pagadas?`)) return;
-  afectadas.forEach(c=>c.pagada=true);
-  saveDB();
-  renderAll();
-  showToast('Clases marcadas como pagadas');
-}
-
 let calendarioFecha = new Date();
 let calendarioModo = 'semana'; // 'mes' | 'semana'
 let calendarioSemanaInicio = getMonday(new Date());
@@ -2173,7 +2160,10 @@ document.getElementById('modeToggle').addEventListener('click', ()=>{
 
 function abrirAjustes(){
   openSheet(`
-    <h3>Ajustes</h3>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <h3 style="margin:0;">Ajustes</h3>
+      <button type="button" class="icon-btn" onclick="closeSheet()" aria-label="Cerrar">✕</button>
+    </div>
     <div class="card">
       <h2>📚 Temas (los de estudio)</h2>
       <p class="ajustes-desc">Las materias que le das a tus alumnos (Matemáticas, Biología...). Se crean una vez y se vinculan a cada alumno desde su ficha.</p>
@@ -2209,6 +2199,8 @@ function abrirAjustes(){
 
       <button type="button" class="btn danger" style="margin-top:16px;" onclick="borrarTodo()">🗑️ Borrar todos los datos</button>
     </div>
+
+    <button class="btn primary" onclick="closeSheet()">Listo</button>
   `);
 }
 

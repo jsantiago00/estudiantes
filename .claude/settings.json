@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -o /dev/null -w *)",
+      "Bash(netstat *)",
+      "Bash(npm ls *)",
+      "Bash(npm view *)",
+      "Bash(gh repo view *)",
+      "Bash(gh --version)",
+      "Bash(tasklist *)",
+      "Bash(git config --get *)"
+    ]
+  }
+}
