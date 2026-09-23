@@ -468,7 +468,7 @@
 </header>
 
 <div class="next-class-card" id="nextClassCard" hidden>
-  <div class="next-class-eyebrow">⏳ Tu próxima clase</div>
+  <div class="next-class-eyebrow" id="nextClassEyebrow">⏳ Tu próxima clase</div>
   <div class="next-class-countdown" id="nextClassCountdown">—</div>
   <div class="next-class-info">
     <span class="dot" id="nextClassDot"></span>
@@ -481,7 +481,7 @@
   <button data-view="clases" class="active">Agenda</button>
   <button data-view="alumnos">Alumnos</button>
   <button data-view="tareas">Tareas</button>
-  <button data-view="stats">Stats</button>
+  <button data-view="stats">Billetera</button>
 </nav>
 
 <main>
@@ -1025,7 +1025,7 @@ function abrirGestionMensajes(alumnoId){
   if(!a) return;
   openSheet(`
     <h3>Mensajes predeterminados</h3>
-    <p style="color:var(--text-dim);font-size:13px;">Plantillas de WhatsApp para ${escapeHtml(a.nombre)}. Se ofrecen al tocar el botón de WhatsApp en el banner de próxima clase.</p>
+    <p style="color:var(--text-dim);font-size:13px;">Plantillas de WhatsApp para ${escapeHtml(a.nombre)}. Se ofrecen, junto con "Resumen y cobro de clase", al tocar el botón de WhatsApp en el banner de la clase actual o próxima.</p>
     <div id="mensajesListBox">${renderMensajesAlumnoForm(a)}</div>
     <div class="row2" style="margin-top:8px;">
       <input type="text" id="f_msgLabel" placeholder="Título (ej: Llego en 5 min)">
@@ -1036,11 +1036,12 @@ function abrirGestionMensajes(alumnoId){
   `);
 }
 
-function abrirWhatsappAlumno(alumnoId){
+function abrirWhatsappAlumno(alumnoId, claseId){
   const a = getAlumno(alumnoId);
   if(!a) return;
+  const clase = claseId ? db.clases.find(c=>c.id===claseId) : null;
   const msgs = a.mensajes || [];
-  if(msgs.length===0){
+  if(msgs.length===0 && !clase){
     window.open(waUrl(a.telefono, ''), '_blank');
     return;
   }
@@ -1048,10 +1049,23 @@ function abrirWhatsappAlumno(alumnoId){
     <h3>Enviar WhatsApp</h3>
     <p>${escapeHtml(a.nombre)}</p>
     <div class="btn-row" style="flex-direction:column;">
+      ${clase ? `<button type="button" class="btn secondary" onclick="enviarResumenClase('${a.id}','${clase.id}')">Resumen y cobro de clase</button>` : ''}
       ${msgs.map(m=>`<button type="button" class="btn secondary" onclick="enviarMensajePlantilla('${a.id}','${m.id}')">${escapeHtml(m.label)}</button>`).join('')}
       <button type="button" class="btn secondary" onclick="enviarMensajePlantilla('${a.id}', null)">Sin mensaje (chat vacío)</button>
     </div>
   `);
+}
+
+function textoResumenClase(c){
+  return `Tuvimos ${formatDuracionTexto(c.duracionMin)} de clase y el total es ${money(c.monto)}.`;
+}
+
+function enviarResumenClase(alumnoId, claseId){
+  const a = getAlumno(alumnoId);
+  const c = db.clases.find(x=>x.id===claseId);
+  if(!a || !c) return;
+  window.open(waUrl(a.telefono, textoResumenClase(c)), '_blank');
+  closeSheet();
 }
 
 function enviarMensajePlantilla(alumnoId, msgId){
@@ -1977,22 +1991,54 @@ function formatCuentaRegresiva(ms){
   return `${mins} min`;
 }
 
-function renderProximaClaseCountdown(c, ahora){
+function claseEnCursoAhora(ahora){
+  return db.clases.find(c=>{
+    if(!c.horaSalida) return false;
+    const inicio = fechaHoraClase(c);
+    const fin = new Date(`${c.fecha}T${c.horaSalida}`);
+    return ahora>=inicio && ahora<fin;
+  });
+}
+
+function agregarTiempoClase(claseId, minutos){
+  const c = db.clases.find(c=>c.id===claseId);
+  if(!c) return;
+  const a = getAlumno(c.alumnoId);
+  const tarifa = a ? Number(a.tarifa)||0 : 0;
+  c.duracionMin += minutos;
+  c.horaSalida = sumarMinutos(c.horaEntrada, c.duracionMin);
+  c.monto = Number(c.monto||0) + redondearA1000(tarifa*(minutos/60));
+  saveDB();
+  renderAll();
+  showToast(`+${formatDuracionTexto(minutos)} agregados a la clase`);
+}
+
+function renderProximaClaseCountdown(c, ahora, enCurso){
   const card = document.getElementById('nextClassCard');
   if(!c){ card.hidden = true; return; }
   card.hidden = false;
-  document.getElementById('nextClassCountdown').textContent = formatCuentaRegresiva(fechaHoraClase(c)-ahora);
+  document.getElementById('nextClassEyebrow').textContent = enCurso ? '🟢 Clase actual' : '⏳ Tu próxima clase';
+  if(enCurso){
+    const fin = new Date(`${c.fecha}T${c.horaSalida}`);
+    document.getElementById('nextClassCountdown').textContent = 'Termina en ' + formatCuentaRegresiva(fin-ahora);
+  }else{
+    document.getElementById('nextClassCountdown').textContent = formatCuentaRegresiva(fechaHoraClase(c)-ahora);
+  }
   document.getElementById('nextClassAlumno').textContent = alumnoNombre(c.alumnoId);
   document.getElementById('nextClassDot').style.background = alumnoColor(c.alumnoId);
-  document.getElementById('nextClassCuando').textContent = `${nombreDiaFecha(c.fecha)} · ${c.horaEntrada}`;
+  document.getElementById('nextClassCuando').textContent = enCurso ? `${c.horaEntrada}-${c.horaSalida}` : `${nombreDiaFecha(c.fecha)} · ${c.horaEntrada}`;
 
   const alumno = getAlumno(c.alumnoId);
   const acciones = [];
   if(alumno){
-    acciones.push(`<button type="button" class="btn whatsapp" onclick="abrirWhatsappAlumno('${alumno.id}')">💬 WhatsApp</button>`);
+    acciones.push(`<button type="button" class="btn whatsapp" onclick="abrirWhatsappAlumno('${alumno.id}','${c.id}')">💬 WhatsApp</button>`);
     if(alumno.direccion){
       acciones.push(`<button type="button" class="btn secondary" onclick="abrirComoLlego('${alumno.id}')">📍 Cómo llego</button>`);
     }
+  }
+  if(enCurso){
+    acciones.push(`<button type="button" class="btn secondary" onclick="agregarTiempoClase('${c.id}',30)">+30 min</button>`);
+    acciones.push(`<button type="button" class="btn secondary" onclick="agregarTiempoClase('${c.id}',60)">+1 hora</button>`);
   }
   document.getElementById('nextClassActions').innerHTML = acciones.join('');
 }
@@ -2002,11 +2048,16 @@ function renderBannerYStats(){
   const hoySinHora = new Date(ahora);
   hoySinHora.setHours(0,0,0,0);
 
-  // Próxima clase (banner global, visible en cualquier tab)
-  const proxima = db.clases
-    .filter(c => fechaHoraClase(c) >= ahora)
-    .sort((a,b)=> fechaHoraClase(a) - fechaHoraClase(b))[0];
-  renderProximaClaseCountdown(proxima, ahora);
+  // Clase en curso ahora mismo, si no hay ninguna se muestra la próxima (banner global, visible en cualquier tab)
+  const enCurso = claseEnCursoAhora(ahora);
+  if(enCurso){
+    renderProximaClaseCountdown(enCurso, ahora, true);
+  }else{
+    const proxima = db.clases
+      .filter(c => fechaHoraClase(c) >= ahora)
+      .sort((a,b)=> fechaHoraClase(a) - fechaHoraClase(b))[0];
+    renderProximaClaseCountdown(proxima, ahora, false);
+  }
 
   // Clases esta semana
   const monday = getMonday(ahora);
