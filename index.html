@@ -659,56 +659,59 @@ function uid(){
   return 'id-' + Date.now() + '-' + Math.random().toString(16).slice(2);
 }
 
+function aplicarDatosCargados(parsed){
+  if(parsed){
+    db.alumnos = parsed.alumnos || [];
+    db.clases = parsed.clases || [];
+    db.temas = parsed.temas || [];
+    db.tareas = parsed.tareas || [];
+    db.config = Object.assign({tarifaMin:7000, tarifaMax:15000, paleta:'terracota', tema:'auto', tutorialVisto:false}, parsed.config||{});
+  }
+  // migración de paletas viejas (6 opciones) a las 3 nuevas, y de modoOscuro booleano a tema auto/light/dark
+  if(!['terracota','salvia','lavanda'].includes(db.config.paleta)){
+    db.config.paleta = (db.config.paleta==='verde') ? 'salvia' : (db.config.paleta==='lila') ? 'lavanda' : 'terracota';
+  }
+  if(db.config.tema===undefined){
+    db.config.tema = db.config.modoOscuro ? 'dark' : 'auto';
+  }
+  delete db.config.modoOscuro;
+  // migración de clases con el esquema viejo (hora + duracionMin -> horaEntrada/horaSalida)
+  db.clases.forEach(c=>{
+    if(!c.horaEntrada && c.hora){
+      c.horaEntrada = c.hora;
+      c.horaSalida = c.duracionMin ? sumarMinutos(c.hora, c.duracionMin) : null;
+      delete c.hora;
+    }
+    if(c.serieId===undefined) c.serieId = null;
+  });
+  // migración de alumnos sin tipo definido: antes todo el mundo se trataba como "niño" (mensaje al contacto)
+  db.alumnos.forEach(a=>{
+    if(!a.tipo) a.tipo = 'nino';
+    if(!Array.isArray(a.temasIds)) a.temasIds = [];
+    if(typeof a.telefono !== 'string') a.telefono = '';
+    if(typeof a.direccion !== 'string') a.direccion = '';
+    if(!Array.isArray(a.mensajes)) a.mensajes = [];
+  });
+  // migración de tareas sin temaId/claseId definidos
+  db.tareas.forEach(t=>{
+    if(t.temaId===undefined) t.temaId = null;
+    if(t.claseId===undefined) t.claseId = null;
+  });
+  // migración de temas: antes eran propios de un alumno (alumnoId), ahora son un catálogo
+  // global del profesor y se vinculan a cada alumno vía alumno.temasIds
+  db.temas.forEach(t=>{
+    if(t.alumnoId){
+      const alumno = db.alumnos.find(a=>a.id===t.alumnoId);
+      if(alumno && !alumno.temasIds.includes(t.id)) alumno.temasIds.push(t.id);
+      delete t.alumnoId;
+    }
+  });
+}
+
 function loadDB(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
-    if(raw){
-      const parsed = JSON.parse(raw);
-      db.alumnos = parsed.alumnos || [];
-      db.clases = parsed.clases || [];
-      db.temas = parsed.temas || [];
-      db.tareas = parsed.tareas || [];
-      db.config = Object.assign({tarifaMin:7000, tarifaMax:15000, paleta:'terracota', tema:'auto', tutorialVisto:false}, parsed.config||{});
-    }
-    // migración de paletas viejas (6 opciones) a las 3 nuevas, y de modoOscuro booleano a tema auto/light/dark
-    if(!['terracota','salvia','lavanda'].includes(db.config.paleta)){
-      db.config.paleta = (db.config.paleta==='verde') ? 'salvia' : (db.config.paleta==='lila') ? 'lavanda' : 'terracota';
-    }
-    if(db.config.tema===undefined){
-      db.config.tema = db.config.modoOscuro ? 'dark' : 'auto';
-    }
-    delete db.config.modoOscuro;
-    // migración de clases con el esquema viejo (hora + duracionMin -> horaEntrada/horaSalida)
-    db.clases.forEach(c=>{
-      if(!c.horaEntrada && c.hora){
-        c.horaEntrada = c.hora;
-        c.horaSalida = c.duracionMin ? sumarMinutos(c.hora, c.duracionMin) : null;
-        delete c.hora;
-      }
-      if(c.serieId===undefined) c.serieId = null;
-    });
-    // migración de alumnos sin tipo definido: antes todo el mundo se trataba como "niño" (mensaje al contacto)
-    db.alumnos.forEach(a=>{
-      if(!a.tipo) a.tipo = 'nino';
-      if(!Array.isArray(a.temasIds)) a.temasIds = [];
-      if(typeof a.telefono !== 'string') a.telefono = '';
-      if(typeof a.direccion !== 'string') a.direccion = '';
-      if(!Array.isArray(a.mensajes)) a.mensajes = [];
-    });
-    // migración de tareas sin temaId/claseId definidos
-    db.tareas.forEach(t=>{
-      if(t.temaId===undefined) t.temaId = null;
-      if(t.claseId===undefined) t.claseId = null;
-    });
-    // migración de temas: antes eran propios de un alumno (alumnoId), ahora son un catálogo
-    // global del profesor y se vinculan a cada alumno vía alumno.temasIds
-    db.temas.forEach(t=>{
-      if(t.alumnoId){
-        const alumno = db.alumnos.find(a=>a.id===t.alumnoId);
-        if(alumno && !alumno.temasIds.includes(t.id)) alumno.temasIds.push(t.id);
-        delete t.alumnoId;
-      }
-    });
+    aplicarDatosCargados(raw ? JSON.parse(raw) : null);
   }catch(e){
     console.error('Error leyendo datos', e);
   }
@@ -716,6 +719,7 @@ function loadDB(){
 
 function saveDB(){
   localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+  if(window.firebaseQueueSave) window.firebaseQueueSave(db);
 }
 
 /* helpers de acceso */
@@ -2308,13 +2312,73 @@ function abrirAjustes(){
   renderThemeSwitch();
 }
 
+let firebaseUser = null;
+
+function renderProfileIcon(){
+  const btn = document.getElementById('profileToggle');
+  if(!btn) return;
+  if(firebaseUser){
+    btn.textContent = '🟢';
+    btn.title = 'Sesión iniciada: ' + (firebaseUser.email||'');
+  }else{
+    btn.textContent = '👤';
+    btn.title = 'Perfil';
+  }
+}
+
+function iniciarSesionGoogle(){
+  if(!window.firebaseSignIn){ showToast('Todavía está cargando, esperá un momento'); return; }
+  window.firebaseSignIn();
+}
+
+function cerrarSesionGoogle(){
+  if(window.firebaseSignOutUser) window.firebaseSignOutUser();
+  closeSheet();
+  showToast('Sesión cerrada. Tus datos siguen guardados en este dispositivo.');
+}
+
+window.onFirebaseAuthChange = async function(user){
+  firebaseUser = user;
+  renderProfileIcon();
+  if(!user) return;
+  if(!window.firebaseFetchUserDoc) return;
+  try{
+    const cloudData = await window.firebaseFetchUserDoc(user.uid);
+    if(cloudData){
+      aplicarDatosCargados(cloudData);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+      aplicarPaleta();
+      aplicarModoOscuro();
+      renderThemeSwitch();
+      renderModeToggle();
+      renderAll();
+      showToast('Datos sincronizados con tu cuenta de Google');
+    }else{
+      saveDB();
+      showToast('Sesión iniciada, respaldando tus datos en la nube');
+    }
+  }catch(e){
+    console.error('Error sincronizando con Firestore', e);
+    showToast('No se pudo sincronizar con la nube');
+  }
+};
+
 function abrirPerfil(){
-  openSheet(`
-    <h3>Perfil</h3>
-    <p class="ajustes-desc">Próximamente vas a poder iniciar sesión con tu cuenta de Google para sincronizar tus datos entre dispositivos.</p>
-    <button type="button" class="btn secondary" disabled style="opacity:.6;">🔒 Iniciar sesión con Google (próximamente)</button>
-    <button class="btn primary" onclick="closeSheet()">Listo</button>
-  `);
+  if(firebaseUser){
+    openSheet(`
+      <h3>Perfil</h3>
+      <p class="ajustes-desc">Sesión iniciada como <b>${escapeHtml(firebaseUser.email||'')}</b>. Tus datos se respaldan automáticamente en la nube.</p>
+      <button type="button" class="btn danger" onclick="cerrarSesionGoogle()">Cerrar sesión</button>
+      <button class="btn primary" onclick="closeSheet()">Listo</button>
+    `);
+  }else{
+    openSheet(`
+      <h3>Perfil</h3>
+      <p class="ajustes-desc">Iniciá sesión con tu cuenta de Google para respaldar tus datos en la nube y usarlos desde otros dispositivos.</p>
+      <button type="button" class="btn primary" onclick="iniciarSesionGoogle()">🔐 Iniciar sesión con Google</button>
+      <button class="btn secondary" onclick="closeSheet()">Ahora no</button>
+    `);
+  }
 }
 
 function guardarRangoTarifas(){
@@ -2352,20 +2416,7 @@ function importarDatos(){
       const parsed = JSON.parse(e.target.result);
       if(!parsed || typeof parsed !== 'object') throw new Error('formato inválido');
       if(!confirm('Esto reemplazará TODOS tus datos actuales. ¿Continuar?')) return;
-      db.alumnos = Array.isArray(parsed.alumnos) ? parsed.alumnos : [];
-      db.clases = Array.isArray(parsed.clases) ? parsed.clases : [];
-      db.temas = Array.isArray(parsed.temas) ? parsed.temas : [];
-      db.tareas = Array.isArray(parsed.tareas) ? parsed.tareas : [];
-      db.config = Object.assign({tarifaMin:7000, tarifaMax:15000, paleta:'terracota', tema:'auto', tutorialVisto:false}, parsed.config||{});
-      if(!['terracota','salvia','lavanda'].includes(db.config.paleta)){
-        db.config.paleta = (db.config.paleta==='verde') ? 'salvia' : (db.config.paleta==='lila') ? 'lavanda' : 'terracota';
-      }
-      db.alumnos.forEach(a=>{
-        if(!Array.isArray(a.temasIds)) a.temasIds = [];
-        if(typeof a.telefono !== 'string') a.telefono = '';
-        if(typeof a.direccion !== 'string') a.direccion = '';
-        if(!Array.isArray(a.mensajes)) a.mensajes = [];
-      });
+      aplicarDatosCargados(parsed);
       saveDB();
       aplicarPaleta();
       aplicarModoOscuro();
@@ -2442,10 +2493,72 @@ aplicarPaleta();
 aplicarModoOscuro();
 renderThemeSwitch();
 renderModeToggle();
+renderProfileIcon();
 renderAll();
 if(!db.config.tutorialVisto) mostrarTutorial();
 
 setInterval(renderBannerYStats, 60000);
+</script>
+
+<!-- =========================================================
+     FIREBASE: autenticación con Google + respaldo en Firestore
+     Puente hacia el script principal vía funciones en window,
+     porque los scripts type="module" no exponen sus funciones
+     globalmente como sí lo hacen los scripts clásicos.
+     ========================================================= -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import {
+    getFirestore, doc, getDoc, setDoc
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAl5o1vUrtHjP8-3w6yHW-EKIP5LovnN20",
+    authDomain: "estudiantes-f678f.firebaseapp.com",
+    projectId: "estudiantes-f678f",
+    storageBucket: "estudiantes-f678f.firebasestorage.app",
+    messagingSenderId: "238962199371",
+    appId: "1:238962199371:web:b4e47177df5d300e25b6ce"
+  };
+
+  const firebaseApp = initializeApp(firebaseConfig);
+  const auth = getAuth(firebaseApp);
+  const firestore = getFirestore(firebaseApp);
+  const googleProvider = new GoogleAuthProvider();
+
+  window.firebaseSignIn = function(){
+    return signInWithPopup(auth, googleProvider).catch(err=>{
+      console.error('Error al iniciar sesión con Google', err);
+      if(window.showToast) window.showToast('No se pudo iniciar sesión');
+    });
+  };
+
+  window.firebaseSignOutUser = function(){
+    return signOut(auth);
+  };
+
+  window.firebaseFetchUserDoc = async function(uid){
+    const snap = await getDoc(doc(firestore, 'users', uid));
+    return snap.exists() ? snap.data() : null;
+  };
+
+  let guardadoPendiente = null;
+  window.firebaseQueueSave = function(data){
+    if(!auth.currentUser) return;
+    clearTimeout(guardadoPendiente);
+    guardadoPendiente = setTimeout(()=>{
+      const copia = JSON.parse(JSON.stringify(data));
+      setDoc(doc(firestore, 'users', auth.currentUser.uid), copia)
+        .catch(err=>console.error('Error guardando en la nube', err));
+    }, 800);
+  };
+
+  onAuthStateChanged(auth, (user)=>{
+    if(window.onFirebaseAuthChange) window.onFirebaseAuthChange(user);
+  });
 </script>
 </body>
 </html>
