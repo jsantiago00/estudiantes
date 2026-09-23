@@ -317,7 +317,6 @@
 
   .btn.whatsapp{background:#25D366;color:#fff;}
   .btn.whatsapp:active{background:#1ea952;}
-  .duracion-display{font-size:13px;color:var(--text-dim);margin:4px 0 2px;min-height:16px;}
 
   .recurrencia-box{border-top:1px dashed var(--border);margin-top:16px;padding-top:6px;}
 
@@ -508,26 +507,25 @@
       </div>
     </div>
 
-    <div class="filter-row" id="filtroAlumnoClases"></div>
     <div class="section-actions">
-      <button class="btn secondary" onclick="marcarTodasPagadas()">✓ Marcar filtradas como pagadas</button>
+      <button class="btn secondary" onclick="marcarTodasPagadas()">✓ Marcar todas como pagadas</button>
     </div>
 
     <div class="filter-row" id="calendarioModoToggle" style="margin-bottom:10px;">
-      <button type="button" class="filter-chip" data-modo="semana" onclick="setCalendarioModo('semana')">Semana</button>
-      <button type="button" class="filter-chip active" data-modo="mes" onclick="setCalendarioModo('mes')">Mes</button>
+      <button type="button" class="filter-chip active" data-modo="semana" onclick="setCalendarioModo('semana')">Semana</button>
+      <button type="button" class="filter-chip" data-modo="mes" onclick="setCalendarioModo('mes')">Mes</button>
     </div>
-    <div class="calendar-nav" id="calendarioNavMes">
+    <div class="calendar-nav" id="calendarioNavMes" style="display:none;">
       <button onclick="cambiarMesCalendario(-1)" aria-label="Mes anterior">←</button>
       <div class="calendar-label" id="calendarioMesLabel"></div>
       <button onclick="cambiarMesCalendario(1)" aria-label="Mes siguiente">→</button>
     </div>
-    <div class="calendar-nav" id="calendarioNavSemana" style="display:none;">
+    <div class="calendar-nav" id="calendarioNavSemana">
       <button onclick="cambiarSemanaCalendario(-1)" aria-label="Semana anterior">←</button>
       <div class="calendar-label" id="calendarioSemanaLabel"></div>
       <button onclick="cambiarSemanaCalendario(1)" aria-label="Semana siguiente">→</button>
     </div>
-    <div class="calendar-weekdays" id="calendarioWeekdays">
+    <div class="calendar-weekdays" id="calendarioWeekdays" style="display:none;">
       <span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span>
     </div>
     <div id="calendarioGrid"></div>
@@ -582,6 +580,14 @@
     <div class="card">
       <h2>Próximas clases</h2>
       <div id="detalleProximasClases"></div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <h2 style="margin:0;">💬 Mensajes predeterminados</h2>
+        <button type="button" class="btn secondary" style="width:auto;margin:0;padding:6px 12px;font-size:12px;" onclick="abrirGestionMensajes(currentAlumnoDetalleId)">✎ Gestionar</button>
+      </div>
+      <div id="detalleMensajes"></div>
     </div>
 
     <div class="card">
@@ -791,11 +797,6 @@ function sumarMinutos(horaStr, minutos){
   const hh = Math.floor(total/60)%24, mm = total%60;
   return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');
 }
-function diffMinutos(horaA, horaB){
-  const [ha,ma] = horaA.split(':').map(Number);
-  const [hb,mb] = horaB.split(':').map(Number);
-  return (hb*60+mb) - (ha*60+ma);
-}
 function formatDuracion(min){
   const h = Math.floor(min/60), m = min%60;
   return `${h>0?h+'h ':''}${m>0?m+'m':''}`.trim() || '0m';
@@ -1004,7 +1005,7 @@ function agregarMensajeAlumno(alumnoId){
   saveDB();
   document.getElementById('f_msgLabel').value = '';
   document.getElementById('f_msgText').value = '';
-  document.getElementById('mensajesListBox').innerHTML = renderMensajesAlumnoForm(a);
+  refrescarListasMensajes(a);
 }
 
 function eliminarMensajeAlumno(alumnoId, msgId){
@@ -1012,7 +1013,30 @@ function eliminarMensajeAlumno(alumnoId, msgId){
   if(!a) return;
   a.mensajes = (a.mensajes||[]).filter(m=>m.id!==msgId);
   saveDB();
-  document.getElementById('mensajesListBox').innerHTML = renderMensajesAlumnoForm(a);
+  refrescarListasMensajes(a);
+}
+
+function refrescarListasMensajes(alumno){
+  const sheetBox = document.getElementById('mensajesListBox');
+  if(sheetBox) sheetBox.innerHTML = renderMensajesAlumnoForm(alumno);
+  const detalleBox = document.getElementById('detalleMensajes');
+  if(detalleBox) detalleBox.innerHTML = renderMensajesAlumnoForm(alumno);
+}
+
+function abrirGestionMensajes(alumnoId){
+  const a = getAlumno(alumnoId);
+  if(!a) return;
+  openSheet(`
+    <h3>Mensajes predeterminados</h3>
+    <p style="color:var(--text-dim);font-size:13px;">Plantillas de WhatsApp para ${escapeHtml(a.nombre)}. Se ofrecen al tocar el botón de WhatsApp en el banner de próxima clase.</p>
+    <div id="mensajesListBox">${renderMensajesAlumnoForm(a)}</div>
+    <div class="row2" style="margin-top:8px;">
+      <input type="text" id="f_msgLabel" placeholder="Título (ej: Llego en 5 min)">
+    </div>
+    <textarea id="f_msgText" placeholder="Texto del mensaje..." style="margin-top:8px;"></textarea>
+    <button type="button" class="btn secondary" onclick="agregarMensajeAlumno('${a.id}')">+ Guardar mensaje</button>
+    <button class="btn primary" onclick="closeSheet()">Listo</button>
+  `);
 }
 
 function abrirWhatsappAlumno(alumnoId){
@@ -1066,7 +1090,7 @@ function renderAlumnos(){
         <span class="rate">${money(a.tarifa)}/hora</span>
         <span>${proxima ? 'Próx: ' + nombreDiaFecha(proxima.fecha) + ' ' + proxima.horaEntrada : 'Sin próxima clase'}</span>
       </div>
-      ${deuda>0 ? `<div class="row" style="margin-top:4px;color:var(--warn);font-weight:700;">Debe ${money(deuda)}</div>` : ''}
+      <div class="row" style="margin-top:4px;font-weight:700;color:${deuda>0?'var(--warn)':'var(--ok)'};">${deuda>0 ? 'Debe '+money(deuda) : 'Al día'}</div>
     </div>`;
   }).join('');
 }
@@ -1200,8 +1224,6 @@ function eliminarTemaGlobal(id){
 /* =========================================================
    CLASES
    ========================================================= */
-let filtroClasesAlumno = 'todos';
-
 const DIAS_SEMANA = [
   {v:1,l:'Lunes'},{v:2,l:'Martes'},{v:3,l:'Miércoles'},{v:4,l:'Jueves'},
   {v:5,l:'Viernes'},{v:6,l:'Sábado'},{v:0,l:'Domingo'}
@@ -1221,16 +1243,17 @@ function labelDuracionPreset(min){
   return partes.join(' ');
 }
 
+let repeatDiasHoras = {};
+
 function openClaseForm(id, fechaPreset){
   if(db.alumnos.length===0){ showToast('Primero agregá un alumno'); return; }
   const editing = id ? db.clases.find(c=>c.id===id) : null;
   const today = fechaPreset || new Date().toISOString().slice(0,10);
+  repeatDiasHoras = {};
 
   const nowHClamped = String(Math.min(18, Math.max(8, new Date().getHours()))).padStart(2,'0');
   const [entH, entM] = editing ? editing.horaEntrada.split(':') : [nowHClamped, '00'];
-  const [salH, salM] = (editing && editing.horaSalida) ? editing.horaSalida.split(':') : ['', '00'];
 
-  const yaTerminada = !!(editing && editing.horaSalida);
   let presetInicial = '60', customInicial = 60;
   if(editing){
     if(DURACIONES_PRESET.includes(editing.duracionMin)) presetInicial = String(editing.duracionMin);
@@ -1240,41 +1263,24 @@ function openClaseForm(id, fechaPreset){
     .map(min=>`<option value="${min}" ${String(min)===presetInicial?'selected':''}>${labelDuracionPreset(min)}</option>`).join('')
     + `<option value="custom" ${presetInicial==='custom'?'selected':''}>Personalizada...</option>`;
 
-  const hoyWeekday = new Date().getDay();
-  const diasChipsHtml = DIAS_SEMANA.map(d=>`
-    <label class="dia-chip ${d.v===hoyWeekday?'sel':''}">
-      <input type="checkbox" value="${d.v}" ${d.v===hoyWeekday?'checked':''} onchange="this.parentElement.classList.toggle('sel', this.checked)">
-      ${d.l}
-    </label>
-  `).join('');
-
   const recurrenciaHtml = !editing ? `
     <div class="recurrencia-box">
       <div class="checkbox-line">
         <input type="checkbox" id="f_recurrente" onchange="toggleRecurrenciaPanel()">
-        <span>🔁 Repetir esta clase (crear una serie)</span>
+        <span>🔁 Repetir todas las semanas</span>
       </div>
       <div id="recurrenciaPanel" style="display:none;">
-        <label>Frecuencia</label>
-        <select id="f_frecuencia" onchange="toggleFrecuenciaUI()">
-          <option value="semanal">Semanal</option>
-          <option value="quincenal">Cada 2 semanas</option>
-          <option value="mensual">Mensual</option>
-        </select>
+        <label>¿Qué días repetís?</label>
+        <div class="dias-chips" id="diasSemanaChips">${DIAS_SEMANA.map(d=>`
+          <label class="dia-chip" data-dia="${d.v}">
+            <input type="checkbox" value="${d.v}" onchange="onToggleDiaRecurrente(${d.v}, this.checked); this.parentElement.classList.toggle('sel', this.checked)">
+            ${d.l}
+          </label>
+        `).join('')}</div>
+        <div id="diasHorariosBox"></div>
 
-        <div id="diasSemanaBox">
-          <label>Días de la semana</label>
-          <div class="dias-chips" id="diasSemanaChips">${diasChipsHtml}</div>
-        </div>
-
-        <label>Repetir durante</label>
-        <div class="row2">
-          <input type="number" id="f_duracionValor" min="1" value="2" inputmode="numeric">
-          <select id="f_duracionUnidad">
-            <option value="semanas">Semanas</option>
-            <option value="meses" selected>Meses</option>
-          </select>
-        </div>
+        <label>¿Durante cuántas semanas?</label>
+        <input type="number" id="f_semanas" min="1" max="52" value="8" inputmode="numeric">
       </div>
     </div>
   ` : '';
@@ -1282,7 +1288,7 @@ function openClaseForm(id, fechaPreset){
   openSheet(`
     <h3>${editing ? 'Editar clase' : 'Nueva clase'}</h3>
     <label>Alumno</label>
-    <select id="f_alumnoId" onchange="recalcularMontoForm()">${alumnoOptionsHtml(editing ? editing.alumnoId : (filtroClasesAlumno!=='todos'?filtroClasesAlumno:db.alumnos[0].id))}</select>
+    <select id="f_alumnoId" onchange="recalcularMontoForm()">${alumnoOptionsHtml(editing ? editing.alumnoId : db.alumnos[0].id)}</select>
 
     <label>Fecha</label>
     <input type="date" id="f_fecha" value="${editing ? editing.fecha : today}">
@@ -1293,29 +1299,15 @@ function openClaseForm(id, fechaPreset){
       <select id="f_horaEntradaM" onchange="recalcularMontoForm()">${opcionesMinutos(entM)}</select>
     </div>
 
-    <div id="duracionPrevistaBox" style="display:${yaTerminada?'none':'block'};">
-      <label>Duración prevista</label>
-      <select id="f_duracionPreset" onchange="onCambioDuracionPreset(); recalcularMontoForm();">${opcionesDuracionPreset}</select>
-      <div id="duracionCustomBox" style="display:${presetInicial==='custom'?'block':'none'};">
-        <label>Duración personalizada (minutos)</label>
-        <input type="number" id="f_duracionCustom" min="5" step="5" value="${customInicial}" oninput="recalcularMontoForm()" inputmode="numeric">
-      </div>
-      <button type="button" class="btn secondary" onclick="marcarClaseTerminada()">✅ Clase terminada</button>
+    <label>Duración</label>
+    <select id="f_duracionPreset" onchange="onCambioDuracionPreset(); recalcularMontoForm();">${opcionesDuracionPreset}</select>
+    <div id="duracionCustomBox" style="display:${presetInicial==='custom'?'block':'none'};">
+      <label>Duración personalizada (minutos)</label>
+      <input type="number" id="f_duracionCustom" min="5" step="5" value="${customInicial}" oninput="recalcularMontoForm()" inputmode="numeric">
     </div>
-
-    <div id="horaSalidaBox" style="display:${yaTerminada?'block':'none'};">
-      <label>Hora de salida</label>
-      <div class="row2">
-        <select id="f_horaSalidaH" onchange="recalcularMontoForm()">${'<option value="">-- Sin definir --</option>'+opcionesHoras(8,23,salH)}</select>
-        <select id="f_horaSalidaM" onchange="recalcularMontoForm()">${opcionesMinutos(salM)}</select>
-      </div>
-      <button type="button" class="btn secondary" onclick="marcarTermine()">✅ Marqué que terminé ahora</button>
-    </div>
-
-    <div class="duracion-display" id="f_duracionDisplay"></div>
 
     <label>Monto a cobrar</label>
-    <input type="number" id="f_monto" min="0" step="0.01" value="${editing ? editing.monto : ''}" inputmode="decimal">
+    <select id="f_monto"></select>
 
     <button type="button" class="btn whatsapp" onclick="enviarWhatsappDesdeForm()">📲 Enviar resumen por WhatsApp</button>
 
@@ -1335,43 +1327,45 @@ function openClaseForm(id, fechaPreset){
     </div>
   `);
 
-  recalcularMontoForm();
+  const montoInicial = editing ? editing.monto : null;
+  recalcularMontoForm(montoInicial);
+}
+
+function onToggleDiaRecurrente(dia, checked){
+  if(checked){
+    repeatDiasHoras[dia] = leerHora('f_horaEntradaH','f_horaEntradaM') || '09:00';
+  }else{
+    delete repeatDiasHoras[dia];
+  }
+  renderDiasHorarios();
+}
+
+function renderDiasHorarios(){
+  const box = document.getElementById('diasHorariosBox');
+  if(!box) return;
+  const orden = d => d===0 ? 7 : d;
+  const dias = Object.keys(repeatDiasHoras).map(Number).sort((a,b)=>orden(a)-orden(b));
+  box.innerHTML = dias.map(dv=>{
+    const [h,m] = (repeatDiasHoras[dv]||'09:00').split(':');
+    const nombre = DIAS_SEMANA.find(d=>d.v===dv).l;
+    return `
+    <div class="row2" style="align-items:center;margin:6px 0;">
+      <span style="flex:1;font-size:13px;font-weight:700;">${nombre}</span>
+      <select onchange="actualizarHoraDia(${dv}, this.value, null)">${opcionesHoras(8,20,h)}</select>
+      <select onchange="actualizarHoraDia(${dv}, null, this.value)">${opcionesMinutos(m)}</select>
+    </div>`;
+  }).join('');
+}
+
+function actualizarHoraDia(dia, h, m){
+  const [ch,cm] = (repeatDiasHoras[dia]||'09:00').split(':');
+  repeatDiasHoras[dia] = (h||ch) + ':' + (m||cm);
 }
 
 function toggleRecurrenciaPanel(){
   const panel = document.getElementById('recurrenciaPanel');
   const chk = document.getElementById('f_recurrente');
   panel.style.display = chk.checked ? 'block' : 'none';
-}
-
-function toggleFrecuenciaUI(){
-  const val = document.getElementById('f_frecuencia').value;
-  document.getElementById('diasSemanaBox').style.display = val==='semanal' ? 'block' : 'none';
-}
-
-function horaRedondeadaActual(){
-  const ahora = new Date();
-  let h = ahora.getHours();
-  let m = Math.round(ahora.getMinutes()/15)*15;
-  if(m===60){ h+=1; m=0; }
-  h = Math.min(23, Math.max(8, h));
-  return {h: String(h).padStart(2,'0'), m: String(m).padStart(2,'0')};
-}
-
-function marcarTermine(){
-  const {h,m} = horaRedondeadaActual();
-  document.getElementById('f_horaSalidaH').value = h;
-  document.getElementById('f_horaSalidaM').value = m;
-  recalcularMontoForm();
-}
-
-function marcarClaseTerminada(){
-  const {h,m} = horaRedondeadaActual();
-  document.getElementById('f_horaSalidaH').value = h;
-  document.getElementById('f_horaSalidaM').value = m;
-  document.getElementById('duracionPrevistaBox').style.display = 'none';
-  document.getElementById('horaSalidaBox').style.display = 'block';
-  recalcularMontoForm();
 }
 
 function onCambioDuracionPreset(){
@@ -1385,31 +1379,18 @@ function leerDuracionPreset(){
   return parseInt(val)||0;
 }
 
-function enModoClaseTerminada(){
-  return document.getElementById('horaSalidaBox').style.display !== 'none';
+function redondearA1000(n){
+  return Math.max(0, Math.round(n/1000)*1000);
 }
 
-function recalcularMontoForm(){
+function recalcularMontoForm(montoActual){
   const alumnoId = document.getElementById('f_alumnoId').value;
   const a = getAlumno(alumnoId);
   const tarifa = a ? Number(a.tarifa)||0 : 0;
-  const display = document.getElementById('f_duracionDisplay');
-  let durMin;
-
-  if(enModoClaseTerminada()){
-    const horaEntrada = leerHora('f_horaEntradaH','f_horaEntradaM');
-    const horaSalida = leerHora('f_horaSalidaH','f_horaSalidaM');
-    if(!horaSalida){ display.textContent = 'Definí la hora de salida'; return; }
-    durMin = diffMinutos(horaEntrada, horaSalida);
-    if(durMin<=0){ display.textContent = 'La hora de salida debe ser posterior a la de entrada'; return; }
-    display.textContent = 'Duración real: ' + formatDuracion(durMin);
-  }else{
-    durMin = leerDuracionPreset();
-    if(durMin<=0){ display.textContent = 'Elegí una duración válida'; return; }
-    display.textContent = 'Duración prevista: ' + formatDuracion(durMin);
-  }
-
-  document.getElementById('f_monto').value = (tarifa*(durMin/60)).toFixed(2);
+  const durMin = leerDuracionPreset();
+  const montoSel = document.getElementById('f_monto');
+  const sugerido = (montoActual!=null) ? redondearA1000(montoActual) : redondearA1000(tarifa*(durMin/60));
+  montoSel.innerHTML = tarifaOptionsHtml(sugerido);
 }
 
 function guardarClase(id){
@@ -1419,25 +1400,15 @@ function guardarClase(id){
   const monto = parseFloat(document.getElementById('f_monto').value)||0;
   const notas = document.getElementById('f_notas').value.trim();
   const pagada = document.getElementById('f_pagada').checked;
+  const duracionMin = leerDuracionPreset();
 
   if(!alumnoId){ showToast('Elegí un alumno'); return; }
   if(!fecha){ showToast('Elegí una fecha'); return; }
-
-  let horaSalida = null;
-  let duracionMin;
-  if(enModoClaseTerminada()){
-    horaSalida = leerHora('f_horaSalidaH','f_horaSalidaM');
-    if(!horaSalida){ showToast('Definí la hora de salida'); return; }
-    duracionMin = diffMinutos(horaEntrada, horaSalida);
-    if(duracionMin<=0){ showToast('La hora de salida debe ser posterior a la de entrada'); return; }
-  }else{
-    duracionMin = leerDuracionPreset();
-    if(duracionMin<=0){ showToast('Elegí una duración válida'); return; }
-  }
+  if(duracionMin<=0){ showToast('Elegí una duración válida'); return; }
 
   if(id){
     const c = db.clases.find(c=>c.id===id);
-    Object.assign(c, {alumnoId, fecha, horaEntrada, horaSalida: horaSalida||null, duracionMin, monto, notas, pagada});
+    Object.assign(c, {alumnoId, fecha, horaEntrada, horaSalida: sumarMinutos(horaEntrada, duracionMin), duracionMin, monto, notas, pagada});
     saveDB();
     closeSheet();
     renderAll();
@@ -1447,76 +1418,52 @@ function guardarClase(id){
 
   const recurrenteChk = document.getElementById('f_recurrente');
   if(recurrenteChk && recurrenteChk.checked){
-    const frecuencia = document.getElementById('f_frecuencia').value;
-    const duracionValor = parseInt(document.getElementById('f_duracionValor').value)||1;
-    const duracionUnidad = document.getElementById('f_duracionUnidad').value;
-    let diasSemana = [];
-    if(frecuencia==='semanal'){
-      diasSemana = Array.from(document.querySelectorAll('#diasSemanaChips input:checked')).map(el=>parseInt(el.value));
-      if(diasSemana.length===0){ showToast('Elegí al menos un día de la semana'); return; }
-    }
-    const fechas = generarFechasRecurrencia(fecha, frecuencia, duracionValor, duracionUnidad, diasSemana);
+    const dias = Object.keys(repeatDiasHoras).map(Number);
+    if(dias.length===0){ showToast('Elegí al menos un día para repetir'); return; }
+    const semanas = Math.max(1, parseInt(document.getElementById('f_semanas').value)||1);
+    const ocurrencias = generarOcurrenciasRecurrentes(fecha, repeatDiasHoras, semanas);
     const serieId = uid();
-    fechas.forEach(f=>{
-      db.clases.push({id: uid(), serieId, alumnoId, fecha:f, horaEntrada, horaSalida: horaSalida||null, duracionMin, monto, notas, pagada:false});
+    ocurrencias.forEach(o=>{
+      db.clases.push({id: uid(), serieId, alumnoId, fecha:o.fecha, horaEntrada:o.horaEntrada, horaSalida: sumarMinutos(o.horaEntrada, duracionMin), duracionMin, monto, notas, pagada:false});
     });
     saveDB();
     closeSheet();
     renderAll();
-    showToast(`Se crearon ${fechas.length} clases`);
+    showToast(`Se crearon ${ocurrencias.length} clases`);
     return;
   }
 
-  db.clases.push({id: uid(), serieId:null, alumnoId, fecha, horaEntrada, horaSalida: horaSalida||null, duracionMin, monto, notas, pagada});
+  db.clases.push({id: uid(), serieId:null, alumnoId, fecha, horaEntrada, horaSalida: sumarMinutos(horaEntrada, duracionMin), duracionMin, monto, notas, pagada});
   saveDB();
   closeSheet();
   renderAll();
   showToast('Clase guardada');
 }
 
-function generarFechasRecurrencia(fechaInicioStr, frecuencia, duracionValor, duracionUnidad, diasSemana){
-  const fechas = [];
+function generarOcurrenciasRecurrentes(fechaInicioStr, diasConHora, semanas){
+  const ocurrencias = [];
   const inicio = new Date(fechaInicioStr+'T00:00:00');
-  const finLimite = new Date(inicio);
-  if(duracionUnidad==='semanas') finLimite.setDate(finLimite.getDate()+duracionValor*7);
-  else finLimite.setMonth(finLimite.getMonth()+duracionValor);
-
-  if(frecuencia==='semanal' && diasSemana && diasSemana.length){
-    let cur = new Date(inicio);
-    while(cur <= finLimite){
-      if(diasSemana.includes(cur.getDay())){
-        fechas.push(cur.toISOString().slice(0,10));
-      }
-      cur.setDate(cur.getDate()+1);
-    }
-    return fechas;
+  const inicioSemana = getMonday(inicio);
+  const dias = Object.keys(diasConHora).map(Number);
+  for(let w=0; w<semanas; w++){
+    dias.forEach(dv=>{
+      const offset = dv===0 ? 6 : dv-1; // lunes=0 ... domingo=6
+      const occ = new Date(inicioSemana);
+      occ.setDate(occ.getDate() + w*7 + offset);
+      const occStr = occ.toISOString().slice(0,10);
+      if(occStr < fechaInicioStr) return;
+      ocurrencias.push({fecha: occStr, horaEntrada: diasConHora[dv]});
+    });
   }
-
-  const incrementar = (d)=>{
-    const nd = new Date(d);
-    if(frecuencia==='quincenal') nd.setDate(nd.getDate()+14);
-    else if(frecuencia==='mensual') nd.setMonth(nd.getMonth()+1);
-    return nd;
-  };
-
-  let cur = new Date(inicio);
-  while(cur <= finLimite){
-    fechas.push(cur.toISOString().slice(0,10));
-    cur = incrementar(cur);
-  }
-  return fechas;
+  return ocurrencias;
 }
 
 function enviarWhatsappDesdeForm(){
-  if(!enModoClaseTerminada()){ showToast('Marcá "Clase terminada" primero para poder enviar el resumen'); return; }
   const alumnoId = document.getElementById('f_alumnoId').value;
-  const horaEntrada = leerHora('f_horaEntradaH','f_horaEntradaM');
-  const horaSalida = leerHora('f_horaSalidaH','f_horaSalidaM');
+  const durMin = leerDuracionPreset();
   const monto = parseFloat(document.getElementById('f_monto').value)||0;
 
-  if(!horaSalida){ showToast('Definí la hora de salida primero'); return; }
-  const durMin = diffMinutos(horaEntrada, horaSalida);
-  if(durMin<=0){ showToast('Horario inválido'); return; }
+  if(durMin<=0){ showToast('Elegí una duración válida'); return; }
 
   const a = getAlumno(alumnoId);
   const horasTexto = formatDuracionTexto(durMin);
@@ -1549,9 +1496,8 @@ function togglePagada(id, ev){
 }
 
 function marcarTodasPagadas(){
-  const objetivo = filtroClasesAlumno;
-  const afectadas = db.clases.filter(c => !c.pagada && (objetivo==='todos' || c.alumnoId===objetivo));
-  if(afectadas.length===0){ showToast('No hay clases pendientes en este filtro'); return; }
+  const afectadas = db.clases.filter(c => !c.pagada);
+  if(afectadas.length===0){ showToast('No hay clases pendientes'); return; }
   if(!confirm(`Marcar ${afectadas.length} clase(s) como pagadas?`)) return;
   afectadas.forEach(c=>c.pagada=true);
   saveDB();
@@ -1559,21 +1505,12 @@ function marcarTodasPagadas(){
   showToast('Clases marcadas como pagadas');
 }
 
-function renderFiltroClases(){
-  const cont = document.getElementById('filtroAlumnoClases');
-  let chips = `<button class="filter-chip ${filtroClasesAlumno==='todos'?'active':''}" onclick="setFiltroClases('todos')">Todos</button>`;
-  chips += db.alumnos.map(a=>`<button class="filter-chip ${filtroClasesAlumno===a.id?'active':''}" onclick="setFiltroClases('${a.id}')">${escapeHtml(a.nombre)}</button>`).join('');
-  cont.innerHTML = chips;
-}
-function setFiltroClases(v){ filtroClasesAlumno = v; renderAll(); }
-
 let calendarioFecha = new Date();
-let calendarioModo = 'mes'; // 'mes' | 'semana'
+let calendarioModo = 'semana'; // 'mes' | 'semana'
 let calendarioSemanaInicio = getMonday(new Date());
 let calendarioSelectedDate = new Date().toISOString().slice(0,10);
 
 function renderClases(){
-  renderFiltroClases();
   renderCalendario();
 }
 
@@ -1615,8 +1552,7 @@ function renderCalendarioMes(){
   const label = calendarioFecha.toLocaleDateString('es-AR', {month:'long', year:'numeric'});
   document.getElementById('calendarioMesLabel').textContent = label.charAt(0).toUpperCase()+label.slice(1);
 
-  let clases = db.clases.slice();
-  if(filtroClasesAlumno!=='todos') clases = clases.filter(c=>c.alumnoId===filtroClasesAlumno);
+  const clases = db.clases;
 
   const porDia = {};
   clases.forEach(c=>{
@@ -1652,9 +1588,7 @@ function renderCalendarioMes(){
 
 function renderCalendarioSemana(){
   const inicio = calendarioSemanaInicio;
-
-  let clases = db.clases.slice();
-  if(filtroClasesAlumno!=='todos') clases = clases.filter(c=>c.alumnoId===filtroClasesAlumno);
+  const clases = db.clases;
 
   const porDia = {};
   clases.forEach(c=>{
@@ -1696,8 +1630,7 @@ function renderDayDetail(){
   if(!container) return;
   const fechaStr = calendarioSelectedDate;
   const hoyStr = new Date().toISOString().slice(0,10);
-  let clasesDia = db.clases.filter(c=>c.fecha===fechaStr);
-  if(filtroClasesAlumno!=='todos') clasesDia = clasesDia.filter(c=>c.alumnoId===filtroClasesAlumno);
+  const clasesDia = db.clases.filter(c=>c.fecha===fechaStr);
   clasesDia.sort((a,b)=> a.horaEntrada.localeCompare(b.horaEntrada));
 
   let html = `<div class="day-detail-head">
@@ -2003,6 +1936,8 @@ function renderDetalleAlumno(){
     </div>
   `;
 
+  document.getElementById('detalleMensajes').innerHTML = renderMensajesAlumnoForm(alumno);
+
   const ahora = new Date();
   const proximas = db.clases
     .filter(c=>c.alumnoId===alumno.id && fechaHoraClase(c) >= ahora)
@@ -2247,7 +2182,7 @@ function abrirAjustes(){
 
     <div class="card">
       <h2>💲 Rango de precios</h2>
-      <p class="ajustes-desc">Piso y techo del selector de tarifa por hora al cargar un alumno.</p>
+      <p class="ajustes-desc">Piso y techo del selector de tarifa por hora al cargar un alumno, y del monto a cobrar al crear una clase.</p>
       <div class="row2">
         <input type="number" id="f_tarifaMin" step="1000" min="0" inputmode="numeric" value="${db.config.tarifaMin}">
         <input type="number" id="f_tarifaMax" step="1000" min="0" inputmode="numeric" value="${db.config.tarifaMax}">
