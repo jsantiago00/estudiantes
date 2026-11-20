@@ -15,7 +15,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#c1683d">
+<meta name="theme-color" content="#faf3ea">
+<meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
@@ -31,6 +32,8 @@
     --font-agenda:'Fraunces',Georgia,'Iowan Old Style','Palatino Linotype',serif;
     --safe-bottom: env(safe-area-inset-bottom, 0px);
     --overlay-bg:rgba(50,30,15,.45);
+    --nav-h:64px;
+    --hour-h:44px;
   }
 
   /* Terracota */
@@ -95,11 +98,12 @@
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;}
+  html{background:var(--bg);}
   body{
     background:var(--bg);
     color:var(--text);
     font-family:'Nunito',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    padding-bottom:calc(24px + var(--safe-bottom));
+    padding-bottom:calc(var(--nav-h) + 24px + var(--safe-bottom));
     min-height:100vh;
   }
   header.app-header{
@@ -220,18 +224,29 @@
   .badge.pendiente{background:var(--warn-bg);color:var(--warn);}
   .badge.pagada{background:var(--ok-bg);color:var(--ok);}
 
-  nav.tabs{
-    display:flex;gap:6px;margin:16px 16px 4px;
-    background:var(--btn-secondary-bg);padding:5px;border-radius:999px;
+  /* barra de pestañas inferior */
+  nav.bottom-nav{
+    position:fixed;left:0;right:0;bottom:0;z-index:40;
+    background:var(--card);border-top:1px solid var(--border);
+    display:flex;justify-content:space-around;
+    padding:6px 6px calc(6px + var(--safe-bottom));
+    box-shadow:0 -4px 18px rgba(0,0,0,.06);
   }
-  nav.tabs button{
-    flex:1;border:none;background:transparent;padding:9px 4px;border-radius:999px;
-    font-size:12.5px;font-weight:700;color:var(--text-dim);cursor:pointer;line-height:1.2;
+  nav.bottom-nav button{
+    flex:1;max-width:130px;border:none;background:transparent;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:3px;padding:2px 2px 0;
+    color:var(--text-dim);font-family:inherit;font-size:11px;font-weight:700;
   }
-  nav.tabs button.active{background:var(--card);color:var(--primary-dark);box-shadow:0 2px 6px rgba(0,0,0,.08);}
+  nav.bottom-nav .ico{
+    width:56px;height:30px;border-radius:999px;display:flex;align-items:center;justify-content:center;
+    transition:background .15s;
+  }
+  nav.bottom-nav .ico svg{width:22px;height:22px;}
+  nav.bottom-nav button.active{color:var(--primary-dark);}
+  nav.bottom-nav button.active .ico{background:var(--soft-tint-bg);color:var(--primary);}
 
   .fab{
-    position:fixed;right:18px;bottom:calc(20px + var(--safe-bottom));z-index:30;
+    position:fixed;right:18px;bottom:calc(var(--nav-h) + 14px + var(--safe-bottom));z-index:30;
     width:56px;height:56px;border-radius:50%;
     background:var(--primary);color:#fff;border:none;
     font-size:26px;box-shadow:0 6px 16px -2px var(--primary-dark);
@@ -309,7 +324,7 @@
   .toggle-pill.pagada{background:var(--ok-bg);color:var(--ok);}
 
   .toast{
-    position:fixed;left:50%;bottom:calc(90px + var(--safe-bottom));transform:translateX(-50%);
+    position:fixed;left:50%;bottom:calc(var(--nav-h) + 84px + var(--safe-bottom));transform:translateX(-50%);
     background:var(--text);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:13px;
     z-index:60;opacity:0;pointer-events:none;transition:opacity .2s;box-shadow:0 4px 14px rgba(0,0,0,.2);
   }
@@ -452,6 +467,85 @@
   .tutorial-dot.active{background:var(--primary);width:18px;border-radius:4px;}
   .tutorial-nav{display:flex;gap:10px;}
   .tutorial-nav .btn{margin-top:0;}
+
+  /* ===== grilla semanal tipo Google Calendar ===== */
+  .wk{background:var(--card);border:1px solid var(--border);border-radius:18px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.04);}
+  .wk-head,.wk-body{display:grid;grid-template-columns:34px repeat(7,minmax(0,1fr));}
+  .wk-head{border-bottom:1px solid var(--border);}
+  .wk-hcell{
+    display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 0 6px;
+    border:none;background:transparent;font-family:inherit;cursor:pointer;min-width:0;
+  }
+  .wk-hcell .dow{font-size:9.5px;font-weight:800;text-transform:uppercase;color:var(--text-dim);}
+  .wk-hcell .dnum{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--text);}
+  .wk-hcell.today .dnum{box-shadow:inset 0 0 0 2px var(--primary);}
+  .wk-hcell.selected .dnum{background:var(--primary);color:#fff;box-shadow:none;}
+  .wk-times{position:relative;}
+  .wk-time{height:var(--hour-h);position:relative;}
+  .wk-time span{position:absolute;top:-6px;right:4px;font-size:9.5px;font-weight:700;color:var(--text-dim);background:var(--card);padding:0 1px;}
+  .wk-time:first-child span{top:2px;}
+  .wk-col{position:relative;border-left:1px solid var(--border);min-width:0;}
+  .wk-slot{height:calc(var(--hour-h) / 2);border-bottom:1px dotted var(--border);cursor:pointer;}
+  .wk-slot.hr{border-bottom:1px solid var(--border);}
+  .wk-slot:last-child{border-bottom:none;}
+  .wk-slot.libre{background:color-mix(in srgb, var(--ok) 20%, transparent);}
+  .wk-slot.libre:active{background:color-mix(in srgb, var(--ok) 30%, transparent);}
+  .wk-slot.nodisp{background:repeating-linear-gradient(135deg,transparent 0 5px,color-mix(in srgb,var(--text-dim) 13%,transparent) 5px 6px);}
+  .wk-slot.pasado{background:color-mix(in srgb,var(--text-dim) 7%,transparent);}
+  .wk-ev{
+    position:absolute;border-radius:7px;padding:2px 3px 2px 4px;z-index:2;cursor:pointer;overflow:hidden;
+    font-size:9.5px;font-weight:800;line-height:1.15;color:var(--text);
+    border-left:3px solid;box-shadow:0 1px 3px rgba(0,0,0,.08);
+  }
+  .wk-ev .h{font-weight:600;opacity:.8;}
+  .wk-ev.pagada::after{content:'✓';position:absolute;right:3px;bottom:1px;font-size:10px;color:var(--ok);}
+  .wk-now{position:absolute;left:0;right:0;height:2px;background:var(--danger);z-index:3;pointer-events:none;}
+  .wk-now::before{content:'';position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--danger);}
+  .wk-legend{display:flex;flex-wrap:wrap;gap:12px;align-items:center;font-size:11.5px;color:var(--text-dim);margin:8px 4px 0;}
+  .wk-legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:4px;border:1px solid var(--border);}
+  .wk-legend i.libre{background:color-mix(in srgb, var(--ok) 22%, var(--card));}
+  .wk-legend i.nodisp{background:repeating-linear-gradient(135deg,var(--card) 0 3px,color-mix(in srgb,var(--text-dim) 25%,var(--card)) 3px 4px);}
+  .link-btn{background:none;border:none;color:var(--primary-dark);font-weight:800;font-size:12.5px;padding:4px 0;cursor:pointer;font-family:inherit;}
+
+  /* ===== nivel / modalidad ===== */
+  .nivel-badge{display:inline-block;padding:1px 8px;border-radius:999px;font-size:10.5px;font-weight:800;letter-spacing:.2px;vertical-align:1px;}
+  .nivel-badge.primario{background:var(--ok-bg);color:var(--ok);}
+  .nivel-badge.secundario{background:var(--soft-tint-bg);color:var(--primary-dark);}
+  .nivel-badge.preuniversitario{background:var(--warn-bg);color:var(--warn);}
+  .pill-select{display:flex;gap:6px;flex-wrap:wrap;}
+  .pill-select button{
+    flex:1;min-width:0;padding:9px 8px;border-radius:12px;border:1px solid var(--border);
+    background:var(--input-bg);color:var(--text-dim);font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;
+  }
+  .pill-select button.sel{background:var(--primary);border-color:var(--primary);color:#fff;}
+  .pill-select button small{display:block;font-weight:600;font-size:11px;opacity:.85;}
+  .chip-x{display:inline-flex;align-items:center;gap:6px;padding:6px 6px 6px 11px;border-radius:999px;background:var(--soft-tint-bg);font-size:12.5px;font-weight:700;margin:3px 4px 3px 0;}
+  .chip-x button{border:none;background:var(--card);color:var(--text-dim);width:20px;height:20px;border-radius:50%;font-size:11px;line-height:1;cursor:pointer;}
+
+  /* ===== billetera ===== */
+  .saldo-card{
+    background:linear-gradient(150deg,var(--primary),var(--primary-dark));color:#fff;
+    border-radius:20px;padding:16px 18px;margin-bottom:12px;box-shadow:0 8px 20px -10px var(--primary-dark);
+  }
+  .saldo-card .lbl{font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;opacity:.85;}
+  .saldo-card .big{font-family:var(--font-agenda);font-size:30px;font-weight:700;margin:2px 0 2px;}
+  .saldo-card .sub{font-size:12.5px;opacity:.9;}
+  .mini-btn{width:auto;margin:0;padding:7px 12px;font-size:12px;border-radius:999px;}
+  .desglose{font-size:12.5px;color:var(--text-dim);margin:-4px 0 12px;text-align:center;}
+  .pago-fecha{font-size:11px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:.4px;padding:10px 4px 2px;}
+  .pago-ico{width:34px;height:34px;border-radius:12px;background:var(--ok-bg);color:var(--ok);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+  .item-right.ok{color:var(--ok);}
+
+  /* ===== reseñas ===== */
+  .resenas-card{display:flex;align-items:center;gap:12px;cursor:pointer;}
+  .stars{color:#e5a823;letter-spacing:1px;}
+  .resena{padding:10px 2px;border-bottom:1px solid var(--border);}
+  .resena:last-child{border-bottom:none;}
+  .resena .txt{font-size:14px;margin:4px 0;font-style:italic;}
+  .resena .who{font-size:12px;color:var(--text-dim);}
+  .star-pick{display:flex;gap:6px;font-size:30px;}
+  .star-pick button{background:none;border:none;padding:0;cursor:pointer;color:var(--border);font-size:30px;line-height:1;}
+  .star-pick button.on{color:#e5a823;}
 </style>
 </head>
 <body>
@@ -483,18 +577,21 @@
   <div class="next-class-actions" id="nextClassActions"></div>
 </div>
 
-<nav class="tabs">
-  <button data-view="clases" class="active">Agenda</button>
-  <button data-view="alumnos">Alumnos</button>
-  <button data-view="tareas">Tareas y Temas</button>
-  <button data-view="stats">Billetera</button>
-</nav>
 
-<main>
+<main style="margin-top:14px;">
 
   <!-- ALUMNOS -->
   <section class="view" id="view-alumnos">
+    <div class="filter-row" id="filtroNivelAlumnos"></div>
     <div id="listaAlumnos"></div>
+    <div class="card resenas-card" onclick="abrirResenas()">
+      <div style="font-size:26px;">⭐</div>
+      <div class="item-main">
+        <div class="item-title">Reseñas</div>
+        <div class="item-sub" id="resenasResumen">Pedile a tus alumnos que te dejen una reseña</div>
+      </div>
+      <div class="item-right" style="color:var(--text-dim);">›</div>
+    </div>
   </section>
 
   <!-- CLASES / AGENDA -->
@@ -502,7 +599,7 @@
     <div class="stat-row">
       <div class="stat-box warn">
         <div class="num" id="statPendienteMonto">$0</div>
-        <div class="label">Total pendiente</div>
+        <div class="label">Por cobrar</div>
       </div>
       <div class="stat-box">
         <div class="num" id="statProximas">0</div>
@@ -528,6 +625,7 @@
       <span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span>
     </div>
     <div id="calendarioGrid"></div>
+    <div id="calendarioLeyenda"></div>
 
     <div class="day-detail" id="calendarioDayDetail"></div>
   </section>
@@ -538,18 +636,28 @@
     <div id="listaTareas"></div>
 
     <div class="card">
-      <h2>📚 Temas</h2>
-      <p class="ajustes-desc">Las materias que le das a tus alumnos (Matemáticas, Biología...). Se crean una vez y se vinculan a cada alumno desde su ficha.</p>
+      <h2>📚 Materias</h2>
+      <p class="ajustes-desc">Las materias que le das a tus alumnos (Matemáticas, Biología...). Se crean una vez y se vinculan a cada alumno desde su ficha. Los temas puntuales (ej: Perímetro y Área) se cargan en el temario de cada alumno.</p>
       <div id="listaTemasTab"></div>
       <div class="row2" style="margin-top:10px;">
-        <input type="text" id="f_nuevoTemaTab" placeholder="Nuevo tema">
+        <input type="text" id="f_nuevoTemaTab" placeholder="Nueva materia">
         <button type="button" class="btn secondary" style="margin-top:0;" onclick="agregarTemaTab()">+ Agregar</button>
       </div>
     </div>
   </section>
 
-  <!-- ESTADÍSTICAS -->
+  <!-- BILLETERA -->
   <section class="view" id="view-stats">
+    <div class="saldo-card">
+      <div class="lbl">💸 Saldo por cobrar</div>
+      <div class="big" id="billeteraPorCobrar">$0</div>
+      <div class="sub" id="billeteraPorCobrarSub"></div>
+    </div>
+    <div class="card">
+      <h2>Quién te debe</h2>
+      <div id="billeteraDeudores"></div>
+    </div>
+
     <div class="stats-nav">
       <button onclick="cambiarMesStats(-1)" aria-label="Mes anterior">←</button>
       <div class="stats-label" id="statsMesLabel"></div>
@@ -558,26 +666,41 @@
     <div class="stat-row">
       <div class="stat-box">
         <div class="num" id="statsHoras">0</div>
-        <div class="label">Horas dadas</div>
+        <div class="label">Horas trabajadas</div>
       </div>
       <div class="stat-box">
         <div class="num" id="statsMonto">$0</div>
-        <div class="label">Monto dado</div>
+        <div class="label">Generado</div>
       </div>
     </div>
     <div class="stat-row">
       <div class="stat-box ok">
         <div class="num" id="statsCobrado">$0</div>
-        <div class="label">Cobrado</div>
+        <div class="label">Cobrado en el mes</div>
       </div>
       <div class="stat-box warn">
         <div class="num" id="statsPendiente">$0</div>
-        <div class="label">Pendiente</div>
+        <div class="label">Pendiente del mes</div>
       </div>
     </div>
+    <div class="desglose" id="statsDesglose"></div>
     <div class="stats-esperado" id="statsEsperado"></div>
+
     <div class="card">
-      <h2>Por alumno este mes (dado)</h2>
+      <h2>🧾 Últimos pagos</h2>
+      <div id="historialPagos"></div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <h2 style="margin:0;">📄 Trabajos prácticos del mes</h2>
+        <button type="button" class="btn secondary mini-btn" onclick="openTrabajoForm()">+ Nuevo</button>
+      </div>
+      <div id="listaTrabajos"></div>
+    </div>
+
+    <div class="card">
+      <h2>Por alumno este mes</h2>
       <div id="statsPorAlumno"></div>
     </div>
   </section>
@@ -600,8 +723,13 @@
     </div>
 
     <div class="card">
+      <h2>📖 Temario (temas a dar)</h2>
+      <div id="detalleTemario"></div>
+    </div>
+
+    <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-        <h2 style="margin:0;">Temas</h2>
+        <h2 style="margin:0;">Materias</h2>
         <button type="button" class="btn secondary" style="width:auto;margin:0;padding:6px 12px;font-size:12px;" onclick="abrirGestionTemas()">✎ Gestionar</button>
       </div>
       <div id="detalleTemas"></div>
@@ -617,6 +745,25 @@
 </main>
 
 <button class="fab" id="fabBtn">+</button>
+
+<nav class="bottom-nav" id="bottomNav">
+  <button data-view="clases" class="active">
+    <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="17" rx="3"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><path d="M8 14h2M14 14h2M8 17.5h2"/></svg></span>
+    Agenda
+  </button>
+  <button data-view="alumnos">
+    <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.8a3.3 3.3 0 0 1 0 6.4M18 14.7c2 .7 3.2 2.5 3.5 5.3"/></svg></span>
+    Alumnos
+  </button>
+  <button data-view="tareas">
+    <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3.5 6 1.2 1.2L7 5M3.5 12l1.2 1.2L7 11M3.5 18l1.2 1.2L7 17"/></svg></span>
+    Tareas
+  </button>
+  <button data-view="stats">
+    <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5V18a2.5 2.5 0 0 0 2.5 2.5H20V9H6.5A2.5 2.5 0 0 1 4 6.5 2.5 2.5 0 0 1 6.5 4H17v5"/><circle cx="16" cy="14.8" r="1.2" fill="currentColor"/></svg></span>
+    Billetera
+  </button>
+</nav>
 
 <!-- overlay / bottom sheet -->
 <div class="overlay" id="overlay">
@@ -646,12 +793,29 @@
    ========================================================= */
 const STORAGE_KEY = 'estudiantes_app_data_v1';
 
+const CONFIG_DEFAULT = {
+  tarifaMin:7000, tarifaMax:15000, paleta:'terracota', tema:'auto', tutorialVisto:false,
+  precioPasaje:1000,          // bondi: "voy a su casa" suma 2 pasajes a la clase
+  tarifaTP:10000,             // tarifa por hora sugerida para trabajos prácticos
+  nombreProfe:'', telefonoProfe:'',
+  // horarios disponibles para dar clases, por día de la semana (0=domingo)
+  disponibilidad:{
+    1:{activo:true,desde:'14:00',hasta:'20:00'}, 2:{activo:true,desde:'14:00',hasta:'20:00'},
+    3:{activo:true,desde:'14:00',hasta:'20:00'}, 4:{activo:true,desde:'14:00',hasta:'20:00'},
+    5:{activo:true,desde:'14:00',hasta:'20:00'}, 6:{activo:true,desde:'09:00',hasta:'13:00'},
+    0:{activo:false,desde:'09:00',hasta:'13:00'}
+  }
+};
+
 let db = {
-  alumnos: [],  // {id, nombre, tarifa, color, contacto, activo, temasIds:[]}
-  clases:  [],  // {id, serieId|null, alumnoId, fecha:'YYYY-MM-DD', horaEntrada:'HH:MM', horaSalida:'HH:MM'|null, duracionMin, monto, pagada, notas}
-  temas:   [],  // {id, nombre} -- temas globales del profesor, se vinculan a alumnos vía alumno.temasIds
+  alumnos: [],  // {id, nombre, tarifa, color, contacto, activo, temasIds:[], nivel, modalidad:'casa_mia'|'casa_alumno', temario:[{id,texto,dado}]}
+  clases:  [],  // {id, serieId|null, alumnoId, fecha, horaEntrada, horaSalida, duracionMin, monto, viatico, modalidad, temarioIds:[], pagada, pagoId, notas}
+  temas:   [],  // {id, nombre} -- materias globales del profesor, se vinculan a alumnos vía alumno.temasIds
   tareas:  [],  // {id, alumnoId|null, temaId|null, claseId|null, texto, hecha}
-  config:  {tarifaMin:7000, tarifaMax:15000, paleta:'terracota', tema:'auto', tutorialVisto:false}
+  trabajos:[],  // {id, titulo, alumnoId|null, cliente, fecha, minutos, tarifaHora, monto, cobrado, pagoId, notas}
+  pagos:   [],  // {id, fecha, alumnoId|null, cliente, monto, claseIds:[], trabajoIds:[]}
+  resenas: [],  // {id, alumnoId|null, alumnoNombre, autor, relacion, estrellas, texto, fecha, publicar}
+  config:  JSON.parse(JSON.stringify(CONFIG_DEFAULT))
 };
 
 function uid(){
@@ -665,7 +829,13 @@ function aplicarDatosCargados(parsed){
     db.clases = parsed.clases || [];
     db.temas = parsed.temas || [];
     db.tareas = parsed.tareas || [];
-    db.config = Object.assign({tarifaMin:7000, tarifaMax:15000, paleta:'terracota', tema:'auto', tutorialVisto:false}, parsed.config||{});
+    db.trabajos = parsed.trabajos || [];
+    db.pagos = parsed.pagos || [];
+    db.resenas = parsed.resenas || [];
+    db.config = Object.assign(JSON.parse(JSON.stringify(CONFIG_DEFAULT)), parsed.config||{});
+  }
+  if(!db.config.disponibilidad || typeof db.config.disponibilidad!=='object'){
+    db.config.disponibilidad = JSON.parse(JSON.stringify(CONFIG_DEFAULT.disponibilidad));
   }
   // migración de paletas viejas (6 opciones) a las 3 nuevas, y de modoOscuro booleano a tema auto/light/dark
   if(!['terracota','salvia','lavanda'].includes(db.config.paleta)){
@@ -683,6 +853,10 @@ function aplicarDatosCargados(parsed){
       delete c.hora;
     }
     if(c.serieId===undefined) c.serieId = null;
+    if(typeof c.viatico!=='number') c.viatico = 0;
+    if(!c.modalidad) c.modalidad = c.viatico>0 ? 'casa_alumno' : 'casa_mia';
+    if(!Array.isArray(c.temarioIds)) c.temarioIds = [];
+    if(c.pagoId===undefined) c.pagoId = null;
   });
   // migración de alumnos sin tipo definido: antes todo el mundo se trataba como "niño" (mensaje al contacto)
   db.alumnos.forEach(a=>{
@@ -691,6 +865,19 @@ function aplicarDatosCargados(parsed){
     if(typeof a.telefono !== 'string') a.telefono = '';
     if(typeof a.direccion !== 'string') a.direccion = '';
     if(!Array.isArray(a.mensajes)) a.mensajes = [];
+    if(typeof a.nivel !== 'string') a.nivel = '';
+    if(!a.modalidad) a.modalidad = 'casa_mia';
+    if(!Array.isArray(a.temario)) a.temario = [];
+  });
+  db.trabajos.forEach(t=>{ if(t.pagoId===undefined) t.pagoId = null; });
+  // migración: clases que ya estaban marcadas como pagadas antes de existir el historial de pagos
+  db.clases.forEach(c=>{
+    if(c.pagada && (!c.pagoId || !db.pagos.some(p=>p.id===c.pagoId))){
+      const p = {id: uid(), fecha: c.fecha, alumnoId: c.alumnoId, cliente:'', monto: totalClase(c), claseIds:[c.id], trabajoIds:[]};
+      db.pagos.push(p);
+      c.pagoId = p.id;
+    }
+    if(!c.pagada) c.pagoId = null;
   });
   // migración de tareas sin temaId/claseId definidos
   db.tareas.forEach(t=>{
@@ -735,38 +922,59 @@ function mapsUrl(direccion){
   return 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(direccion||'') + '&travelmode=driving';
 }
 
+function hoyIso(){ return toIsoCalendario(new Date()); }
+function totalClase(c){ return Number(c.monto||0) + Number(c.viatico||0); }
+function totalTrabajo(t){ return Number(t.monto||0); }
+
+const NIVELES = [
+  {id:'primario', label:'Primario', corto:'Primario'},
+  {id:'secundario', label:'Secundario', corto:'Secundario'},
+  {id:'preuniversitario', label:'Preuniversitario', corto:'Preu'}
+];
+function nivelBadge(nivel){
+  const n = NIVELES.find(x=>x.id===nivel);
+  return n ? `<span class="nivel-badge ${n.id}">${n.corto}</span>` : '';
+}
+function viaticoPorModalidad(modalidad){
+  return modalidad==='casa_alumno' ? 2*(Number(db.config.precioPasaje)||0) : 0;
+}
+
 const COLOR_SWATCHES = ['#ef4444','#f97316','#f59e0b','#84cc16','#22c55e','#14b8a6','#06b6d4','#3b82f6','#6366f1','#a855f7','#ec4899','#78716c'];
 
 /* =========================================================
    NAVEGACIÓN
    ========================================================= */
 const views = ['clases','alumnos','tareas','stats'];
-const subtitles = {clases:'Tu semana de clases', alumnos:'Tus alumnos', tareas:'Material a preparar', stats:'Cómo te fue este mes'};
+const subtitles = {clases:'Tu semana de clases', alumnos:'Tus alumnos', tareas:'Material a preparar', stats:'Tu plata: pagos y saldo'};
+let vistaActual = 'clases';
 
 function goTo(view){
   currentAlumnoDetalleId = null;
   document.getElementById('view-alumno-detalle').classList.remove('active');
   document.getElementById('backBtn').style.display = 'none';
+  vistaActual = view;
   views.forEach(v=>{
     document.getElementById('view-'+v).classList.toggle('active', v===view);
   });
-  document.querySelectorAll('nav.tabs button').forEach(b=>{
+  document.querySelectorAll('#bottomNav button').forEach(b=>{
     b.classList.toggle('active', b.dataset.view===view);
   });
   document.getElementById('headerSub').textContent = subtitles[view];
-  document.getElementById('fabBtn').style.display = (view==='stats') ? 'none' : 'flex';
+  document.getElementById('fabBtn').style.display = 'flex';
   renderAll();
+  window.scrollTo(0,0);
 }
 
-document.querySelectorAll('nav.tabs button').forEach(b=>{
+document.querySelectorAll('#bottomNav button').forEach(b=>{
   b.addEventListener('click', ()=>goTo(b.dataset.view));
 });
 
 document.getElementById('fabBtn').addEventListener('click', ()=>{
-  const active = document.querySelector('nav.tabs button.active').dataset.view;
+  const active = vistaActual;
   if(active==='alumnos') openAlumnoForm();
-  if(active==='clases') openClaseForm();
+  if(active==='clases') openClaseForm(null, calendarioSelectedDate);
   if(active==='tareas') openTareaForm();
+  if(active==='stats') openTrabajoForm();
 });
 
 /* =========================================================
@@ -866,8 +1074,47 @@ function tarifaOptionsHtml(selected){
 /* =========================================================
    ALUMNOS: alta / edición / baja
    ========================================================= */
+let formTemario = [];
+let formNivel = '';
+let formModalidad = 'casa_mia';
+
+function modalidadPillsHtml(sel, onclickFn){
+  const pasajes = 2*(Number(db.config.precioPasaje)||0);
+  return `
+    <button type="button" class="${sel==='casa_mia'?'sel':''}" data-mod="casa_mia" onclick="${onclickFn}('casa_mia')">🏠 Viene a mi casa<small>sin pasajes</small></button>
+    <button type="button" class="${sel==='casa_alumno'?'sel':''}" data-mod="casa_alumno" onclick="${onclickFn}('casa_alumno')">🚌 Voy a su casa<small>+ 2 pasajes (${money(pasajes)})</small></button>`;
+}
+function setFormModalidad(m){
+  formModalidad = m;
+  document.querySelectorAll('#modalidadAlumnoBox button').forEach(b=>b.classList.toggle('sel', b.dataset.mod===m));
+}
+function setFormNivel(n){
+  formNivel = (formNivel===n) ? '' : n;
+  document.querySelectorAll('#nivelBox button').forEach(b=>b.classList.toggle('sel', b.dataset.nivel===formNivel));
+}
+function renderFormTemario(){
+  const box = document.getElementById('temarioFormBox');
+  if(!box) return;
+  box.innerHTML = formTemario.length
+    ? formTemario.map((t,i)=>`<span class="chip-x">${t.dado?'✓ ':''}${escapeHtml(t.texto)}<button type="button" onclick="quitarTemarioForm(${i})" aria-label="Quitar">✕</button></span>`).join('')
+    : '<span style="font-size:13px;color:var(--text-dim);">Todavía no cargaste temas.</span>';
+}
+function agregarTemarioForm(){
+  const input = document.getElementById('f_temarioNuevo');
+  const texto = input.value.trim();
+  if(!texto) return;
+  formTemario.push({id: uid(), texto, dado:false});
+  input.value = '';
+  renderFormTemario();
+  input.focus();
+}
+function quitarTemarioForm(i){ formTemario.splice(i,1); renderFormTemario(); }
+
 function openAlumnoForm(id){
   const editing = id ? getAlumno(id) : null;
+  formTemario = editing ? JSON.parse(JSON.stringify(editing.temario||[])) : [];
+  formNivel = editing ? (editing.nivel||'') : '';
+  formModalidad = editing ? (editing.modalidad||'casa_mia') : 'casa_mia';
   const swatchesHtml = COLOR_SWATCHES.map(c=>
     `<button type="button" class="swatch ${editing && editing.color===c ? 'sel':''}" style="background:${c}" data-color="${c}"></button>`
   ).join('');
@@ -879,6 +1126,21 @@ function openAlumnoForm(id){
 
     <label>Tarifa por hora</label>
     <select id="f_tarifa">${tarifaOptionsHtml(editing ? editing.tarifa : db.config.tarifaMin)}</select>
+
+    <label>Nivel de las clases</label>
+    <div class="pill-select" id="nivelBox">
+      ${NIVELES.map(n=>`<button type="button" data-nivel="${n.id}" class="${formNivel===n.id?'sel':''}" onclick="setFormNivel('${n.id}')">${n.label}</button>`).join('')}
+    </div>
+
+    <label>¿Dónde son las clases?</label>
+    <div class="pill-select" id="modalidadAlumnoBox">${modalidadPillsHtml(formModalidad, 'setFormModalidad')}</div>
+
+    <label>📖 Temas que le tengo que dar</label>
+    <div id="temarioFormBox"></div>
+    <div class="row2" style="margin-top:8px;">
+      <input type="text" id="f_temarioNuevo" placeholder="Ej: Perímetro y Área" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarTemarioForm();}">
+      <button type="button" class="btn secondary" style="margin-top:0;flex:0 0 auto;width:auto;padding:10px 14px;" onclick="agregarTemarioForm()">+ Agregar</button>
+    </div>
 
     <label>¿A quién le mando el WhatsApp?</label>
     <div class="row2">
@@ -913,10 +1175,10 @@ function openAlumnoForm(id){
     <button type="button" class="btn secondary" onclick="agregarMensajeAlumno('${editing.id}')">+ Guardar mensaje</button>
     ` : ''}
 
-    <label>Temas que le doy</label>
+    <label>Materias que le doy</label>
     <div class="dias-chips" id="temasChipsBox">${temasChipsPickerHtml(editing ? editing.temasIds : [])}</div>
     <div class="row2" style="margin-top:8px;">
-      <input type="text" id="f_temaNuevoInline" placeholder="Nuevo tema (ej: Biología)">
+      <input type="text" id="f_temaNuevoInline" placeholder="Nueva materia (ej: Biología)">
       <button type="button" class="btn secondary" style="margin-top:0;" onclick="crearTemaInlineDesdeAlumno()">+ Crear</button>
     </div>
 
@@ -932,6 +1194,7 @@ function openAlumnoForm(id){
     </div>
   `);
 
+  renderFormTemario();
   document.querySelectorAll('#swatchPicker .swatch').forEach(sw=>{
     sw.addEventListener('click', ()=>{
       document.getElementById('f_color').value = sw.dataset.color;
@@ -950,6 +1213,9 @@ function toggleContactoField(){
 
 function escapeAttr(s){
   return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+function jsArg(s){
+  return escapeAttr(String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"));
 }
 function escapeHtml(s){
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -970,8 +1236,10 @@ function guardarAlumno(id){
   if(id){
     const a = getAlumno(id);
     a.nombre = nombre; a.tarifa = tarifa; a.tipo = tipo; a.contacto = contacto; a.telefono = telefono; a.direccion = direccion; a.color = color; a.temasIds = temasIds;
+    a.nivel = formNivel; a.modalidad = formModalidad; a.temario = formTemario;
   }else{
-    db.alumnos.push({id: uid(), nombre, tarifa, tipo, contacto, telefono, direccion, mensajes:[], color, temasIds, activo:true});
+    db.alumnos.push({id: uid(), nombre, tarifa, tipo, contacto, telefono, direccion, mensajes:[], color, temasIds, activo:true,
+      nivel: formNivel, modalidad: formModalidad, temario: formTemario});
   }
   saveDB();
   closeSheet();
@@ -986,9 +1254,13 @@ function eliminarAlumno(id){
     : '¿Eliminar alumno?';
   if(!confirm(msg)) return;
   const eraElAbierto = currentAlumnoDetalleId === id;
+  const getAlumnoNombreCache = alumnoNombre(id);
   db.alumnos = db.alumnos.filter(a=>a.id!==id);
   db.clases = db.clases.filter(c=>c.alumnoId!==id);
   db.tareas = db.tareas.filter(t=>t.alumnoId!==id);
+  db.pagos = db.pagos.filter(p=>p.alumnoId!==id || (p.trabajoIds||[]).length>0);
+  db.pagos.forEach(p=>{ if(p.alumnoId===id){ p.claseIds = []; p.alumnoId = null; p.cliente = p.cliente || getAlumnoNombreCache; } });
+  db.trabajos.forEach(t=>{ if(t.alumnoId===id){ t.alumnoId = null; t.cliente = t.cliente || getAlumnoNombreCache; } });
   saveDB();
   closeSheet();
   if(eraElAbierto){ goTo('alumnos'); } else { renderAll(); }
@@ -1057,23 +1329,22 @@ function abrirWhatsappAlumno(alumnoId, claseId){
   if(!a) return;
   const clase = claseId ? db.clases.find(c=>c.id===claseId) : null;
   const msgs = a.mensajes || [];
-  if(msgs.length===0 && !clase){
-    window.open(waUrl(a.telefono, ''), '_blank');
-    return;
-  }
   openSheet(`
     <h3>Enviar WhatsApp</h3>
     <p>${escapeHtml(a.nombre)}</p>
     <div class="btn-row" style="flex-direction:column;">
       ${clase ? `<button type="button" class="btn secondary" onclick="enviarResumenClase('${a.id}','${clase.id}')">Resumen y cobro de clase</button>` : ''}
       ${msgs.map(m=>`<button type="button" class="btn secondary" onclick="enviarMensajePlantilla('${a.id}','${m.id}')">${escapeHtml(m.label)}</button>`).join('')}
+      ${sumaPendiente(a.id)>0 ? `<button type="button" class="btn secondary" onclick="enviarResumenDeuda('${keyAlumno(a.id)}')">💸 Resumen de lo que debe</button>` : ''}
+      <button type="button" class="btn secondary" onclick="pedirResena('${a.id}')">⭐ Pedir reseña</button>
       <button type="button" class="btn secondary" onclick="enviarMensajePlantilla('${a.id}', null)">Sin mensaje (chat vacío)</button>
     </div>
   `);
 }
 
 function textoResumenClase(c){
-  return `Tuvimos ${formatDuracionTexto(c.duracionMin)} de clase y el total es ${money(c.monto)}.`;
+  const extra = c.viatico>0 ? ` (clase ${money(c.monto)} + pasajes ${money(c.viatico)})` : '';
+  return `Tuvimos ${formatDuracionTexto(c.duracionMin)} de clase y el total es ${money(totalClase(c))}${extra}.`;
 }
 
 function enviarResumenClase(alumnoId, claseId){
@@ -1098,13 +1369,29 @@ function abrirComoLlego(alumnoId){
   window.open(mapsUrl(a.direccion), '_blank');
 }
 
+let filtroNivelAlumnos = 'todos';
+function setFiltroNivel(n){ filtroNivelAlumnos = n; renderAlumnos(); }
+
 function renderAlumnos(){
   const cont = document.getElementById('listaAlumnos');
+  renderResenasResumen();
+  const filtroBox = document.getElementById('filtroNivelAlumnos');
   if(db.alumnos.length===0){
+    filtroBox.innerHTML = '';
     cont.innerHTML = '<div class="card"><div class="empty-msg">No hay alumnos todavía. Tocá el botón + para agregar el primero.</div></div>';
     return;
   }
-  cont.innerHTML = db.alumnos.map(a=>{
+  const opciones = [{id:'todos', label:'Todos'}].concat(NIVELES);
+  filtroBox.innerHTML = opciones.map(n=>{
+    const cant = n.id==='todos' ? db.alumnos.length : db.alumnos.filter(a=>a.nivel===n.id).length;
+    return `<button class="filter-chip ${filtroNivelAlumnos===n.id?'active':''}" onclick="setFiltroNivel('${n.id}')">${n.label} · ${cant}</button>`;
+  }).join('');
+  const lista = filtroNivelAlumnos==='todos' ? db.alumnos : db.alumnos.filter(a=>a.nivel===filtroNivelAlumnos);
+  if(lista.length===0){
+    cont.innerHTML = '<div class="card"><div class="empty-msg">No tenés alumnos de este nivel.</div></div>';
+    return;
+  }
+  cont.innerHTML = lista.map(a=>{
     const deuda = sumaPendiente(a.id);
     const ahora = new Date();
     const proxima = db.clases
@@ -1112,9 +1399,9 @@ function renderAlumnos(){
       .sort((x,y)=> fechaHoraClase(x)-fechaHoraClase(y))[0];
     return `
     <div class="home-card" onclick="abrirDetalleAlumno('${a.id}')">
-      <div class="name"><span class="dot" style="background:${a.color}"></span>${a.tipo==='adulto'?'🧑':'🧒'} ${escapeHtml(a.nombre)}</div>
+      <div class="name"><span class="dot" style="background:${a.color}"></span>${a.tipo==='adulto'?'🧑':'🧒'} ${escapeHtml(a.nombre)} ${nivelBadge(a.nivel)}</div>
       <div class="row">
-        <span class="rate">${money(a.tarifa)}/hora</span>
+        <span class="rate">${money(a.tarifa)}/hora · ${a.modalidad==='casa_alumno'?'🚌 voy yo':'🏠 viene'}</span>
         <span>${proxima ? 'Próx: ' + nombreDiaFecha(proxima.fecha) + ' ' + proxima.horaEntrada : 'Sin próxima clase'}</span>
       </div>
       <div class="row" style="margin-top:4px;font-weight:700;color:${deuda>0?'var(--warn)':'var(--ok)'};">${deuda>0 ? 'Debe '+money(deuda) : 'Al día'}</div>
@@ -1126,7 +1413,8 @@ function sumaPendiente(alumnoId){
   const ahora = new Date();
   return db.clases
     .filter(c=>c.alumnoId===alumnoId && !c.pagada && claseYaOcurrida(c, ahora))
-    .reduce((s,c)=>s+Number(c.monto||0),0);
+    .reduce((s,c)=>s+totalClase(c),0)
+    + db.trabajos.filter(t=>t.alumnoId===alumnoId && !t.cobrado).reduce((s,t)=>s+totalTrabajo(t),0);
 }
 
 function esMesActual(fechaStr){
@@ -1141,7 +1429,7 @@ function sumaPendienteMesActual(alumnoId, hoySinHora){
       if(c.alumnoId!==alumnoId || c.pagada || !esMesActual(c.fecha)) return false;
       return new Date(c.fecha+'T00:00:00') < hoySinHora;
     })
-    .reduce((s,c)=>s+Number(c.monto||0),0);
+    .reduce((s,c)=>s+totalClase(c),0);
 }
 
 function nombreDiaFecha(fechaStr){
@@ -1290,14 +1578,22 @@ function labelDuracionPreset(min){
 
 let repeatDiasHoras = {};
 
-function openClaseForm(id, fechaPreset){
+const HORA_MIN_FORM = 7, HORA_MAX_FORM = 22;
+let formClaseModalidad = 'casa_mia';
+let formClaseTemario = [];
+
+function openClaseForm(id, fechaPreset, horaPreset, alumnoPreset){
   if(db.alumnos.length===0){ showToast('Primero agregá un alumno'); return; }
   const editing = id ? db.clases.find(c=>c.id===id) : null;
-  const today = fechaPreset || new Date().toISOString().slice(0,10);
+  const today = fechaPreset || hoyIso();
   repeatDiasHoras = {};
 
-  const nowHClamped = String(Math.min(18, Math.max(8, new Date().getHours()))).padStart(2,'0');
-  const [entH, entM] = editing ? editing.horaEntrada.split(':') : [nowHClamped, '00'];
+  const nowHClamped = String(Math.min(HORA_MAX_FORM, Math.max(HORA_MIN_FORM, new Date().getHours()))).padStart(2,'0');
+  const [entH, entM] = editing ? editing.horaEntrada.split(':') : (horaPreset ? horaPreset.split(':') : [nowHClamped, '00']);
+  const alumnoInicialId = editing ? editing.alumnoId : (alumnoPreset || db.alumnos[0].id);
+  const alumnoInicial = getAlumno(alumnoInicialId);
+  formClaseModalidad = editing ? (editing.modalidad||'casa_mia') : ((alumnoInicial && alumnoInicial.modalidad) || 'casa_mia');
+  formClaseTemario = editing ? (editing.temarioIds||[]).slice() : [];
 
   let presetInicial = '60', customInicial = 60;
   if(editing){
@@ -1331,16 +1627,16 @@ function openClaseForm(id, fechaPreset){
   ` : '';
 
   openSheet(`
-    <h3>${editing ? 'Editar clase' : 'Nueva clase'}</h3>
+    <h3 ${editing ? `data-clase-id="${editing.id}"` : ''}>${editing ? 'Editar clase' : 'Nueva clase'}</h3>
     <label>Alumno</label>
-    <select id="f_alumnoId" onchange="recalcularMontoForm()">${alumnoOptionsHtml(editing ? editing.alumnoId : db.alumnos[0].id)}</select>
+    <select id="f_alumnoId" onchange="onCambioAlumnoClaseForm()">${alumnoOptionsHtml(alumnoInicialId)}</select>
 
     <label>Fecha</label>
     <input type="date" id="f_fecha" value="${editing ? editing.fecha : today}">
 
     <label>Hora de entrada</label>
     <div class="row2">
-      <select id="f_horaEntradaH" onchange="recalcularMontoForm()">${opcionesHoras(8,18,entH)}</select>
+      <select id="f_horaEntradaH" onchange="recalcularMontoForm()">${opcionesHoras(Math.min(HORA_MIN_FORM, Number(entH)), Math.max(HORA_MAX_FORM, Number(entH)), entH)}</select>
       <select id="f_horaEntradaM" onchange="recalcularMontoForm()">${opcionesMinutos(entM)}</select>
     </div>
 
@@ -1351,8 +1647,19 @@ function openClaseForm(id, fechaPreset){
       <input type="number" id="f_duracionCustom" min="5" step="5" value="${customInicial}" oninput="recalcularMontoForm()" inputmode="numeric">
     </div>
 
-    <label>Monto a cobrar</label>
-    <select id="f_monto"></select>
+    <label>Monto de la clase</label>
+    <select id="f_monto" onchange="renderTotalClaseForm()"></select>
+
+    <label>¿Dónde es la clase?</label>
+    <div class="pill-select" id="modalidadClaseBox">${modalidadPillsHtml(formClaseModalidad, 'setModalidadClaseForm')}</div>
+    <div class="stats-esperado" id="totalClaseForm" style="margin:10px 0 0;"></div>
+
+    <label>📖 Temas de esta clase</label>
+    <div class="dias-chips" id="temarioClaseBox"></div>
+    <div class="row2" style="margin-top:8px;">
+      <input type="text" id="f_temarioClaseNuevo" placeholder="Agregar tema al temario (ej: Fracciones)" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarTemarioDesdeClase();}">
+      <button type="button" class="btn secondary" style="margin-top:0;flex:0 0 auto;width:auto;padding:10px 14px;" onclick="agregarTemarioDesdeClase()">+</button>
+    </div>
 
     <button type="button" class="btn whatsapp" onclick="enviarWhatsappDesdeForm()">📲 Enviar resumen por WhatsApp</button>
 
@@ -1374,6 +1681,70 @@ function openClaseForm(id, fechaPreset){
 
   const montoInicial = editing ? editing.monto : null;
   recalcularMontoForm(montoInicial);
+  renderTemarioClaseForm();
+}
+
+function viaticoFormActual(){
+  const id = document.querySelector('.sheet [data-clase-id]') ? document.querySelector('.sheet [data-clase-id]').dataset.claseId : null;
+  const c = id ? db.clases.find(x=>x.id===id) : null;
+  // si se está editando y la modalidad no cambió, se respeta el viático guardado (precio de pasaje de ese momento)
+  if(c && c.modalidad===formClaseModalidad) return Number(c.viatico||0);
+  return viaticoPorModalidad(formClaseModalidad);
+}
+
+function renderTotalClaseForm(){
+  const box = document.getElementById('totalClaseForm');
+  if(!box) return;
+  const monto = parseFloat(document.getElementById('f_monto').value)||0;
+  const viatico = viaticoFormActual();
+  box.innerHTML = viatico>0
+    ? `Total a cobrar: <b>${money(monto+viatico)}</b> (clase ${money(monto)} + pasajes ${money(viatico)})`
+    : `Total a cobrar: <b>${money(monto)}</b>`;
+}
+
+function setModalidadClaseForm(m){
+  formClaseModalidad = m;
+  document.querySelectorAll('#modalidadClaseBox button').forEach(b=>b.classList.toggle('sel', b.dataset.mod===m));
+  renderTotalClaseForm();
+}
+
+function onCambioAlumnoClaseForm(){
+  const a = getAlumno(document.getElementById('f_alumnoId').value);
+  if(a) setModalidadClaseForm(a.modalidad||'casa_mia');
+  formClaseTemario = [];
+  recalcularMontoForm();
+  renderTemarioClaseForm();
+}
+
+function renderTemarioClaseForm(){
+  const box = document.getElementById('temarioClaseBox');
+  if(!box) return;
+  const a = getAlumno(document.getElementById('f_alumnoId').value);
+  const items = (a && a.temario || []).filter(t=>!t.dado || formClaseTemario.includes(t.id));
+  box.innerHTML = items.length ? items.map(t=>`
+    <label class="dia-chip ${formClaseTemario.includes(t.id)?'sel':''}">
+      <input type="checkbox" ${formClaseTemario.includes(t.id)?'checked':''} onchange="toggleTemarioClaseForm('${t.id}', this)">
+      ${escapeHtml(t.texto)}
+    </label>`).join('')
+    : '<span style="font-size:13px;color:var(--text-dim);">Este alumno no tiene temas pendientes en su temario.</span>';
+}
+function toggleTemarioClaseForm(temaId, el){
+  const i = formClaseTemario.indexOf(temaId);
+  if(el.checked && i<0) formClaseTemario.push(temaId);
+  if(!el.checked && i>=0) formClaseTemario.splice(i,1);
+  el.parentElement.classList.toggle('sel', el.checked);
+}
+function agregarTemarioDesdeClase(){
+  const input = document.getElementById('f_temarioClaseNuevo');
+  const texto = input.value.trim();
+  const a = getAlumno(document.getElementById('f_alumnoId').value);
+  if(!texto || !a) return;
+  const nuevo = {id: uid(), texto, dado:false};
+  a.temario.push(nuevo);
+  formClaseTemario.push(nuevo.id);
+  saveDB();
+  input.value = '';
+  renderTemarioClaseForm();
 }
 
 function onToggleDiaRecurrente(dia, checked){
@@ -1396,7 +1767,7 @@ function renderDiasHorarios(){
     return `
     <div class="row2" style="align-items:center;margin:6px 0;">
       <span style="flex:1;font-size:13px;font-weight:700;">${nombre}</span>
-      <select onchange="actualizarHoraDia(${dv}, this.value, null)">${opcionesHoras(8,20,h)}</select>
+      <select onchange="actualizarHoraDia(${dv}, this.value, null)">${opcionesHoras(HORA_MIN_FORM,HORA_MAX_FORM,h)}</select>
       <select onchange="actualizarHoraDia(${dv}, null, this.value)">${opcionesMinutos(m)}</select>
     </div>`;
   }).join('');
@@ -1436,6 +1807,7 @@ function recalcularMontoForm(montoActual){
   const montoSel = document.getElementById('f_monto');
   const sugerido = (montoActual!=null) ? redondearA1000(montoActual) : redondearA1000(tarifa*(durMin/60));
   montoSel.innerHTML = tarifaOptionsHtml(sugerido);
+  renderTotalClaseForm();
 }
 
 function guardarClase(id){
@@ -1446,6 +1818,9 @@ function guardarClase(id){
   const notas = document.getElementById('f_notas').value.trim();
   const pagada = document.getElementById('f_pagada').checked;
   const duracionMin = leerDuracionPreset();
+  const modalidad = formClaseModalidad;
+  const viatico = viaticoFormActual();
+  const temarioIds = formClaseTemario.slice();
 
   if(!alumnoId){ showToast('Elegí un alumno'); return; }
   if(!fecha){ showToast('Elegí una fecha'); return; }
@@ -1453,7 +1828,11 @@ function guardarClase(id){
 
   if(id){
     const c = db.clases.find(c=>c.id===id);
-    Object.assign(c, {alumnoId, fecha, horaEntrada, horaSalida: sumarMinutos(horaEntrada, duracionMin), duracionMin, monto, notas, pagada});
+    const estabaPagada = c.pagada;
+    Object.assign(c, {alumnoId, fecha, horaEntrada, horaSalida: sumarMinutos(horaEntrada, duracionMin), duracionMin, monto, viatico, modalidad, temarioIds, notas});
+    if(pagada && !estabaPagada) registrarPago({alumnoId, claseIds:[c.id], fecha: hoyIso()});
+    else if(!pagada && estabaPagada) quitarClaseDePago(c);
+    else if(pagada && c.pagoId) recalcularPago(c.pagoId);
     saveDB();
     closeSheet();
     renderAll();
@@ -1469,7 +1848,7 @@ function guardarClase(id){
     const ocurrencias = generarOcurrenciasRecurrentes(fecha, repeatDiasHoras, semanas);
     const serieId = uid();
     ocurrencias.forEach(o=>{
-      db.clases.push({id: uid(), serieId, alumnoId, fecha:o.fecha, horaEntrada:o.horaEntrada, horaSalida: sumarMinutos(o.horaEntrada, duracionMin), duracionMin, monto, notas, pagada:false});
+      db.clases.push({id: uid(), serieId, alumnoId, fecha:o.fecha, horaEntrada:o.horaEntrada, horaSalida: sumarMinutos(o.horaEntrada, duracionMin), duracionMin, monto, viatico, modalidad, temarioIds:[], notas, pagada:false, pagoId:null});
     });
     saveDB();
     closeSheet();
@@ -1478,7 +1857,9 @@ function guardarClase(id){
     return;
   }
 
-  db.clases.push({id: uid(), serieId:null, alumnoId, fecha, horaEntrada, horaSalida: sumarMinutos(horaEntrada, duracionMin), duracionMin, monto, notas, pagada});
+  const nueva = {id: uid(), serieId:null, alumnoId, fecha, horaEntrada, horaSalida: sumarMinutos(horaEntrada, duracionMin), duracionMin, monto, viatico, modalidad, temarioIds, notas, pagada:false, pagoId:null};
+  db.clases.push(nueva);
+  if(pagada) registrarPago({alumnoId, claseIds:[nueva.id], fecha: hoyIso()});
   saveDB();
   closeSheet();
   renderAll();
@@ -1495,7 +1876,7 @@ function generarOcurrenciasRecurrentes(fechaInicioStr, diasConHora, semanas){
       const offset = dv===0 ? 6 : dv-1; // lunes=0 ... domingo=6
       const occ = new Date(inicioSemana);
       occ.setDate(occ.getDate() + w*7 + offset);
-      const occStr = occ.toISOString().slice(0,10);
+      const occStr = toIsoCalendario(occ);
       if(occStr < fechaInicioStr) return;
       ocurrencias.push({fecha: occStr, horaEntrada: diasConHora[dv]});
     });
@@ -1506,25 +1887,30 @@ function generarOcurrenciasRecurrentes(fechaInicioStr, diasConHora, semanas){
 function enviarWhatsappDesdeForm(){
   const alumnoId = document.getElementById('f_alumnoId').value;
   const durMin = leerDuracionPreset();
-  const monto = parseFloat(document.getElementById('f_monto').value)||0;
+  const viatico = viaticoFormActual();
+  const monto = (parseFloat(document.getElementById('f_monto').value)||0) + viatico;
 
   if(durMin<=0){ showToast('Elegí una duración válida'); return; }
 
   const a = getAlumno(alumnoId);
   const horasTexto = formatDuracionTexto(durMin);
+  const extraPasajes = viatico>0 ? ` (incluye ${money(viatico)} de pasajes)` : '';
   let msg;
   if(a.tipo === 'adulto'){
-    msg = `Hola ${a.nombre}, ¿cómo estás?\nYa terminamos de estudiar por hoy, estuvimos ${horasTexto} y el total es ${money(monto)}. Cualquier cosa estoy atenta, muchas gracias!`;
+    msg = `Hola ${a.nombre}, ¿cómo estás?\nYa terminamos de estudiar por hoy, estuvimos ${horasTexto} y el total es ${money(monto)}${extraPasajes}. Cualquier cosa estoy atenta, muchas gracias!`;
   }else{
     const contacto = a.contacto ? a.contacto.trim() : '';
     const saludo = contacto ? `Hola ${contacto}, ¿cómo estás?` : 'Hola, ¿cómo estás?';
-    msg = `${saludo}\nYa terminamos de estudiar con ${a.nombre} por hoy, estuvimos ${horasTexto} y el total es ${money(monto)}. Cualquier cosa estoy atenta, muchas gracias!`;
+    msg = `${saludo}\nYa terminamos de estudiar con ${a.nombre} por hoy, estuvimos ${horasTexto} y el total es ${money(monto)}${extraPasajes}. Cualquier cosa estoy atenta, muchas gracias!`;
   }
   window.open(waUrl(a.telefono, msg), '_blank');
 }
 
 function eliminarClase(id){
   if(!confirm('¿Eliminar esta clase?')) return;
+  const c = db.clases.find(c=>c.id===id);
+  if(c && c.pagada) quitarClaseDePago(c);
+  db.tareas.forEach(t=>{ if(t.claseId===id) t.claseId = null; });
   db.clases = db.clases.filter(c=>c.id!==id);
   saveDB();
   closeSheet();
@@ -1535,7 +1921,8 @@ function eliminarClase(id){
 function togglePagada(id, ev){
   if(ev) ev.stopPropagation();
   const c = db.clases.find(c=>c.id===id);
-  c.pagada = !c.pagada;
+  if(c.pagada) quitarClaseDePago(c);
+  else registrarPago({alumnoId:c.alumnoId, claseIds:[c.id], fecha: hoyIso()});
   saveDB();
   renderAll();
 }
@@ -1543,7 +1930,7 @@ function togglePagada(id, ev){
 let calendarioFecha = new Date();
 let calendarioModo = 'semana'; // 'mes' | 'semana'
 let calendarioSemanaInicio = getMonday(new Date());
-let calendarioSelectedDate = new Date().toISOString().slice(0,10);
+let calendarioSelectedDate = hoyIso();
 
 function renderClases(){
   renderCalendario();
@@ -1573,7 +1960,7 @@ function irAHoyCalendario(){
   const hoy = new Date();
   calendarioFecha = new Date();
   calendarioSemanaInicio = getMonday(new Date());
-  calendarioSelectedDate = hoy.toISOString().slice(0,10);
+  calendarioSelectedDate = hoyIso();
   renderCalendario();
 }
 
@@ -1594,22 +1981,58 @@ function renderCalendario(){
   renderDayDetail();
 }
 
+/* ---------- disponibilidad horaria ---------- */
+function horaAMin(h){ const [hh,mm] = h.split(':').map(Number); return hh*60+mm; }
+function minAHora(m){ return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); }
+function dispDelDia(fechaStr){
+  const dow = new Date(fechaStr+'T00:00:00').getDay();
+  const d = (db.config.disponibilidad||{})[dow];
+  if(!d || !d.activo) return null;
+  return {desde:horaAMin(d.desde), hasta:horaAMin(d.hasta)};
+}
+function clasesDelDia(fechaStr){
+  return db.clases.filter(c=>c.fecha===fechaStr).sort((a,b)=>a.horaEntrada.localeCompare(b.horaEntrada));
+}
+function finClaseMin(c){ return horaAMin(c.horaEntrada) + (c.duracionMin||60); }
+// rangos libres [desde,hasta) en minutos para un día, según disponibilidad menos clases y lo que ya pasó
+function rangosLibresDia(fechaStr){
+  const disp = dispDelDia(fechaStr);
+  if(!disp) return [];
+  let desde = disp.desde;
+  if(fechaStr===hoyIso()){
+    const ahora = new Date();
+    const nowMin = Math.ceil((ahora.getHours()*60+ahora.getMinutes())/30)*30;
+    desde = Math.max(desde, nowMin);
+  }else if(fechaStr < hoyIso()) return [];
+  let rangos = [[desde, disp.hasta]];
+  clasesDelDia(fechaStr).forEach(c=>{
+    const ci = horaAMin(c.horaEntrada), cf = finClaseMin(c);
+    const nuevos = [];
+    rangos.forEach(([a,b])=>{
+      if(cf<=a || ci>=b){ nuevos.push([a,b]); return; }
+      if(ci>a) nuevos.push([a,ci]);
+      if(cf<b) nuevos.push([cf,b]);
+    });
+    rangos = nuevos;
+  });
+  return rangos.filter(([a,b])=>b-a>=30);
+}
+
 function renderCalendarioMes(){
   const y = calendarioFecha.getFullYear(), m = calendarioFecha.getMonth();
   const label = calendarioFecha.toLocaleDateString('es-AR', {month:'long', year:'numeric'});
   document.getElementById('calendarioMesLabel').textContent = label.charAt(0).toUpperCase()+label.slice(1);
-
-  const clases = db.clases;
+  document.getElementById('calendarioLeyenda').innerHTML = '';
 
   const porDia = {};
-  clases.forEach(c=>{
+  db.clases.forEach(c=>{
     (porDia[c.fecha] = porDia[c.fecha] || []).push(c);
   });
 
   const primerDiaMes = new Date(y, m, 1);
   const diasEnMes = new Date(y, m+1, 0).getDate();
   const offsetInicio = (primerDiaMes.getDay()+6)%7; // 0=Lunes
-  const hoyStr = new Date().toISOString().slice(0,10);
+  const hoyStr = hoyIso();
 
   let celdas = '<div class="month-grid">';
   for(let i=0;i<offsetInicio;i++){
@@ -1617,10 +2040,10 @@ function renderCalendarioMes(){
   }
   for(let dia=1; dia<=diasEnMes; dia++){
     const fechaStr = `${y}-${String(m+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
-    const clasesDia = porDia[fechaStr] || [];
+    const clasesDia = (porDia[fechaStr] || []).slice().sort((a,b)=>a.horaEntrada.localeCompare(b.horaEntrada));
     const esHoy = fechaStr===hoyStr;
     const seleccionado = fechaStr===calendarioSelectedDate;
-    const dots = clasesDia.slice(0,3).map(()=>`<span class="mc-dot"></span>`).join('');
+    const dots = clasesDia.slice(0,4).map(c=>`<span class="mc-dot" style="background:${seleccionado?'#fff':alumnoColor(c.alumnoId)}"></span>`).join('');
     celdas += `
       <button type="button" class="month-cell ${esHoy?'today':''} ${seleccionado?'selected':''}" onclick="abrirDiaCalendario('${fechaStr}')">
         <span>${dia}</span>
@@ -1635,33 +2058,168 @@ function renderCalendarioMes(){
 
 function renderCalendarioSemana(){
   const inicio = calendarioSemanaInicio;
-  const clases = db.clases;
+  const fechas = [];
+  for(let i=0;i<7;i++) fechas.push(toIsoCalendario(addDiasCalendario(inicio, i)));
 
-  const porDia = {};
-  clases.forEach(c=>{
-    (porDia[c.fecha] = porDia[c.fecha] || []).push(c);
+  // rango de horas visible: disponibilidad + clases de la semana (mínimo 8 a 21)
+  let hMin = 8*60, hMax = 21*60;
+  fechas.forEach(f=>{
+    const d = dispDelDia(f);
+    if(d){ hMin = Math.min(hMin, d.desde); hMax = Math.max(hMax, d.hasta); }
+    clasesDelDia(f).forEach(c=>{ hMin = Math.min(hMin, horaAMin(c.horaEntrada)); hMax = Math.max(hMax, finClaseMin(c)); });
+  });
+  hMin = Math.floor(hMin/60)*60; hMax = Math.min(24*60, Math.ceil(hMax/60)*60);
+  const hourH = 44, pxPorMin = hourH/60;
+
+  const hoyStr = hoyIso();
+  const ahora = new Date();
+  const ahoraMin = ahora.getHours()*60 + ahora.getMinutes();
+  const dows = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+
+  let head = '<div class="wk-head"><div></div>';
+  fechas.forEach((f,i)=>{
+    const d = new Date(f+'T00:00:00');
+    head += `<button type="button" class="wk-hcell ${f===hoyStr?'today':''} ${f===calendarioSelectedDate?'selected':''}" onclick="abrirDiaCalendario('${f}')">
+      <span class="dow">${dows[i]}</span><span class="dnum">${d.getDate()}</span></button>`;
+  });
+  head += '</div>';
+
+  let times = '<div class="wk-times">';
+  for(let m=hMin; m<hMax; m+=60) times += `<div class="wk-time"><span>${m/60}</span></div>`;
+  times += '</div>';
+
+  let cols = '';
+  fechas.forEach(f=>{
+    const disp = dispDelDia(f);
+    const clases = clasesDelDia(f);
+    let slots = '';
+    for(let m=hMin; m<hMax; m+=30){
+      const ocupado = clases.some(c=>horaAMin(c.horaEntrada) < m+30 && finClaseMin(c) > m);
+      const pasado = f<hoyStr || (f===hoyStr && m+30<=ahoraMin);
+      const dentro = disp && m>=disp.desde && m+30<=disp.hasta;
+      let cls = pasado ? 'pasado' : (dentro ? (ocupado ? '' : 'libre') : 'nodisp');
+      if((m+30)%60===0) cls += ' hr';
+      slots += `<div class="wk-slot ${cls}" onclick="tocarSlot('${f}','${minAHora(m)}')"></div>`;
+    }
+    // ubicar clases (en carriles si se superponen)
+    const carriles = [];
+    const pos = clases.map(c=>{
+      const ini = horaAMin(c.horaEntrada), finM = finClaseMin(c);
+      let lane = carriles.findIndex(finLane=>finLane<=ini);
+      if(lane<0){ lane = carriles.length; carriles.push(finM); } else carriles[lane] = finM;
+      return {c, ini, finM, lane};
+    });
+    const nLanes = Math.max(1, carriles.length);
+    const eventos = pos.map(({c,ini,finM,lane})=>{
+      const color = alumnoColor(c.alumnoId);
+      const top = (ini-hMin)*pxPorMin, h = Math.max(18, (finM-ini)*pxPorMin - 2);
+      const w = 100/nLanes;
+      const nombre = alumnoNombre(c.alumnoId).split(' ')[0];
+      return `<div class="wk-ev ${c.pagada?'pagada':''}" style="top:${top}px;height:${h}px;left:calc(${lane*w}% + 1px);width:calc(${w}% - 3px);border-left-color:${color};background:color-mix(in srgb, ${color} 24%, var(--card));"
+        onclick="event.stopPropagation();openClaseForm('${c.id}')">${escapeHtml(nombre)}${h>30?`<div class="h">${c.horaEntrada}</div>`:''}</div>`;
+    }).join('');
+    const nowLine = (f===hoyStr && ahoraMin>=hMin && ahoraMin<hMax) ? `<div class="wk-now" style="top:${(ahoraMin-hMin)*pxPorMin}px"></div>` : '';
+    cols += `<div class="wk-col">${slots}${eventos}${nowLine}</div>`;
   });
 
-  const dias = ['L','M','M','J','V','S','D'];
-  const hoyStr = new Date().toISOString().slice(0,10);
-  let celdas = '<div class="day-strip">';
-  for(let i=0;i<7;i++){
-    const d = addDiasCalendario(inicio, i);
-    const fechaStr = toIsoCalendario(d);
-    const clasesDia = porDia[fechaStr] || [];
-    const esHoy = fechaStr===hoyStr;
-    const seleccionado = fechaStr===calendarioSelectedDate;
-    celdas += `
-      <button type="button" class="day-chip ${seleccionado?'selected':''} ${esHoy?'today':''}" onclick="abrirDiaCalendario('${fechaStr}')">
-        <span class="dow">${dias[i]}</span>
-        <span class="dnum">${d.getDate()}</span>
-        <span class="cdot${clasesDia.length?'':' hidden-dot'}"></span>
-      </button>
-    `;
-  }
-  celdas += '</div>';
+  document.getElementById('calendarioGrid').innerHTML =
+    `<div class="wk" style="--hour-h:${hourH}px">${head}<div class="wk-body">${times}${cols}</div></div>`;
+  document.getElementById('calendarioLeyenda').innerHTML = `
+    <div class="wk-legend">
+      <span><i class="libre"></i>Libre</span>
+      <span><i class="nodisp"></i>No disponible</span>
+      <span style="flex:1;">Tocá un hueco para agendar</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin:2px 4px 0;">
+      <button type="button" class="link-btn" onclick="compartirHorariosLibres()">📤 Compartir horarios libres</button>
+      <button type="button" class="link-btn" onclick="abrirDisponibilidad()">🕒 Mis horarios</button>
+    </div>`;
+}
 
-  document.getElementById('calendarioGrid').innerHTML = celdas;
+function tocarSlot(fechaStr, hora){
+  calendarioSelectedDate = fechaStr;
+  if(db.alumnos.length===0){ showToast('Primero agregá un alumno'); renderCalendario(); return; }
+  openClaseForm(null, fechaStr, hora);
+}
+
+function textoHorariosLibres(){
+  const lineas = [];
+  for(let i=0;i<7;i++){
+    const f = toIsoCalendario(addDiasCalendario(calendarioSemanaInicio, i));
+    const rangos = rangosLibresDia(f);
+    if(rangos.length) lineas.push(`• ${nombreDiaFecha(f)}: ${rangos.map(([a,b])=>`${minAHora(a)} a ${minAHora(b)}`).join(', ')}`);
+  }
+  if(!lineas.length) return '';
+  return `¡Hola! Estos son mis horarios libres para clases esta semana:\n${lineas.join('\n')}\n\nAvisame cuál te queda mejor 😊`;
+}
+
+function compartirHorariosLibres(){
+  const texto = textoHorariosLibres();
+  if(!texto){ showToast('No te quedan horarios libres esta semana'); return; }
+  openSheet(`
+    <h3>Horarios libres</h3>
+    <p class="ajustes-desc">Mandáselo a quien quiera agendar una clase.</p>
+    <textarea id="f_textoLibres" style="min-height:170px;">${escapeHtml(texto)}</textarea>
+    <div class="btn-row">
+      <button type="button" class="btn secondary" onclick="copiarTexto(document.getElementById('f_textoLibres').value)">📋 Copiar</button>
+      <button type="button" class="btn whatsapp" onclick="window.open(waUrl('', document.getElementById('f_textoLibres').value), '_blank')">💬 WhatsApp</button>
+    </div>
+  `);
+}
+
+function copiarTexto(texto){
+  const ok = ()=>showToast('Copiado ✓');
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(texto).then(ok).catch(()=>fallbackCopiar(texto, ok));
+  }else fallbackCopiar(texto, ok);
+}
+function fallbackCopiar(texto, ok){
+  const ta = document.createElement('textarea');
+  ta.value = texto; document.body.appendChild(ta); ta.select();
+  try{ document.execCommand('copy'); ok(); }catch(e){ showToast('No se pudo copiar'); }
+  document.body.removeChild(ta);
+}
+
+const DIAS_ORDEN = [1,2,3,4,5,6,0];
+const DIAS_NOMBRE = {0:'Domingo',1:'Lunes',2:'Martes',3:'Miércoles',4:'Jueves',5:'Viernes',6:'Sábado'};
+function opcionesHoraCompleta(selected){
+  let html = '';
+  for(let m=6*60; m<=23*60; m+=30){ const h = minAHora(m); html += `<option value="${h}" ${h===selected?'selected':''}>${h}</option>`; }
+  return html;
+}
+function abrirDisponibilidad(){
+  const disp = db.config.disponibilidad;
+  openSheet(`
+    <h3>🕒 Mis horarios disponibles</h3>
+    <p class="ajustes-desc">En la grilla semanal se pintan de verde los huecos libres dentro de estos horarios.</p>
+    ${DIAS_ORDEN.map(d=>{
+      const x = disp[d] || {activo:false, desde:'14:00', hasta:'20:00'};
+      return `
+      <div class="row2" style="align-items:center;margin:8px 0;">
+        <label class="dia-chip ${x.activo?'sel':''}" style="flex:0 0 96px;margin:0;text-align:center;">
+          <input type="checkbox" data-dia="${d}" class="disp-activo" ${x.activo?'checked':''} onchange="this.parentElement.classList.toggle('sel', this.checked)">${DIAS_NOMBRE[d]}
+        </label>
+        <select class="disp-desde" data-dia="${d}">${opcionesHoraCompleta(x.desde)}</select>
+        <select class="disp-hasta" data-dia="${d}">${opcionesHoraCompleta(x.hasta)}</select>
+      </div>`;
+    }).join('')}
+    <button type="button" class="btn primary" onclick="guardarDisponibilidad()">Guardar horarios</button>
+  `);
+}
+function guardarDisponibilidad(){
+  const nueva = {};
+  for(const d of DIAS_ORDEN){
+    const activo = document.querySelector(`.disp-activo[data-dia="${d}"]`).checked;
+    const desde = document.querySelector(`.disp-desde[data-dia="${d}"]`).value;
+    const hasta = document.querySelector(`.disp-hasta[data-dia="${d}"]`).value;
+    if(activo && horaAMin(hasta)<=horaAMin(desde)){ showToast(`${DIAS_NOMBRE[d]}: el "hasta" tiene que ser después del "desde"`); return; }
+    nueva[d] = {activo, desde, hasta};
+  }
+  db.config.disponibilidad = nueva;
+  saveDB();
+  closeSheet();
+  renderAll();
+  showToast('Horarios guardados');
 }
 
 function addDiasCalendario(d, n){ const r = new Date(d); r.setDate(r.getDate()+n); return r; }
@@ -1676,7 +2234,7 @@ function renderDayDetail(){
   const container = document.getElementById('calendarioDayDetail');
   if(!container) return;
   const fechaStr = calendarioSelectedDate;
-  const hoyStr = new Date().toISOString().slice(0,10);
+  const hoyStr = hoyIso();
   const clasesDia = db.clases.filter(c=>c.fecha===fechaStr);
   clasesDia.sort((a,b)=> a.horaEntrada.localeCompare(b.horaEntrada));
 
@@ -1687,10 +2245,25 @@ function renderDayDetail(){
 
   if(clasesDia.length===0){
     html += '<div class="day-empty">No hay clases este día 🌿</div>';
-  }else{
+  }
+  const libres = rangosLibresDia(fechaStr);
+  if(libres.length){
+    html += `<div class="day-empty" style="padding:4px 8px 6px;">🟢 Libre: ${libres.map(([a,b])=>`<button type="button" class="link-btn" onclick="openClaseForm(null,'${fechaStr}','${minAHora(a)}')">${minAHora(a)}–${minAHora(b)}</button>`).join(' · ')}</div>`;
+  }
+  if(clasesDia.length){
     clasesDia.forEach(c=>{
       const rangoHora = c.horaSalida ? `${c.horaEntrada}-${c.horaSalida}` : `${c.horaEntrada} · ${formatDuracion(c.duracionMin)} prevista`;
       const tareasClase = db.tareas.filter(t=>t.claseId===c.id);
+      const alumnoC = getAlumno(c.alumnoId);
+      const temasClase = (c.temarioIds||[]).map(tid=>(alumnoC && alumnoC.temario||[]).find(t=>t.id===tid)).filter(Boolean);
+      const temarioHtml = temasClase.length ? `
+        <div class="clase-tareas">
+          ${temasClase.map(t=>`
+            <div class="checkbox-line ${t.dado?'done':''}" style="padding:4px 0;">
+              <input type="checkbox" ${t.dado?'checked':''} onclick="toggleTemarioDado('${c.alumnoId}','${t.id}')">
+              <span style="font-size:13px;">📖 ${escapeHtml(t.texto)}</span>
+            </div>`).join('')}
+        </div>` : '';
       const tareasHtml = tareasClase.length ? `
         <div class="clase-tareas">
           ${tareasClase.map(t=>`
@@ -1707,10 +2280,11 @@ function renderDayDetail(){
           <span class="pay-dot" style="background:${alumnoColor(c.alumnoId)}"></span>
           <span class="time">${c.horaEntrada}</span>
           <div class="info">
-            <div class="home-name">${c.serieId ? '<span class="serie-tag">🔁</span>' : ''}${escapeHtml(alumnoNombre(c.alumnoId))}</div>
-            <div class="sub">${rangoHora} · ${money(c.monto)} · ${c.pagada?'Pagada':'Pendiente'}</div>
+            <div class="home-name">${c.serieId ? '<span class="serie-tag">🔁</span>' : ''}${escapeHtml(alumnoNombre(c.alumnoId))} ${alumnoC ? nivelBadge(alumnoC.nivel) : ''}</div>
+            <div class="sub">${rangoHora} · ${money(totalClase(c))}${c.viatico>0?' 🚌':''} · ${c.pagada?'Pagada':'Pendiente'}</div>
           </div>
         </div>
+        ${temarioHtml}
         ${tareasHtml}
       </div>`;
     });
@@ -1896,7 +2470,7 @@ function abrirDetalleAlumno(alumnoId){
   currentAlumnoDetalleId = alumnoId;
   views.forEach(v=>document.getElementById('view-'+v).classList.remove('active'));
   document.getElementById('view-alumno-detalle').classList.add('active');
-  document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('#bottomNav button').forEach(b=>b.classList.toggle('active', b.dataset.view==='alumnos'));
   document.getElementById('backBtn').style.display = 'flex';
   document.getElementById('fabBtn').style.display = 'none';
   renderDetalleAlumno();
@@ -1905,6 +2479,7 @@ function abrirDetalleAlumno(alumnoId){
 function irADiaEnCalendario(fechaStr){
   const [y,m] = fechaStr.split('-').map(Number);
   calendarioFecha = new Date(y, m-1, 1);
+  calendarioSemanaInicio = getMonday(new Date(fechaStr+'T00:00:00'));
   goTo('clases');
   abrirDiaCalendario(fechaStr);
 }
@@ -1928,10 +2503,10 @@ function renderDetalleTemas(alumnoId){
     return `<button type="button" class="dia-chip ${linkado?'sel':''}" onclick="toggleTemaAlumno('${alumnoId}','${t.id}')">${escapeHtml(t.nombre)}</button>`;
   }).join('');
   cont.innerHTML = `
-    <div class="dias-chips">${chips || '<span class="empty-msg">Todavía no creaste temas.</span>'}</div>
+    <div class="dias-chips">${chips || '<span class="empty-msg">Todavía no creaste materias.</span>'}</div>
     <div class="row2" style="margin-top:10px;">
-      <input type="text" id="f_nuevoTemaDetalle" placeholder="Nuevo tema">
-      <button type="button" class="btn secondary" style="margin-top:0;" onclick="crearTemaDesdeDetalle('${alumnoId}')">+ Crear y vincular</button>
+      <input type="text" id="f_nuevoTemaDetalle" placeholder="Nueva materia">
+      <button type="button" class="btn secondary" style="margin-top:0;" onclick="crearTemaDesdeDetalle('${alumnoId}')">+ Crear</button>
     </div>
   `;
 }
@@ -1958,6 +2533,63 @@ function crearTemaDesdeDetalle(alumnoId){
   renderDetalleAlumno();
 }
 
+/* ---------- temario (temas puntuales a dar por alumno) ---------- */
+function toggleTemarioDado(alumnoId, temaId){
+  const a = getAlumno(alumnoId);
+  const t = a && (a.temario||[]).find(x=>x.id===temaId);
+  if(!t) return;
+  t.dado = !t.dado;
+  saveDB();
+  renderAll();
+}
+function agregarTemarioDetalle(alumnoId){
+  const input = document.getElementById('f_temarioDetalle');
+  const texto = input.value.trim();
+  if(!texto){ showToast('Escribí un tema'); return; }
+  const a = getAlumno(alumnoId);
+  a.temario.push({id: uid(), texto, dado:false});
+  saveDB();
+  renderDetalleAlumno();
+  const nuevoInput = document.getElementById('f_temarioDetalle');
+  if(nuevoInput) nuevoInput.focus();
+}
+function eliminarTemarioItem(alumnoId, temaId){
+  const a = getAlumno(alumnoId);
+  if(!a) return;
+  a.temario = a.temario.filter(t=>t.id!==temaId);
+  db.clases.forEach(c=>{ if(c.alumnoId===alumnoId) c.temarioIds = (c.temarioIds||[]).filter(id=>id!==temaId); });
+  saveDB();
+  renderDetalleAlumno();
+}
+function renderDetalleTemario(alumno){
+  const cont = document.getElementById('detalleTemario');
+  if(!cont) return;
+  const items = alumno.temario || [];
+  const pendientes = items.filter(t=>!t.dado), dados = items.filter(t=>t.dado);
+  const linea = t => {
+    const clase = db.clases.filter(c=>c.alumnoId===alumno.id && (c.temarioIds||[]).includes(t.id))
+      .sort((a,b)=>fechaHoraClase(a)-fechaHoraClase(b))[0];
+    return `
+    <div class="checkbox-line ${t.dado?'done':''}" style="border-bottom:1px solid var(--border);">
+      <input type="checkbox" ${t.dado?'checked':''} onclick="toggleTemarioDado('${alumno.id}','${t.id}')">
+      <div class="item-main">
+        <div class="item-title" style="font-size:14px;">${escapeHtml(t.texto)}</div>
+        ${clase ? `<div class="item-sub">📅 ${nombreDiaFecha(clase.fecha)} ${clase.horaEntrada}</div>` : ''}
+      </div>
+      <button type="button" class="icon-btn" style="width:28px;height:28px;font-size:12px;" onclick="eliminarTemarioItem('${alumno.id}','${t.id}')" aria-label="Eliminar">✕</button>
+    </div>`;
+  };
+  const total = items.length;
+  cont.innerHTML = `
+    ${total ? `<div class="item-sub" style="margin-bottom:6px;">${dados.length} de ${total} temas dados</div>` : ''}
+    ${pendientes.map(linea).join('')}${dados.map(linea).join('')}
+    ${total ? '' : '<div class="empty-msg">Cargá los temas que tenés que darle (ej: Perímetro y Área).</div>'}
+    <div class="row2" style="margin-top:10px;">
+      <input type="text" id="f_temarioDetalle" placeholder="Nuevo tema a dar" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarTemarioDetalle('${alumno.id}');}">
+      <button type="button" class="btn secondary" style="margin-top:0;flex:0 0 auto;width:auto;padding:10px 14px;" onclick="agregarTemarioDetalle('${alumno.id}')">+ Agregar</button>
+    </div>`;
+}
+
 function renderDetalleAlumno(){
   if(!currentAlumnoDetalleId) return;
   const alumno = getAlumno(currentAlumnoDetalleId);
@@ -1971,7 +2603,8 @@ function renderDetalleAlumno(){
       <div class="dot" style="width:22px;height:22px;background:${alumno.color}"></div>
       <div style="flex:1;min-width:0;">
         <div style="font-family:var(--font-agenda);font-size:19px;font-weight:700;color:var(--primary-dark);">${escapeHtml(alumno.nombre)}</div>
-        <div class="item-sub">${money(alumno.tarifa)}/hora · ${alumno.tipo==='adulto'?'Adulto':'Niño/a'}</div>
+        <div class="item-sub">${money(alumno.tarifa)}/hora · ${alumno.tipo==='adulto'?'Adulto':'Niño/a'} ${nivelBadge(alumno.nivel)}</div>
+        <div class="item-sub">${alumno.modalidad==='casa_alumno' ? `🚌 Voy a su casa (+${money(viaticoPorModalidad('casa_alumno'))} de pasajes)` : '🏠 Viene a mi casa'}</div>
       </div>
       <div class="item-right" style="color:${deuda>0?'var(--warn)':'var(--ok)'}">
         <div style="font-size:11px;font-weight:600;">${deuda>0?'Pendiente':'Al día'}</div>
@@ -1980,6 +2613,10 @@ function renderDetalleAlumno(){
     </div>
     <div class="btn-row">
       <button class="btn secondary" onclick="openAlumnoForm('${alumno.id}')">✎ Editar datos</button>
+      ${deuda>0 ? `<button class="btn primary" onclick="abrirCobro('a:${alumno.id}')">💸 Cobrar</button>` : ''}
+    </div>
+    <div class="btn-row">
+      <button class="btn secondary" onclick="pedirResena('${alumno.id}')">⭐ Pedir reseña</button>
       <button class="btn danger" onclick="eliminarAlumno('${alumno.id}')">Eliminar</button>
     </div>
   `;
@@ -2005,6 +2642,7 @@ function renderDetalleAlumno(){
   }).join('') : '<div class="empty-msg">No tiene clases próximas agendadas.</div>';
 
   renderDetalleTemas(alumno.id);
+  renderDetalleTemario(alumno);
 
   const tareasAlumno = db.tareas.filter(t=>t.alumnoId===alumno.id);
   const temasAlumno = temasDeAlumno(alumno.id);
@@ -2124,10 +2762,8 @@ function renderBannerYStats(){
   }).length;
   document.getElementById('statProximas').textContent = clasesEstaSemana;
 
-  // Total pendiente este mes
-  const totalPendiente = db.alumnos
-    .reduce((s,a)=>s+sumaPendienteMesActual(a.id, hoySinHora), 0);
-  document.getElementById('statPendienteMonto').textContent = money(totalPendiente);
+  // Total por cobrar (clases dadas sin pagar + TPs sin cobrar)
+  document.getElementById('statPendienteMonto').textContent = money(totalPorCobrar());
 
   // Tareas pendientes
   document.getElementById('statTareas').textContent = db.tareas.filter(t=>!t.hecha).length;
@@ -2137,8 +2773,10 @@ function renderBannerYStats(){
    ESTADÍSTICAS
    ========================================================= */
 let statsFecha = new Date();
+let historialCompleto = false;
 
 function cambiarMesStats(delta){
+  statsFecha.setDate(1);
   statsFecha.setMonth(statsFecha.getMonth()+delta);
   renderStats();
 }
@@ -2148,44 +2786,408 @@ function claseYaOcurrida(c, ahora){
   return new Date(`${c.fecha}T${horaRef}`) <= ahora;
 }
 
+/* ---------- pagos ---------- */
+function registrarPago({alumnoId=null, cliente='', claseIds=[], trabajoIds=[], fecha}){
+  const p = {id: uid(), fecha: fecha || hoyIso(), alumnoId, cliente, monto:0, claseIds:[], trabajoIds:[]};
+  claseIds.forEach(id=>{
+    const c = db.clases.find(x=>x.id===id);
+    if(!c) return;
+    if(c.pagada && c.pagoId) quitarClaseDePago(c);
+    c.pagada = true; c.pagoId = p.id; p.claseIds.push(id);
+  });
+  trabajoIds.forEach(id=>{
+    const t = db.trabajos.find(x=>x.id===id);
+    if(!t) return;
+    if(t.cobrado && t.pagoId) quitarTrabajoDePago(t);
+    t.cobrado = true; t.pagoId = p.id; p.trabajoIds.push(id);
+  });
+  db.pagos.push(p);
+  recalcularPago(p.id);
+  return p;
+}
+function recalcularPago(pagoId){
+  const p = db.pagos.find(x=>x.id===pagoId);
+  if(!p) return;
+  p.claseIds = p.claseIds.filter(id=>db.clases.some(c=>c.id===id));
+  p.trabajoIds = (p.trabajoIds||[]).filter(id=>db.trabajos.some(t=>t.id===id));
+  if(p.claseIds.length===0 && p.trabajoIds.length===0){
+    db.pagos = db.pagos.filter(x=>x.id!==pagoId);
+    return;
+  }
+  p.monto = p.claseIds.reduce((s,id)=>s+totalClase(db.clases.find(c=>c.id===id)),0)
+          + p.trabajoIds.reduce((s,id)=>s+totalTrabajo(db.trabajos.find(t=>t.id===id)),0);
+}
+function quitarClaseDePago(c){
+  const pagoId = c.pagoId;
+  c.pagada = false; c.pagoId = null;
+  const p = db.pagos.find(x=>x.id===pagoId);
+  if(p){ p.claseIds = p.claseIds.filter(id=>id!==c.id); recalcularPago(pagoId); }
+}
+function quitarTrabajoDePago(t){
+  const pagoId = t.pagoId;
+  t.cobrado = false; t.pagoId = null;
+  const p = db.pagos.find(x=>x.id===pagoId);
+  if(p){ p.trabajoIds = p.trabajoIds.filter(id=>id!==t.id); recalcularPago(pagoId); }
+}
+function anularPago(pagoId){
+  const p = db.pagos.find(x=>x.id===pagoId);
+  if(!p) return;
+  if(!confirm('¿Anular este pago? Lo que incluía vuelve a quedar como pendiente de cobro.')) return;
+  p.claseIds.forEach(id=>{ const c = db.clases.find(x=>x.id===id); if(c){ c.pagada=false; c.pagoId=null; } });
+  (p.trabajoIds||[]).forEach(id=>{ const t = db.trabajos.find(x=>x.id===id); if(t){ t.cobrado=false; t.pagoId=null; } });
+  db.pagos = db.pagos.filter(x=>x.id!==pagoId);
+  saveDB();
+  closeSheet();
+  renderAll();
+  showToast('Pago anulado');
+}
+function nombrePagador(p){
+  if(p.alumnoId && getAlumno(p.alumnoId)) return alumnoNombre(p.alumnoId);
+  return p.cliente || 'Sin nombre';
+}
+function conceptoPago(p){
+  const partes = [];
+  const nc = p.claseIds.length, nt = (p.trabajoIds||[]).length;
+  if(nc) partes.push(`${nc} clase${nc!==1?'s':''}`);
+  if(nt===1){ const t = db.trabajos.find(x=>x.id===p.trabajoIds[0]); partes.push('TP: '+(t?t.titulo:'trabajo práctico')); }
+  else if(nt>1) partes.push(`${nt} trabajos prácticos`);
+  return partes.join(' + ');
+}
+
+/* ---------- deudas (lo que falta cobrar) ---------- */
+function keyAlumno(id){ return 'a:'+id; }
+function itemsPendientes(key){
+  const ahora = new Date();
+  if(key.startsWith('a:')){
+    const id = key.slice(2);
+    return {
+      clases: db.clases.filter(c=>c.alumnoId===id && !c.pagada && claseYaOcurrida(c, ahora)).sort((a,b)=>a.fecha.localeCompare(b.fecha)),
+      trabajos: db.trabajos.filter(t=>t.alumnoId===id && !t.cobrado)
+    };
+  }
+  const cliente = key.slice(2);
+  return {clases:[], trabajos: db.trabajos.filter(t=>!t.alumnoId && !t.cobrado && (t.cliente||'Sin nombre')===cliente)};
+}
+function deudores(){
+  const keys = new Set();
+  const ahora = new Date();
+  db.clases.forEach(c=>{ if(!c.pagada && claseYaOcurrida(c, ahora) && getAlumno(c.alumnoId)) keys.add(keyAlumno(c.alumnoId)); });
+  db.trabajos.forEach(t=>{ if(!t.cobrado) keys.add(t.alumnoId && getAlumno(t.alumnoId) ? keyAlumno(t.alumnoId) : 'c:'+(t.cliente||'Sin nombre')); });
+  return Array.from(keys).map(key=>{
+    const it = itemsPendientes(key);
+    const total = it.clases.reduce((s,c)=>s+totalClase(c),0) + it.trabajos.reduce((s,t)=>s+totalTrabajo(t),0);
+    const esAlumno = key.startsWith('a:');
+    return {key, total, it,
+      nombre: esAlumno ? alumnoNombre(key.slice(2)) : key.slice(2),
+      color: esAlumno ? alumnoColor(key.slice(2)) : 'var(--text-dim)'};
+  }).filter(d=>d.total>0).sort((a,b)=>b.total-a.total);
+}
+function totalPorCobrar(){ return deudores().reduce((s,d)=>s+d.total,0); }
+
+function detalleItemsTexto(it){
+  const lineas = it.clases.map(c=>`• ${nombreDiaFecha(c.fecha)}/${c.fecha.slice(5,7)}: ${formatDuracion(c.duracionMin)} de clase${c.viatico>0?' + pasajes':''} → ${money(totalClase(c))}`);
+  it.trabajos.forEach(t=>lineas.push(`• TP "${t.titulo}" (${formatDuracion(t.minutos||0)}) → ${money(totalTrabajo(t))}`));
+  return lineas.join('\n');
+}
+function enviarResumenDeuda(key){
+  const it = itemsPendientes(key);
+  const total = it.clases.reduce((s,c)=>s+totalClase(c),0) + it.trabajos.reduce((s,t)=>s+totalTrabajo(t),0);
+  let tel = '', saludo = 'Hola, ¿cómo estás?';
+  if(key.startsWith('a:')){
+    const a = getAlumno(key.slice(2));
+    tel = a.telefono;
+    if(a.tipo!=='adulto' && a.contacto) saludo = `Hola ${a.contacto}, ¿cómo estás?`;
+    else if(a.tipo==='adulto') saludo = `Hola ${a.nombre}, ¿cómo estás?`;
+  }
+  const msg = `${saludo}\nTe paso el resumen de lo pendiente:\n${detalleItemsTexto(it)}\n\nTotal: ${money(total)}. ¡Muchas gracias!`;
+  window.open(waUrl(tel, msg), '_blank');
+}
+
+function abrirCobro(key){
+  const it = itemsPendientes(key);
+  const nombre = key.startsWith('a:') ? alumnoNombre(key.slice(2)) : key.slice(2);
+  if(!it.clases.length && !it.trabajos.length){ showToast('No hay nada pendiente'); return; }
+  openSheet(`
+    <h3>💸 Cobrar a ${escapeHtml(nombre)}</h3>
+    <p class="ajustes-desc">Marcá lo que te pagó. Queda registrado en el historial de pagos.</p>
+    <div id="cobroItems">
+      ${it.clases.map(c=>`
+        <label class="checkbox-line" style="border-bottom:1px solid var(--border);margin:0;color:var(--text);font-weight:400;">
+          <input type="checkbox" checked data-tipo="clase" data-id="${c.id}" data-monto="${totalClase(c)}" onchange="actualizarTotalCobro()">
+          <div class="item-main">
+            <div class="item-title" style="font-size:14px;">Clase ${nombreDiaFecha(c.fecha)}/${c.fecha.slice(5,7)}</div>
+            <div class="item-sub">${formatDuracion(c.duracionMin)}${c.viatico>0?` · incluye ${money(c.viatico)} de pasajes`:''}</div>
+          </div>
+          <div class="item-right">${money(totalClase(c))}</div>
+        </label>`).join('')}
+      ${it.trabajos.map(t=>`
+        <label class="checkbox-line" style="border-bottom:1px solid var(--border);margin:0;color:var(--text);font-weight:400;">
+          <input type="checkbox" checked data-tipo="trabajo" data-id="${t.id}" data-monto="${totalTrabajo(t)}" onchange="actualizarTotalCobro()">
+          <div class="item-main">
+            <div class="item-title" style="font-size:14px;">📄 ${escapeHtml(t.titulo)}</div>
+            <div class="item-sub">TP · ${formatDuracion(t.minutos||0)}</div>
+          </div>
+          <div class="item-right">${money(totalTrabajo(t))}</div>
+        </label>`).join('')}
+    </div>
+    <label>Fecha del pago</label>
+    <input type="date" id="f_fechaPago" value="${hoyIso()}">
+    <button type="button" class="btn primary" id="btnConfirmarCobro" onclick="confirmarCobro('${jsArg(key)}')"></button>
+    <button type="button" class="btn whatsapp" onclick="enviarResumenDeuda('${jsArg(key)}')">📲 Mandar resumen de deuda</button>
+  `);
+  actualizarTotalCobro();
+}
+function actualizarTotalCobro(){
+  const total = Array.from(document.querySelectorAll('#cobroItems input:checked')).reduce((s,el)=>s+Number(el.dataset.monto),0);
+  const btn = document.getElementById('btnConfirmarCobro');
+  if(btn) btn.textContent = `Registrar pago de ${money(total)}`;
+}
+function confirmarCobro(key){
+  const sel = Array.from(document.querySelectorAll('#cobroItems input:checked'));
+  if(!sel.length){ showToast('Marcá al menos una cosa'); return; }
+  const fecha = document.getElementById('f_fechaPago').value || hoyIso();
+  const esAlumno = key.startsWith('a:');
+  const p = registrarPago({
+    alumnoId: esAlumno ? key.slice(2) : null,
+    cliente: esAlumno ? '' : key.slice(2),
+    claseIds: sel.filter(el=>el.dataset.tipo==='clase').map(el=>el.dataset.id),
+    trabajoIds: sel.filter(el=>el.dataset.tipo==='trabajo').map(el=>el.dataset.id),
+    fecha
+  });
+  saveDB();
+  closeSheet();
+  renderAll();
+  showToast(`Pago de ${money(p.monto)} registrado ✓`);
+}
+
+function abrirPagoDetalle(pagoId){
+  const p = db.pagos.find(x=>x.id===pagoId);
+  if(!p) return;
+  const clases = p.claseIds.map(id=>db.clases.find(c=>c.id===id)).filter(Boolean);
+  const trabajos = (p.trabajoIds||[]).map(id=>db.trabajos.find(t=>t.id===id)).filter(Boolean);
+  openSheet(`
+    <h3>Pago de ${escapeHtml(nombrePagador(p))}</h3>
+    <p class="ajustes-desc">Recibido el ${fmtFecha(p.fecha)}</p>
+    ${clases.map(c=>`<div class="list-item"><div class="item-main"><div class="item-title" style="font-size:14px;">Clase ${nombreDiaFecha(c.fecha)}/${c.fecha.slice(5,7)}</div><div class="item-sub">${formatDuracion(c.duracionMin)}${c.viatico>0?` · pasajes ${money(c.viatico)}`:''}</div></div><div class="item-right">${money(totalClase(c))}</div></div>`).join('')}
+    ${trabajos.map(t=>`<div class="list-item"><div class="item-main"><div class="item-title" style="font-size:14px;">📄 ${escapeHtml(t.titulo)}</div><div class="item-sub">Trabajo práctico · ${formatDuracion(t.minutos||0)}</div></div><div class="item-right">${money(totalTrabajo(t))}</div></div>`).join('')}
+    <div class="list-item"><div class="item-main"><b>Total</b></div><div class="item-right ok">${money(p.monto)}</div></div>
+    <div class="btn-row">
+      <button type="button" class="btn danger" onclick="anularPago('${p.id}')">Anular pago</button>
+      <button type="button" class="btn primary" onclick="closeSheet()">Listo</button>
+    </div>
+  `);
+}
+
+function toggleHistorialCompleto(){ historialCompleto = !historialCompleto; renderStats(); }
+
+function renderHistorialPagos(){
+  const cont = document.getElementById('historialPagos');
+  const pagos = db.pagos.slice().sort((a,b)=> b.fecha.localeCompare(a.fecha));
+  if(!pagos.length){
+    cont.innerHTML = '<div class="empty-msg">Todavía no registraste pagos. Cuando alguien te pague, tocá "Cobrar" arriba.</div>';
+    return;
+  }
+  const lista = historialCompleto ? pagos : pagos.slice(0,8);
+  let html = '', fechaAnt = null;
+  lista.forEach(p=>{
+    if(p.fecha!==fechaAnt){ html += `<div class="pago-fecha">${formatoFechaLarga(p.fecha)}</div>`; fechaAnt = p.fecha; }
+    const color = p.alumnoId && getAlumno(p.alumnoId) ? alumnoColor(p.alumnoId) : null;
+    html += `
+      <div class="list-item" style="cursor:pointer;" onclick="abrirPagoDetalle('${p.id}')">
+        <div class="pago-ico" ${color?`style="background:color-mix(in srgb, ${color} 20%, var(--card));color:${color};"`:''}>${(p.trabajoIds||[]).length && !p.claseIds.length ? '📄' : '✓'}</div>
+        <div class="item-main">
+          <div class="item-title">${escapeHtml(nombrePagador(p))}</div>
+          <div class="item-sub">${escapeHtml(conceptoPago(p))}</div>
+        </div>
+        <div class="item-right ok">+${money(p.monto)}</div>
+      </div>`;
+  });
+  if(pagos.length>8){
+    html += `<button type="button" class="link-btn" style="margin-top:6px;" onclick="toggleHistorialCompleto()">${historialCompleto?'Ver menos':`Ver todos (${pagos.length})`}</button>`;
+  }
+  cont.innerHTML = html;
+}
+
+/* ---------- trabajos prácticos ---------- */
+function openTrabajoForm(id){
+  const editing = id ? db.trabajos.find(t=>t.id===id) : null;
+  const alumnoSel = editing ? (editing.alumnoId || '__otro__') : (db.alumnos[0] ? db.alumnos[0].id : '__otro__');
+  const min = editing ? (editing.minutos||0) : 120;
+  const tarifa = editing ? editing.tarifaHora : (db.config.tarifaTP || 10000);
+  openSheet(`
+    <h3>${editing ? 'Editar trabajo práctico' : '📄 Nuevo trabajo práctico'}</h3>
+    <label>¿Qué trabajo hiciste?</label>
+    <input type="text" id="f_tp_titulo" value="${editing ? escapeAttr(editing.titulo) : ''}" placeholder="Ej: TP de Física – Cinemática">
+
+    <label>¿Para quién?</label>
+    <select id="f_tp_alumno" onchange="document.getElementById('tpClienteBox').style.display = this.value==='__otro__' ? 'block':'none';">
+      ${db.alumnos.map(a=>`<option value="${a.id}" ${a.id===alumnoSel?'selected':''}>${escapeHtml(a.nombre)}</option>`).join('')}
+      <option value="__otro__" ${alumnoSel==='__otro__'?'selected':''}>Otra persona...</option>
+    </select>
+    <div id="tpClienteBox" style="display:${alumnoSel==='__otro__'?'block':'none'};">
+      <label>Nombre</label>
+      <input type="text" id="f_tp_cliente" value="${editing ? escapeAttr(editing.cliente||'') : ''}" placeholder="Ej: Sofi (prima de Juan)">
+    </div>
+
+    <label>Fecha</label>
+    <input type="date" id="f_tp_fecha" value="${editing ? editing.fecha : hoyIso()}">
+
+    <label>¿Cuánto tiempo te llevó?</label>
+    <div class="row2">
+      <select id="f_tp_horas" onchange="recalcularMontoTP()">${Array.from({length:41},(_,h)=>`<option value="${h}" ${h===Math.floor(min/60)?'selected':''}>${h} h</option>`).join('')}</select>
+      <select id="f_tp_mins" onchange="recalcularMontoTP()">${[0,15,30,45].map(m=>`<option value="${m}" ${m===min%60?'selected':''}>${m} min</option>`).join('')}</select>
+    </div>
+
+    <label>Tarifa por hora</label>
+    <input type="number" id="f_tp_tarifa" min="0" step="500" inputmode="numeric" value="${tarifa}" oninput="recalcularMontoTP()">
+
+    <label>Total a cobrar</label>
+    <input type="number" id="f_tp_monto" min="0" step="500" inputmode="numeric" value="${editing ? editing.monto : ''}">
+    <div class="item-sub" style="margin-top:4px;">Se calcula solo (horas × tarifa), pero lo podés ajustar.</div>
+
+    <label>Notas (opcional)</label>
+    <textarea id="f_tp_notas">${editing ? escapeHtml(editing.notas||'') : ''}</textarea>
+
+    <div class="checkbox-line">
+      <input type="checkbox" id="f_tp_cobrado" ${editing && editing.cobrado ? 'checked':''}>
+      <span>Ya lo cobré</span>
+    </div>
+
+    <div class="btn-row">
+      ${editing ? `<button class="btn danger" onclick="eliminarTrabajo('${editing.id}')">Eliminar</button>` : ''}
+      <button class="btn primary" onclick="guardarTrabajo(${editing ? `'${editing.id}'` : 'null'})">Guardar</button>
+    </div>
+  `);
+  if(!editing) recalcularMontoTP();
+}
+function minutosTPForm(){
+  return (parseInt(document.getElementById('f_tp_horas').value)||0)*60 + (parseInt(document.getElementById('f_tp_mins').value)||0);
+}
+function recalcularMontoTP(){
+  const tarifa = parseFloat(document.getElementById('f_tp_tarifa').value)||0;
+  document.getElementById('f_tp_monto').value = Math.round(tarifa*minutosTPForm()/60/100)*100;
+}
+function guardarTrabajo(id){
+  const titulo = document.getElementById('f_tp_titulo').value.trim();
+  const sel = document.getElementById('f_tp_alumno').value;
+  const alumnoId = sel==='__otro__' ? null : sel;
+  const cliente = alumnoId ? '' : document.getElementById('f_tp_cliente').value.trim();
+  const fecha = document.getElementById('f_tp_fecha').value || hoyIso();
+  const minutos = minutosTPForm();
+  const tarifaHora = parseFloat(document.getElementById('f_tp_tarifa').value)||0;
+  const monto = parseFloat(document.getElementById('f_tp_monto').value)||0;
+  const notas = document.getElementById('f_tp_notas').value.trim();
+  const cobrado = document.getElementById('f_tp_cobrado').checked;
+  if(!titulo){ showToast('Poné qué trabajo hiciste'); return; }
+  if(!alumnoId && !cliente){ showToast('Poné para quién fue'); return; }
+  if(minutos<=0){ showToast('¿Cuánto tiempo te llevó?'); return; }
+
+  let t;
+  if(id){
+    t = db.trabajos.find(x=>x.id===id);
+    Object.assign(t, {titulo, alumnoId, cliente, fecha, minutos, tarifaHora, monto, notas});
+  }else{
+    t = {id: uid(), titulo, alumnoId, cliente, fecha, minutos, tarifaHora, monto, notas, cobrado:false, pagoId:null};
+    db.trabajos.push(t);
+  }
+  if(cobrado && !t.cobrado) registrarPago({alumnoId, cliente, trabajoIds:[t.id], fecha});
+  else if(!cobrado && t.cobrado) quitarTrabajoDePago(t);
+  else if(cobrado && t.pagoId) recalcularPago(t.pagoId);
+  db.config.tarifaTP = tarifaHora || db.config.tarifaTP;
+  saveDB();
+  closeSheet();
+  renderAll();
+  showToast('Trabajo práctico guardado');
+}
+function eliminarTrabajo(id){
+  if(!confirm('¿Eliminar este trabajo práctico?')) return;
+  const t = db.trabajos.find(x=>x.id===id);
+  if(t && t.cobrado) quitarTrabajoDePago(t);
+  db.trabajos = db.trabajos.filter(x=>x.id!==id);
+  saveDB();
+  closeSheet();
+  renderAll();
+  showToast('Trabajo eliminado');
+}
+
+/* ---------- render billetera ---------- */
 function renderStats(){
   const ahora = new Date();
+
+  // saldo por cobrar (todo lo adeudado, de cualquier mes)
+  const ds = deudores();
+  const total = ds.reduce((s,d)=>s+d.total,0);
+  const nClases = ds.reduce((s,d)=>s+d.it.clases.length,0), nTPs = ds.reduce((s,d)=>s+d.it.trabajos.length,0);
+  document.getElementById('billeteraPorCobrar').textContent = money(total);
+  document.getElementById('billeteraPorCobrarSub').textContent = total>0
+    ? [nClases?`${nClases} clase${nClases!==1?'s':''} dada${nClases!==1?'s':''}`:'', nTPs?`${nTPs} TP${nTPs!==1?'s':''}`:''].filter(Boolean).join(' + ') + ' sin cobrar'
+    : '¡Estás al día! 🎉';
+  document.getElementById('billeteraDeudores').innerHTML = ds.length ? ds.map(d=>`
+    <div class="list-item">
+      <div class="dot" style="background:${d.color}"></div>
+      <div class="item-main" style="cursor:pointer;" onclick="${d.key.startsWith('a:') ? `abrirDetalleAlumno('${d.key.slice(2)}')` : `abrirCobro('${jsArg(d.key)}')`}">
+        <div class="item-title">${escapeHtml(d.nombre)}</div>
+        <div class="item-sub">${[d.it.clases.length?`${d.it.clases.length} clase${d.it.clases.length!==1?'s':''}`:'', d.it.trabajos.length?`${d.it.trabajos.length} TP`:''].filter(Boolean).join(' + ')} · ${money(d.total)}</div>
+      </div>
+      <button type="button" class="btn primary mini-btn" onclick="abrirCobro('${jsArg(d.key)}')">Cobrar</button>
+    </div>`).join('') : '<div class="empty-msg">Nadie te debe nada.</div>';
+
+  // mes seleccionado
   const y = statsFecha.getFullYear(), m = statsFecha.getMonth();
   const label = statsFecha.toLocaleDateString('es-AR', {month:'long', year:'numeric'});
   document.getElementById('statsMesLabel').textContent = label.charAt(0).toUpperCase()+label.slice(1);
+  const enMes = f => { const [fy,fm] = f.split('-').map(Number); return fy===y && (fm-1)===m; };
 
-  const clasesMes = db.clases.filter(c=>{
-    const [cy,cm] = c.fecha.split('-').map(Number);
-    return cy===y && (cm-1)===m;
-  });
+  const clasesMes = db.clases.filter(c=>enMes(c.fecha));
   const clasesDadas = clasesMes.filter(c=>claseYaOcurrida(c, ahora));
+  const tpsMes = db.trabajos.filter(t=>enMes(t.fecha));
 
-  const horas = clasesDadas.reduce((s,c)=>s+(c.duracionMin||0),0)/60;
-  const dado = clasesDadas.reduce((s,c)=>s+Number(c.monto||0),0);
-  const esperado = clasesMes.reduce((s,c)=>s+Number(c.monto||0),0);
-  const cobrado = clasesMes.filter(c=>c.pagada).reduce((s,c)=>s+Number(c.monto||0),0);
-  const pendiente = Math.max(0, dado-cobrado);
+  const minutos = clasesDadas.reduce((s,c)=>s+(c.duracionMin||0),0) + tpsMes.reduce((s,t)=>s+(t.minutos||0),0);
+  const montoClases = clasesDadas.reduce((s,c)=>s+Number(c.monto||0),0);
+  const montoPasajes = clasesDadas.reduce((s,c)=>s+Number(c.viatico||0),0);
+  const montoTPs = tpsMes.reduce((s,t)=>s+totalTrabajo(t),0);
+  const generado = montoClases + montoPasajes + montoTPs;
+  const cobradoMes = db.pagos.filter(p=>enMes(p.fecha)).reduce((s,p)=>s+Number(p.monto||0),0);
+  const pendienteMes = clasesDadas.filter(c=>!c.pagada).reduce((s,c)=>s+totalClase(c),0) + tpsMes.filter(t=>!t.cobrado).reduce((s,t)=>s+totalTrabajo(t),0);
+  const esperado = clasesMes.reduce((s,c)=>s+totalClase(c),0) + montoTPs;
 
-  document.getElementById('statsHoras').textContent = horas.toLocaleString('es-AR',{maximumFractionDigits:1});
-  document.getElementById('statsMonto').textContent = money(dado);
-  document.getElementById('statsCobrado').textContent = money(cobrado);
-  document.getElementById('statsPendiente').textContent = money(pendiente);
+  document.getElementById('statsHoras').textContent = (minutos/60).toLocaleString('es-AR',{maximumFractionDigits:1});
+  document.getElementById('statsMonto').textContent = money(generado);
+  document.getElementById('statsCobrado').textContent = money(cobradoMes);
+  document.getElementById('statsPendiente').textContent = money(pendienteMes);
+  document.getElementById('statsDesglose').textContent = `Clases ${money(montoClases)} · Pasajes ${money(montoPasajes)} · TPs ${money(montoTPs)}`;
   document.getElementById('statsEsperado').innerHTML =
-    `📅 Monto esperado este mes si dicto todas las clases programadas: <b>${money(esperado)}</b>`;
+    `📅 Si dictás todas las clases programadas este mes, generás <b>${money(esperado)}</b>`;
+
+  renderHistorialPagos();
+
+  document.getElementById('listaTrabajos').innerHTML = tpsMes.length ? tpsMes.sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(t=>`
+    <div class="list-item" style="cursor:pointer;" onclick="openTrabajoForm('${t.id}')">
+      <div class="pago-ico" style="background:var(--soft-tint-bg);color:var(--primary-dark);">📄</div>
+      <div class="item-main">
+        <div class="item-title">${escapeHtml(t.titulo)}</div>
+        <div class="item-sub">${escapeHtml(t.alumnoId ? alumnoNombre(t.alumnoId) : (t.cliente||''))} · ${fmtFecha(t.fecha)} · ${formatDuracion(t.minutos||0)}</div>
+      </div>
+      <div class="item-right">
+        <div>${money(totalTrabajo(t))}</div>
+        <span class="badge ${t.cobrado?'pagada':'pendiente'}">${t.cobrado?'Cobrado':'Pendiente'}</span>
+      </div>
+    </div>`).join('') : '<div class="empty-msg">Sin trabajos prácticos este mes. Cargalos con el botón + y se suman acá.</div>';
 
   const porAlumno = db.alumnos.map(a=>{
     const cs = clasesDadas.filter(c=>c.alumnoId===a.id);
-    const h = cs.reduce((s,c)=>s+(c.duracionMin||0),0)/60;
-    const mo = cs.reduce((s,c)=>s+Number(c.monto||0),0);
-    return {alumno:a, horas:h, monto:mo, cantidad:cs.length};
-  }).filter(x=>x.cantidad>0).sort((a,b)=>b.monto-a.monto);
+    const ts = tpsMes.filter(t=>t.alumnoId===a.id);
+    const h = (cs.reduce((s,c)=>s+(c.duracionMin||0),0) + ts.reduce((s,t)=>s+(t.minutos||0),0))/60;
+    const mo = cs.reduce((s,c)=>s+totalClase(c),0) + ts.reduce((s,t)=>s+totalTrabajo(t),0);
+    return {alumno:a, horas:h, monto:mo, cantidad:cs.length, tps:ts.length};
+  }).filter(x=>x.cantidad>0 || x.tps>0).sort((a,b)=>b.monto-a.monto);
 
   document.getElementById('statsPorAlumno').innerHTML = porAlumno.length ? porAlumno.map(x=>`
     <div class="list-item">
       <div class="dot" style="background:${x.alumno.color}"></div>
       <div class="item-main">
-        <div class="item-title">${escapeHtml(x.alumno.nombre)}</div>
-        <div class="item-sub">${x.cantidad} clase(s) · ${x.horas.toLocaleString('es-AR',{maximumFractionDigits:1})}h</div>
+        <div class="item-title">${escapeHtml(x.alumno.nombre)} ${nivelBadge(x.alumno.nivel)}</div>
+        <div class="item-sub">${x.cantidad} clase(s)${x.tps?` · ${x.tps} TP`:''} · ${x.horas.toLocaleString('es-AR',{maximumFractionDigits:1})}h</div>
       </div>
       <div class="item-right">${money(x.monto)}</div>
     </div>
@@ -2214,10 +3216,22 @@ const PALETTES = [
 ];
 
 function aplicarPaleta(){
-  document.documentElement.setAttribute('data-palette', db.config.paleta || 'terracota');
+  const paleta = db.config.paleta || 'terracota';
+  document.documentElement.setAttribute('data-palette', paleta);
+  try{ localStorage.setItem('estudiantes_palette_v1', paleta); }catch(e){}
+  actualizarColorBarras();
+}
+// Las barras del sistema del celular (arriba y abajo) toman el color de theme-color.
+// Antes quedaba fijo en el naranja de la paleta terracota: ahora sigue la paleta y el modo claro/oscuro.
+function actualizarColorBarras(){
   const metaTheme = document.querySelector('meta[name="theme-color"]');
-  const p = PALETTES.find(x=>x.id===(db.config.paleta||'terracota'));
-  if(metaTheme && p) metaTheme.setAttribute('content', p.swatch);
+  if(!metaTheme) return;
+  const color = getComputedStyle(document.documentElement).getPropertyValue('--card').trim();
+  if(color) metaTheme.setAttribute('content', color);
+}
+if(window.matchMedia){
+  const mq = window.matchMedia('(prefers-color-scheme: dark)');
+  if(mq.addEventListener) mq.addEventListener('change', actualizarColorBarras);
 }
 
 function elegirPaleta(key){
@@ -2242,7 +3256,9 @@ function aplicarModoOscuro(){
   const tema = db.config.tema || 'auto';
   if(tema==='auto') document.documentElement.removeAttribute('data-theme');
   else document.documentElement.setAttribute('data-theme', tema);
+  try{ localStorage.setItem('estudiantes_theme_v1', tema); }catch(e){}
   renderModeToggle();
+  actualizarColorBarras();
 }
 function setTema(tema){
   db.config.tema = tema;
@@ -2288,6 +3304,31 @@ function abrirAjustes(){
     </div>
 
     <div class="card">
+      <h2>🚌 Pasaje de bondi</h2>
+      <p class="ajustes-desc">Cuando vas a la casa del alumno se suman 2 pasajes (ida y vuelta) al total de la clase.</p>
+      <div class="row2">
+        <input type="number" id="f_precioPasaje" step="50" min="0" inputmode="numeric" value="${db.config.precioPasaje}">
+        <button type="button" class="btn secondary" style="margin-top:0;" onclick="guardarPrecioPasaje()">Guardar</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🕒 Horarios disponibles</h2>
+      <p class="ajustes-desc">Los días y horas en los que podés dar clases. Se ven en verde en la grilla semanal.</p>
+      <button type="button" class="btn secondary" onclick="abrirDisponibilidad()">Editar mis horarios</button>
+    </div>
+
+    <div class="card">
+      <h2>👩‍🏫 Tus datos (para reseñas)</h2>
+      <p class="ajustes-desc">Tu nombre aparece en el formulario de reseña, y las reseñas te llegan por WhatsApp a este número.</p>
+      <label>Tu nombre</label>
+      <input type="text" id="f_nombreProfe" value="${escapeAttr(db.config.nombreProfe||'')}" placeholder="Ej: Profe Juli">
+      <label>Tu WhatsApp (con código de área)</label>
+      <input type="tel" id="f_telefonoProfe" value="${escapeAttr(db.config.telefonoProfe||'')}" placeholder="Ej: 5492611234567">
+      <button type="button" class="btn secondary" onclick="guardarDatosProfe()">Guardar mis datos</button>
+    </div>
+
+    <div class="card">
       <h2>❓ Ayuda</h2>
       <p class="ajustes-desc">¿Te olvidaste cómo se usa alguna parte? Volvé a ver la introducción rápida.</p>
       <button type="button" class="btn secondary" onclick="closeSheet(); mostrarTutorial();">Ver el tutorial otra vez</button>
@@ -2302,7 +3343,7 @@ function abrirAjustes(){
       <input type="file" id="importFile" accept="application/json,.json">
       <button type="button" class="btn secondary" onclick="importarDatos()">⬆️ Importar (reemplaza los datos actuales)</button>
 
-      <div style="margin-top:16px;font-size:13px;color:var(--text-dim);">Alumnos: ${db.alumnos.length} · Clases: ${db.clases.length} · Temas: ${db.temas.length} · Tareas: ${db.tareas.length}</div>
+      <div style="margin-top:16px;font-size:13px;color:var(--text-dim);">Alumnos: ${db.alumnos.length} · Clases: ${db.clases.length} · Materias: ${db.temas.length} · Tareas: ${db.tareas.length} · TPs: ${db.trabajos.length} · Pagos: ${db.pagos.length} · Reseñas: ${db.resenas.length}</div>
 
       <button type="button" class="btn danger" style="margin-top:16px;" onclick="borrarTodo()">🗑️ Borrar todos los datos</button>
     </div>
@@ -2381,6 +3422,21 @@ function abrirPerfil(){
   }
 }
 
+function guardarPrecioPasaje(){
+  const v = parseFloat(document.getElementById('f_precioPasaje').value);
+  if(!(v>=0)){ showToast('Poné un precio válido'); return; }
+  db.config.precioPasaje = v;
+  saveDB();
+  renderAll();
+  showToast(`Pasaje: ${money(v)} (2 pasajes = ${money(2*v)})`);
+}
+function guardarDatosProfe(){
+  db.config.nombreProfe = document.getElementById('f_nombreProfe').value.trim();
+  db.config.telefonoProfe = document.getElementById('f_telefonoProfe').value.replace(/[^\d]/g,'');
+  saveDB();
+  showToast('Datos guardados');
+}
+
 function guardarRangoTarifas(){
   const min = parseInt(document.getElementById('f_tarifaMin').value)||7000;
   const max = parseInt(document.getElementById('f_tarifaMax').value)||15000;
@@ -2396,7 +3452,7 @@ function exportarDatos(){
   const blob = new Blob([data], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  const fecha = new Date().toISOString().slice(0,10);
+  const fecha = hoyIso();
   a.href = url;
   a.download = `EstudiAntes_backup_${fecha}.json`;
   document.body.appendChild(a);
@@ -2435,7 +3491,7 @@ function importarDatos(){
 function borrarTodo(){
   if(!confirm('Esto borra TODOS los alumnos, clases y tareas. ¿Estás seguro?')) return;
   if(!confirm('Última confirmación: se perderá todo lo que no hayas exportado. ¿Continuar?')) return;
-  db.alumnos = []; db.clases = []; db.temas = []; db.tareas = [];
+  db.alumnos = []; db.clases = []; db.temas = []; db.tareas = []; db.trabajos = []; db.pagos = []; db.resenas = [];
   saveDB();
   closeSheet();
   renderAll();
@@ -2443,15 +3499,215 @@ function borrarTodo(){
 }
 
 /* =========================================================
+   RESEÑAS
+   Flujo sin servidor: le mandás al alumno/familia un link a review.html,
+   completan estrellas + comentario y la reseña te llega por WhatsApp con un
+   link que, al abrirlo, la guarda en la app.
+   ========================================================= */
+function b64urlEncode(obj){
+  const json = JSON.stringify(obj);
+  const b64 = btoa(unescape(encodeURIComponent(json)));
+  return b64.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function b64urlDecode(str){
+  let b64 = str.replace(/-/g,'+').replace(/_/g,'/');
+  while(b64.length % 4) b64 += '=';
+  return JSON.parse(decodeURIComponent(escape(atob(b64))));
+}
+function linkResena(alumno){
+  const url = new URL('review.html', location.href);
+  if(db.config.nombreProfe) url.searchParams.set('p', db.config.nombreProfe);
+  if(db.config.telefonoProfe) url.searchParams.set('w', db.config.telefonoProfe);
+  if(alumno){
+    url.searchParams.set('a', alumno.nombre);
+    if(alumno.nivel) url.searchParams.set('n', alumno.nivel);
+  }
+  url.searchParams.set('c', db.config.paleta || 'terracota');
+  return url.toString();
+}
+function pedirResena(alumnoId){
+  const a = getAlumno(alumnoId);
+  if(!a) return;
+  if(!db.config.telefonoProfe){
+    showToast('Primero cargá tu WhatsApp en Ajustes → Tus datos');
+    abrirAjustes();
+    return;
+  }
+  const saludo = a.tipo==='adulto' ? `¡Hola ${a.nombre}!` : (a.contacto ? `¡Hola ${a.contacto}!` : '¡Hola!');
+  const sobre = a.tipo==='adulto' ? 'las clases' : `las clases con ${a.nombre}`;
+  const firma = db.config.nombreProfe ? `\n${db.config.nombreProfe}` : '';
+  const msg = `${saludo} ¿Me harías un favor? Si te gustaron ${sobre}, me ayudaría muchísimo que me dejes una reseña cortita (es 1 minuto) 🙏\n${linkResena(a)}\n\n¡Muchas gracias!${firma}`;
+  window.open(waUrl(a.telefono, msg), '_blank');
+  closeSheet();
+}
+
+function promedioResenas(){
+  if(!db.resenas.length) return 0;
+  return db.resenas.reduce((s,r)=>s+Number(r.estrellas||0),0)/db.resenas.length;
+}
+function estrellasTxt(n){ n = Math.round(n); return '★'.repeat(n) + '☆'.repeat(5-n); }
+
+function renderResenasResumen(){
+  const el = document.getElementById('resenasResumen');
+  if(!el) return;
+  el.innerHTML = db.resenas.length
+    ? `<span class="stars">${estrellasTxt(promedioResenas())}</span> ${promedioResenas().toLocaleString('es-AR',{maximumFractionDigits:1})} · ${db.resenas.length} reseña${db.resenas.length!==1?'s':''}`
+    : 'Pedile a tus alumnos que te dejen una reseña';
+}
+
+function firmaResena(r){
+  const nivel = NIVELES.find(n=>n.id===r.nivel);
+  if(r.publicar===false){
+    return `Familia de alumno/a${nivel?' de '+nivel.label.toLowerCase():''}`;
+  }
+  const rel = r.relacion ? `, ${r.relacion}${r.alumnoNombre && r.relacion!=='alumno/a' ? ' de '+r.alumnoNombre : ''}` : '';
+  return `${r.autor||'Anónimo'}${rel}`;
+}
+
+function abrirResenas(){
+  const lista = db.resenas.slice().sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+  openSheet(`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <h3 style="margin:0;">⭐ Reseñas</h3>
+      <button type="button" class="icon-btn" onclick="closeSheet()" aria-label="Cerrar">✕</button>
+    </div>
+    ${lista.length ? `<p class="ajustes-desc"><span class="stars">${estrellasTxt(promedioResenas())}</span> ${promedioResenas().toLocaleString('es-AR',{maximumFractionDigits:1})} de promedio en ${lista.length} reseña${lista.length!==1?'s':''}</p>` :
+      `<p class="ajustes-desc">Todavía no tenés reseñas. Desde la ficha de un alumno (o el botón de WhatsApp) tocá <b>⭐ Pedir reseña</b>: le llega un link con un formulario cortito, y cuando lo completa te llega a tu WhatsApp para guardarla acá.</p>`}
+    ${lista.map(r=>`
+      <div class="resena">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">
+          <span class="stars">${estrellasTxt(r.estrellas)}</span>
+          <span class="who">${r.fecha ? fmtFecha(r.fecha) : ''}</span>
+        </div>
+        <div class="txt">"${escapeHtml(r.texto)}"</div>
+        <div class="who">— ${escapeHtml(firmaResena(r))}${r.publicar===false?' · 🔒 sin nombre':''}</div>
+        <div style="display:flex;gap:14px;margin-top:2px;">
+          <button type="button" class="link-btn" onclick="copiarTexto(textoResenaParaCompartir('${r.id}'))">📋 Copiar</button>
+          <button type="button" class="link-btn" style="color:var(--danger);" onclick="eliminarResena('${r.id}')">Eliminar</button>
+        </div>
+      </div>`).join('')}
+    ${lista.length ? `<button type="button" class="btn primary" onclick="copiarTexto(textoTodasResenas())">📋 Copiar todas (para CV, LinkedIn o Instagram)</button>` : ''}
+    <div class="btn-row">
+      <button type="button" class="btn secondary" onclick="abrirPedirResenaElegir()">📨 Pedir reseña</button>
+      <button type="button" class="btn secondary" onclick="abrirResenaManual()">+ Cargar a mano</button>
+    </div>
+  `);
+}
+function textoResenaParaCompartir(id){
+  const r = db.resenas.find(x=>x.id===id);
+  return r ? `${estrellasTxt(r.estrellas)}\n"${r.texto}"\n— ${firmaResena(r)}` : '';
+}
+function textoTodasResenas(){
+  const nombre = db.config.nombreProfe ? ` — ${db.config.nombreProfe}` : '';
+  const lista = db.resenas.slice().sort((a,b)=>b.estrellas-a.estrellas || (b.fecha||'').localeCompare(a.fecha||''));
+  return `Clases particulares${nombre}\nOpiniones de alumnos y familias (${promedioResenas().toLocaleString('es-AR',{maximumFractionDigits:1})}/5 en ${lista.length} reseñas)\n\n`
+    + lista.map(r=>`${estrellasTxt(r.estrellas)} "${r.texto}"\n— ${firmaResena(r)}`).join('\n\n');
+}
+function eliminarResena(id){
+  if(!confirm('¿Eliminar esta reseña?')) return;
+  db.resenas = db.resenas.filter(r=>r.id!==id);
+  saveDB();
+  renderAll();
+  abrirResenas();
+}
+function abrirPedirResenaElegir(){
+  if(!db.alumnos.length){ showToast('Primero agregá un alumno'); return; }
+  openSheet(`
+    <h3>¿A quién le pedís la reseña?</h3>
+    ${db.alumnos.map(a=>`
+      <div class="list-item" style="cursor:pointer;" onclick="pedirResena('${a.id}')">
+        <div class="dot" style="background:${a.color}"></div>
+        <div class="item-main"><div class="item-title">${escapeHtml(a.nombre)} ${nivelBadge(a.nivel)}</div></div>
+        <div class="item-right">💬</div>
+      </div>`).join('')}
+    <button type="button" class="btn secondary" onclick="copiarTexto(linkResena(null))">🔗 Copiar link genérico</button>
+  `);
+}
+
+let resenaEstrellasForm = 5;
+function setEstrellasForm(n){
+  resenaEstrellasForm = n;
+  document.querySelectorAll('#starPickForm button').forEach((b,i)=>b.classList.toggle('on', i<n));
+}
+function abrirResenaManual(prefill){
+  const r = prefill || {};
+  resenaEstrellasForm = r.estrellas || 5;
+  const nombreBuscado = (r.alumnoNombre||'').trim().toLowerCase();
+  const alumnoMatch = nombreBuscado
+    ? (db.alumnos.find(a=>a.nombre.trim().toLowerCase()===nombreBuscado) || db.alumnos.find(a=>a.nombre.trim().toLowerCase().startsWith(nombreBuscado)))
+    : null;
+  openSheet(`
+    <h3>${prefill ? '⭐ ¡Te llegó una reseña!' : 'Cargar reseña'}</h3>
+    <div class="star-pick" id="starPickForm">${[1,2,3,4,5].map(n=>`<button type="button" class="${n<=resenaEstrellasForm?'on':''}" onclick="setEstrellasForm(${n})">★</button>`).join('')}</div>
+    <label>Comentario</label>
+    <textarea id="f_rs_texto" style="min-height:90px;">${escapeHtml(r.texto||'')}</textarea>
+    <label>¿Quién la escribió?</label>
+    <input type="text" id="f_rs_autor" value="${escapeAttr(r.autor||'')}" placeholder="Ej: Laura">
+    <label>Relación</label>
+    <select id="f_rs_relacion">
+      ${['mamá','papá','alumno/a','familiar','otro'].map(x=>`<option value="${x}" ${r.relacion===x?'selected':''}>${x}</option>`).join('')}
+    </select>
+    <label>Alumno</label>
+    <select id="f_rs_alumno">
+      <option value="">— Ninguno —</option>
+      ${db.alumnos.map(a=>`<option value="${a.id}" ${alumnoMatch && alumnoMatch.id===a.id?'selected':''}>${escapeHtml(a.nombre)}</option>`).join('')}
+    </select>
+    <div class="checkbox-line">
+      <input type="checkbox" id="f_rs_publicar" ${r.publicar===false?'':'checked'}>
+      <span>Puedo mostrarla con su nombre</span>
+    </div>
+    <input type="hidden" id="f_rs_fecha" value="${escapeAttr(r.fecha||hoyIso())}">
+    <input type="hidden" id="f_rs_alumnoNombre" value="${escapeAttr(r.alumnoNombre||'')}">
+    <input type="hidden" id="f_rs_nivel" value="${escapeAttr(r.nivel||'')}">
+    <button type="button" class="btn primary" onclick="guardarResena()">Guardar reseña</button>
+  `);
+}
+function guardarResena(){
+  const texto = document.getElementById('f_rs_texto').value.trim();
+  if(!texto){ showToast('Falta el comentario'); return; }
+  const alumnoId = document.getElementById('f_rs_alumno').value || null;
+  const alumno = alumnoId ? getAlumno(alumnoId) : null;
+  db.resenas.push({
+    id: uid(), alumnoId,
+    alumnoNombre: alumno ? alumno.nombre : document.getElementById('f_rs_alumnoNombre').value,
+    nivel: alumno ? alumno.nivel : document.getElementById('f_rs_nivel').value,
+    autor: document.getElementById('f_rs_autor').value.trim(),
+    relacion: document.getElementById('f_rs_relacion').value,
+    estrellas: resenaEstrellasForm,
+    texto,
+    fecha: document.getElementById('f_rs_fecha').value || hoyIso(),
+    publicar: document.getElementById('f_rs_publicar').checked
+  });
+  saveDB();
+  renderAll();
+  abrirResenas();
+  showToast('Reseña guardada ⭐');
+}
+// Si la app se abre desde el link que manda review.html (#resena=...), ofrecer guardarla
+function revisarResenaEnLink(){
+  const m = location.hash.match(/^#resena=(.+)$/);
+  if(!m) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  try{
+    const d = b64urlDecode(m[1]);
+    const ya = db.resenas.some(r=>r.texto===d.t && r.autor===d.n);
+    if(ya){ showToast('Esa reseña ya estaba guardada'); return; }
+    abrirResenaManual({texto:d.t||'', autor:d.n||'', relacion:d.r||'', estrellas:Number(d.s)||5, alumnoNombre:d.a||'', nivel:d.l||'', publicar:d.p!==false, fecha:d.f||hoyIso()});
+  }catch(e){
+    showToast('No se pudo leer la reseña del link');
+  }
+}
+
+/* =========================================================
    TUTORIAL DE BIENVENIDA
    ========================================================= */
 const TUTORIAL_PASOS = [
-  {icon:'🌿', titulo:'¡Bienvenido/a a EstudiAntes!', desc:'Organizá tus clases particulares: alumnos, horarios, pagos y tareas, todo en un solo lugar. Tus datos se guardan solo en este dispositivo.'},
-  {icon:'👤', titulo:'Cargá tus alumnos', desc:'Agregá cada alumno con su tarifa por hora, un color identificador y los temas que le das. Desde su ficha vas a ver sus próximas clases y lo que le falta.'},
-  {icon:'📅', titulo:'Organizá tus clases', desc:'Tocá un día del calendario para agregar o ver clases. Podés crearlas recurrentes (semanales, quincenales o mensuales) y marcarlas como pagadas de a una o todas juntas.'},
-  {icon:'📝', titulo:'Anotá el material a preparar', desc:'En la pestaña "Tareas y Temas" cargá tareas pendientes por alumno y las materias que le das, para no olvidarte de qué preparar antes de cada clase.'},
-  {icon:'🏠', titulo:'Todo de un vistazo', desc:'Arriba de todo siempre ves tu próxima clase, con accesos directos a WhatsApp y cómo llegar. En Estadísticas, cuánto diste y cobraste cada mes.'},
-  {icon:'⚙️', titulo:'Hacela tuya', desc:'La lunita del header cambia el modo oscuro. Desde el engranaje ⚙️ accedés a la paleta de colores, tarifas, tutorial y respaldo de datos.'}
+  {icon:'🌿', titulo:'¡Bienvenido/a a EstudiAntes!', desc:'Organizá tus clases particulares: alumnos, horarios, pagos y tareas, todo en un solo lugar. Movete entre secciones con la barra de abajo.'},
+  {icon:'👤', titulo:'Cargá tus alumnos', desc:'Cada alumno tiene su tarifa, nivel (primario, secundario o preu), si viene a tu casa o vas vos (y se suman 2 pasajes de bondi), y el temario que le tenés que dar.'},
+  {icon:'📅', titulo:'Tu semana en una grilla', desc:'En Agenda la vista Semana muestra tus horarios como Google Calendar: lo verde es tiempo libre. Tocá un hueco para agendar una clase ahí mismo, o compartí tus horarios libres por WhatsApp.'},
+  {icon:'💸', titulo:'Billetera', desc:'Mirá cuánto te deben, registrá los pagos con "Cobrar" y revisá el historial. También podés cargar trabajos prácticos según las horas que te llevaron.'},
+  {icon:'⭐', titulo:'Reseñas', desc:'Pedile a las familias una reseña: les llega un formulario cortito y la respuesta vuelve a tu WhatsApp para guardarla y usarla en tu CV o redes.'},
+  {icon:'⚙️', titulo:'Hacela tuya', desc:'Desde el engranaje ⚙️ elegís la paleta de colores, tus horarios disponibles, el precio del pasaje, tarifas y el respaldo de datos.'}
 ];
 let tutorialPasoActual = 0;
 
@@ -2496,8 +3752,13 @@ renderModeToggle();
 renderProfileIcon();
 renderAll();
 if(!db.config.tutorialVisto) mostrarTutorial();
+revisarResenaEnLink();
+window.addEventListener('hashchange', revisarResenaEnLink);
 
-setInterval(renderBannerYStats, 60000);
+setInterval(()=>{
+  renderBannerYStats();
+  if(vistaActual==='clases' && calendarioModo==='semana' && !overlay.classList.contains('show')) renderCalendario();
+}, 60000);
 </script>
 
 <!-- =========================================================
