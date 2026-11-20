@@ -17,10 +17,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#faf3ea">
 <meta name="color-scheme" content="light dark">
-<link rel="icon" type="image/svg+xml" href="icons/icon.svg">
-<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg?v=2">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2">
+<link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2">
 <link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -584,7 +584,14 @@
   }
   .saldo-card::after{content:'';position:absolute;right:-50px;top:-60px;width:170px;height:170px;border-radius:50%;background:rgba(255,255,255,.07);}
   .saldo-card .lbl{font-size:13px;font-weight:600;opacity:.88;}
-  .saldo-card .big{font-size:34px;font-weight:700;letter-spacing:-.03em;margin:4px 0 2px;font-variant-numeric:tabular-nums;}
+  .saldo-card .big{font-size:27px;font-weight:700;letter-spacing:-.03em;margin:4px 0 2px;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .saldo-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;position:relative;z-index:1;}
+  .saldo-cols > div{min-width:0;}
+  .saldo-cols > div + div{border-left:1px solid rgba(255,255,255,.24);padding-left:14px;}
+  .saldo-card .sub{line-height:1.35;}
+  .saldo-total{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.24);font-size:13.5px;font-weight:600;position:relative;z-index:1;}
+  .saldo-total span{opacity:.9;}
+  .saldo-total b{font-size:18px;font-variant-numeric:tabular-nums;}
   .saldo-card .sub{font-size:13.5px;opacity:.88;}
   .month-nav{display:flex;align-items:center;gap:4px;margin-bottom:12px;}
   .month-nav h2{flex:1;text-align:center;margin:0;font-size:16px;font-weight:700;text-transform:capitalize;}
@@ -687,12 +694,12 @@
 
     <div class="kpis">
       <button type="button" class="kpi warn" onclick="goTo('stats')">
-        <div class="k-label">Por cobrar</div>
+        <div class="k-label">Te deben</div>
         <div class="k-val" id="statPendienteMonto">$0</div>
       </button>
-      <button type="button" class="kpi" onclick="irAHoyCalendario()">
-        <div class="k-label">Esta semana</div>
-        <div class="k-val" id="statProximas">0</div>
+      <button type="button" class="kpi" onclick="goTo('stats')">
+        <div class="k-label" id="statRestoMesLabel">Resto del mes</div>
+        <div class="k-val" id="statRestoMes">$0</div>
       </button>
       <button type="button" class="kpi" onclick="goTo('tareas')">
         <div class="k-label">Tareas</div>
@@ -738,9 +745,19 @@
   <!-- BILLETERA -->
   <section class="view" id="view-stats">
     <div class="saldo-card">
-      <div class="lbl">Saldo por cobrar</div>
-      <div class="big" id="billeteraPorCobrar">$0</div>
-      <div class="sub" id="billeteraPorCobrarSub"></div>
+      <div class="saldo-cols">
+        <div>
+          <div class="lbl">Te deben</div>
+          <div class="big" id="billeteraPorCobrar">$0</div>
+          <div class="sub" id="billeteraPorCobrarSub"></div>
+        </div>
+        <div>
+          <div class="lbl" id="billeteraProximoLbl">Resto del mes</div>
+          <div class="big" id="billeteraProximo">$0</div>
+          <div class="sub" id="billeteraProximoSub"></div>
+        </div>
+      </div>
+      <div class="saldo-total"><span id="billeteraTotalLbl">Total por cobrar</span><b id="billeteraTotal">$0</b></div>
     </div>
 
     <div class="card list" id="billeteraDeudoresCard">
@@ -878,7 +895,7 @@ const STORAGE_KEY = 'estudiantes_app_data_v1';
 
 const CONFIG_DEFAULT = {
   tarifaMin:7000, tarifaMax:15000, paleta:'terracota', tema:'auto', tutorialVisto:false,
-  precioPasaje:1000,          // bondi: "voy a su casa" suma 2 pasajes a la clase
+  precioPasaje:1680,          // bondi: "voy a su casa" suma pasajes (2 por defecto: ida y vuelta)
   tarifaTP:10000,             // tarifa por hora sugerida para trabajos prácticos
   nombreProfe:'', telefonoProfe:'',
   // horarios disponibles para dar clases, por día de la semana (0=domingo)
@@ -951,6 +968,7 @@ function aplicarDatosCargados(parsed){
     if(typeof a.nivel !== 'string') a.nivel = '';
     if(!a.modalidad) a.modalidad = 'casa_mia';
     if(!Array.isArray(a.temario)) a.temario = [];
+    if(typeof a.pasajes!=='number') a.pasajes = 2;
   });
   db.trabajos.forEach(t=>{ if(t.pagoId===undefined) t.pagoId = null; });
   // migración: clases que ya estaban marcadas como pagadas antes de existir el historial de pagos
@@ -976,6 +994,17 @@ function aplicarDatosCargados(parsed){
       delete t.alumnoId;
     }
   });
+  // el precio por defecto del pasaje era $1.000 (estimado); el real es $1.680. Se corrige una sola vez
+  // en las clases sin cobrar que tenían ese valor por defecto.
+  if(!db.config.migPasaje1680){
+    if(Number(db.config.precioPasaje)===1000){
+      db.config.precioPasaje = 1680;
+      db.clases.forEach(c=>{
+        if(!c.pagada && c.modalidad==='casa_alumno' && Number(c.viatico)===2000){ c.viatico = 3360; c.pasajePrecio = 1680; c.pasajeCant = 2; }
+      });
+    }
+    db.config.migPasaje1680 = true;
+  }
 }
 
 function loadDB(){
@@ -1018,8 +1047,41 @@ function nivelBadge(nivel){
   const n = NIVELES.find(x=>x.id===nivel);
   return n ? `<span class="nivel-badge ${n.id}">${n.label}</span>` : '';
 }
-function viaticoPorModalidad(modalidad){
-  return modalidad==='casa_alumno' ? 2*(Number(db.config.precioPasaje)||0) : 0;
+function precioPasaje(){ return Number(db.config.precioPasaje)||0; }
+function viaticoPorModalidad(modalidad, cant){
+  return modalidad==='casa_alumno' ? (cant||2)*precioPasaje() : 0;
+}
+// Cambia el precio del pasaje y lo aplica a las clases que todavía no se dieron ni se cobraron.
+function actualizarPrecioPasaje(nuevo){
+  nuevo = Number(nuevo)||0;
+  if(nuevo===precioPasaje()) return 0;
+  db.config.precioPasaje = nuevo;
+  const ahora = new Date();
+  let n = 0;
+  db.clases.forEach(c=>{
+    if(c.modalidad==='casa_alumno' && !c.pagada && !claseYaOcurrida(c, ahora)){
+      c.pasajePrecio = nuevo;
+      c.viatico = nuevo*(c.pasajeCant||2);
+      n++;
+    }
+  });
+  return n;
+}
+function pasajeBoxHtml(visible, precio, cant, onchange){
+  return `
+    <div id="pasajeBox" style="display:${visible?'block':'none'};">
+      <div class="field-row">
+        <div>
+          <label for="f_pasaje">Precio del pasaje</label>
+          <input type="number" id="f_pasaje" min="0" step="10" inputmode="numeric" value="${precio}" oninput="${onchange||''}">
+        </div>
+        <div style="flex:0 0 118px;">
+          <label for="f_cantPasajes">Pasajes</label>
+          <select id="f_cantPasajes" onchange="${onchange||''}">${[1,2,3,4,5,6].map(n=>`<option value="${n}" ${n===cant?'selected':''}>${n}</option>`).join('')}</select>
+        </div>
+      </div>
+      <div class="hint">Ida y vuelta son 2. Si cambiás el precio, se actualiza también en tus próximas clases.</div>
+    </div>`;
 }
 
 const COLOR_SWATCHES = ['#ef4444','#f97316','#f59e0b','#84cc16','#22c55e','#14b8a6','#06b6d4','#3b82f6','#6366f1','#a855f7','#ec4899','#78716c'];
@@ -1311,14 +1373,15 @@ let formNivel = '';
 let formModalidad = 'casa_mia';
 
 function modalidadPillsHtml(sel, onclickFn){
-  const pasajes = 2*(Number(db.config.precioPasaje)||0);
   return `
     <button type="button" class="${sel==='casa_mia'?'sel':''}" data-mod="casa_mia" onclick="${onclickFn}('casa_mia')">${ic('home')}Viene a mi casa<small>Sin pasajes</small></button>
-    <button type="button" class="${sel==='casa_alumno'?'sel':''}" data-mod="casa_alumno" onclick="${onclickFn}('casa_alumno')">${ic('bus')}Voy a su casa<small>+ 2 pasajes (${money(pasajes)})</small></button>`;
+    <button type="button" class="${sel==='casa_alumno'?'sel':''}" data-mod="casa_alumno" onclick="${onclickFn}('casa_alumno')">${ic('bus')}Voy a su casa<small>Se suman pasajes</small></button>`;
 }
 function setFormModalidad(m){
   formModalidad = m;
   document.querySelectorAll('#modalidadAlumnoBox button').forEach(b=>b.classList.toggle('sel', b.dataset.mod===m));
+  const box = document.getElementById('pasajeBox');
+  if(box) box.style.display = m==='casa_alumno' ? 'block' : 'none';
 }
 function setFormNivel(n){
   formNivel = (formNivel===n) ? '' : n;
@@ -1374,6 +1437,7 @@ function openAlumnoForm(id){
 
     <label>¿Dónde son las clases?</label>
     <div class="pill-select" id="modalidadAlumnoBox">${modalidadPillsHtml(formModalidad, 'setFormModalidad')}</div>
+    ${pasajeBoxHtml(formModalidad==='casa_alumno', precioPasaje(), editing ? (editing.pasajes||2) : 2)}
 
     <div class="form-section">Contacto</div>
     <label>¿A quién le escribís?</label>
@@ -1449,19 +1513,39 @@ function guardarAlumno(id){
   const temasIds = leerTemasSeleccionadosForm();
 
   if(!nombre){ showToast('Poné un nombre'); return; }
+  const cantPasajes = parseInt(document.getElementById('f_cantPasajes').value)||2;
+  const precioNuevo = parseFloat(document.getElementById('f_pasaje').value);
+  let avisoPasaje = '';
+  if(formModalidad==='casa_alumno' && precioNuevo>=0 && precioNuevo!==precioPasaje()){
+    actualizarPrecioPasaje(precioNuevo);
+    avisoPasaje = ` · pasaje a ${money(precioNuevo)}`;
+  }
 
   if(id){
     const a = getAlumno(id);
+    // si cambió dónde son las clases o cuántos pasajes, se actualizan sus próximas clases sin cobrar
+    if(a.modalidad!==formModalidad || (a.pasajes||2)!==cantPasajes){
+      const ahora = new Date();
+      db.clases.forEach(c=>{
+        if(c.alumnoId===id && !c.pagada && !claseYaOcurrida(c, ahora)){
+          c.modalidad = formModalidad;
+          c.pasajeCant = cantPasajes;
+          c.pasajePrecio = formModalidad==='casa_alumno' ? precioPasaje() : null;
+          c.viatico = viaticoPorModalidad(formModalidad, cantPasajes);
+        }
+      });
+    }
+    a.pasajes = cantPasajes;
     a.nombre = nombre; a.tarifa = tarifa; a.tipo = tipo; a.contacto = contacto; a.telefono = telefono; a.direccion = direccion; a.color = color; a.temasIds = temasIds;
     a.nivel = formNivel; a.modalidad = formModalidad; a.temario = formTemario;
   }else{
     db.alumnos.push({id: uid(), nombre, tarifa, tipo, contacto, telefono, direccion, mensajes:[], color, temasIds, activo:true,
-      nivel: formNivel, modalidad: formModalidad, temario: formTemario});
+      nivel: formNivel, modalidad: formModalidad, temario: formTemario, pasajes: cantPasajes});
   }
   saveDB();
   closeSheet();
   renderAll();
-  showToast('Alumno guardado');
+  showToast('Alumno guardado' + avisoPasaje);
 }
 
 async function eliminarAlumno(id){
@@ -1908,6 +1992,10 @@ async function openClaseForm(id, fechaPreset, horaPreset, alumnoPreset){
 
     <label>Lugar</label>
     <div class="pill-select" id="modalidadClaseBox">${modalidadPillsHtml(formClaseModalidad, 'setModalidadClaseForm')}</div>
+    ${pasajeBoxHtml(formClaseModalidad==='casa_alumno',
+        editing && editing.modalidad==='casa_alumno' ? (editing.pasajePrecio || (editing.viatico ? Math.round(editing.viatico/(editing.pasajeCant||2)) : precioPasaje())) : precioPasaje(),
+        editing ? (editing.pasajeCant||2) : ((alumnoInicial && alumnoInicial.pasajes) || 2),
+        'renderTotalClaseForm()')}
     <div class="total-box" id="totalClaseForm"></div>
 
     <label class="switch-row">
@@ -1959,11 +2047,10 @@ async function openClaseForm(id, fechaPreset, horaPreset, alumnoPreset){
 }
 
 function viaticoFormActual(){
-  const id = document.querySelector('.sheet [data-clase-id]') ? document.querySelector('.sheet [data-clase-id]').dataset.claseId : null;
-  const c = id ? db.clases.find(x=>x.id===id) : null;
-  // si se está editando y la modalidad no cambió, se respeta el viático guardado (precio de pasaje de ese momento)
-  if(c && c.modalidad===formClaseModalidad) return Number(c.viatico||0);
-  return viaticoPorModalidad(formClaseModalidad);
+  if(formClaseModalidad!=='casa_alumno') return 0;
+  const p = document.getElementById('f_pasaje'), c = document.getElementById('f_cantPasajes');
+  if(!p || !c) return viaticoPorModalidad('casa_alumno');
+  return (parseFloat(p.value)||0) * (parseInt(c.value)||0);
 }
 
 function renderTotalClaseForm(){
@@ -1977,12 +2064,18 @@ function renderTotalClaseForm(){
 function setModalidadClaseForm(m){
   formClaseModalidad = m;
   document.querySelectorAll('#modalidadClaseBox button').forEach(b=>b.classList.toggle('sel', b.dataset.mod===m));
+  const box = document.getElementById('pasajeBox');
+  if(box) box.style.display = m==='casa_alumno' ? 'block' : 'none';
   renderTotalClaseForm();
 }
 
 function onCambioAlumnoClaseForm(){
   const a = getAlumno(document.getElementById('f_alumnoId').value);
-  if(a) setModalidadClaseForm(a.modalidad||'casa_mia');
+  if(a){
+    const cant = document.getElementById('f_cantPasajes');
+    if(cant) cant.value = String(a.pasajes||2);
+    setModalidadClaseForm(a.modalidad||'casa_mia');
+  }
   formClaseTemario = [];
   recalcularMontoForm();
   renderTemarioClaseForm();
@@ -2090,7 +2183,15 @@ function guardarClase(id){
   const duracionMin = leerDuracionPreset();
   const modalidad = formClaseModalidad;
   const viatico = viaticoFormActual();
+  const pasajePrecio = modalidad==='casa_alumno' ? (parseFloat(document.getElementById('f_pasaje').value)||0) : null;
+  const pasajeCant = parseInt(document.getElementById('f_cantPasajes').value)||2;
   const temarioIds = formClaseTemario.slice();
+  // si cambió el precio del pasaje, pasa a ser el nuevo precio para las próximas clases
+  const aplicarPasaje = ()=>{
+    if(pasajePrecio==null || pasajePrecio===precioPasaje()) return '';
+    actualizarPrecioPasaje(pasajePrecio);
+    return ` · pasaje actualizado a ${money(pasajePrecio)}`;
+  };
 
   if(!alumnoId){ showToast('Elegí un alumno'); return; }
   if(!fecha){ showToast('Elegí una fecha'); return; }
@@ -2099,14 +2200,15 @@ function guardarClase(id){
   if(id){
     const c = db.clases.find(c=>c.id===id);
     const estabaPagada = c.pagada;
-    Object.assign(c, {alumnoId, fecha, horaEntrada, horaSalida: sumarMinutos(horaEntrada, duracionMin), duracionMin, monto, viatico, modalidad, temarioIds, notas});
+    Object.assign(c, {alumnoId, fecha, horaEntrada, horaSalida: sumarMinutos(horaEntrada, duracionMin), duracionMin, monto, viatico, pasajePrecio, pasajeCant, modalidad, temarioIds, notas});
+    const aviso = aplicarPasaje();
     if(pagada && !estabaPagada) registrarPago({alumnoId, claseIds:[c.id], fecha: hoyIso()});
     else if(!pagada && estabaPagada) quitarClaseDePago(c);
     else if(pagada && c.pagoId) recalcularPago(c.pagoId);
     saveDB();
     closeSheet();
     renderAll();
-    showToast('Clase guardada');
+    showToast('Clase guardada' + aviso);
     return;
   }
 
@@ -2118,22 +2220,24 @@ function guardarClase(id){
     const ocurrencias = generarOcurrenciasRecurrentes(fecha, repeatDiasHoras, semanas);
     const serieId = uid();
     ocurrencias.forEach(o=>{
-      db.clases.push({id: uid(), serieId, alumnoId, fecha:o.fecha, horaEntrada:o.horaEntrada, horaSalida: sumarMinutos(o.horaEntrada, duracionMin), duracionMin, monto, viatico, modalidad, temarioIds:[], notas, pagada:false, pagoId:null});
+      db.clases.push({id: uid(), serieId, alumnoId, fecha:o.fecha, horaEntrada:o.horaEntrada, horaSalida: sumarMinutos(o.horaEntrada, duracionMin), duracionMin, monto, viatico, pasajePrecio, pasajeCant, modalidad, temarioIds:[], notas, pagada:false, pagoId:null});
     });
+    const aviso = aplicarPasaje();
     saveDB();
     closeSheet();
     renderAll();
-    showToast(`Se crearon ${ocurrencias.length} clases`);
+    showToast(`Se crearon ${ocurrencias.length} clases` + aviso);
     return;
   }
 
-  const nueva = {id: uid(), serieId:null, alumnoId, fecha, horaEntrada, horaSalida: sumarMinutos(horaEntrada, duracionMin), duracionMin, monto, viatico, modalidad, temarioIds, notas, pagada:false, pagoId:null};
+  const nueva = {id: uid(), serieId:null, alumnoId, fecha, horaEntrada, horaSalida: sumarMinutos(horaEntrada, duracionMin), duracionMin, monto, viatico, pasajePrecio, pasajeCant, modalidad, temarioIds, notas, pagada:false, pagoId:null};
   db.clases.push(nueva);
+  const aviso = aplicarPasaje();
   if(pagada) registrarPago({alumnoId, claseIds:[nueva.id], fecha: hoyIso()});
   saveDB();
   closeSheet();
   renderAll();
-  showToast('Clase guardada');
+  showToast('Clase guardada' + aviso);
 }
 
 function generarOcurrenciasRecurrentes(fechaInicioStr, diasConHora, semanas){
@@ -3067,14 +3171,9 @@ function renderBannerYStats(){
     renderProximaClaseCountdown(proxima, ahora, false);
   }
 
-  // Clases esta semana
-  const monday = getMonday(ahora);
-  const sunday = getSunday(monday);
-  const clasesEstaSemana = db.clases.filter(c=>{
-    const f = new Date(c.fecha+'T00:00:00');
-    return f>=monday && f<=sunday;
-  }).length;
-  document.getElementById('statProximas').innerHTML = `${clasesEstaSemana} <small>clase${clasesEstaSemana!==1?'s':''}</small>`;
+  // Lo que falta cobrar este mes según las clases agendadas
+  const resto = agendadoRestoMes();
+  document.getElementById('statRestoMes').textContent = money(resto.total);
 
   // Total por cobrar (clases dadas sin pagar + TPs sin cobrar)
   document.getElementById('statPendienteMonto').textContent = money(totalPorCobrar());
@@ -3196,6 +3295,16 @@ function deudores(){
       nombre: esAlumno ? alumnoNombre(key.slice(2)) : key.slice(2),
       color: esAlumno ? alumnoColor(key.slice(2)) : 'var(--text-dim)'};
   }).filter(d=>d.total>0).sort((a,b)=>b.total-a.total);
+}
+// Clases agendadas de acá a fin de mes que todavía no se dieron ni se cobraron
+function agendadoRestoMes(){
+  const ahora = new Date();
+  const y = ahora.getFullYear(), m = ahora.getMonth();
+  const clases = db.clases.filter(c=>{
+    const [cy,cm] = c.fecha.split('-').map(Number);
+    return cy===y && (cm-1)===m && !c.pagada && !claseYaOcurrida(c, ahora);
+  });
+  return {clases, total: clases.reduce((s,c)=>s+totalClase(c),0)};
 }
 function totalPorCobrar(){ return deudores().reduce((s,d)=>s+d.total,0); }
 
@@ -3448,8 +3557,17 @@ function renderStats(){
   const nClases = ds.reduce((s,d)=>s+d.it.clases.length,0), nTPs = ds.reduce((s,d)=>s+d.it.trabajos.length,0);
   document.getElementById('billeteraPorCobrar').textContent = money(total);
   document.getElementById('billeteraPorCobrarSub').textContent = total>0
-    ? [nClases?`${nClases} clase${nClases!==1?'s':''}`:'', nTPs?`${nTPs} trabajo${nTPs!==1?'s':''} práctico${nTPs!==1?'s':''}`:''].filter(Boolean).join(' y ') + ' sin cobrar'
-    : 'Estás al día, nadie te debe nada';
+    ? [nClases?`${nClases} clase${nClases!==1?'s':''}`:'', nTPs?`${nTPs} TP`:''].filter(Boolean).join(' y ') + ' sin cobrar'
+    : 'Estás al día';
+  const resto = agendadoRestoMes();
+  const mesActual = new Date().toLocaleDateString('es-AR',{month:'long'});
+  document.getElementById('billeteraProximoLbl').textContent = 'Resto de ' + mesActual;
+  document.getElementById('billeteraProximo').textContent = money(resto.total);
+  document.getElementById('billeteraProximoSub').textContent = resto.clases.length
+    ? `${resto.clases.length} clase${resto.clases.length!==1?'s':''} agendada${resto.clases.length!==1?'s':''}`
+    : 'Sin clases agendadas';
+  document.getElementById('billeteraTotalLbl').textContent = `Total por cobrar en ${mesActual}`;
+  document.getElementById('billeteraTotal').textContent = money(total + resto.total);
   document.getElementById('billeteraDeudoresCard').hidden = !ds.length;
   document.getElementById('billeteraDeudores').innerHTML = ds.map(d=>{
     const a = d.key.startsWith('a:') ? getAlumno(d.key.slice(2)) : null;
@@ -3483,18 +3601,20 @@ function renderStats(){
   const cobradoMes = db.pagos.filter(p=>enMes(p.fecha)).reduce((s,p)=>s+Number(p.monto||0),0);
   const pendienteMes = clasesDadas.filter(c=>!c.pagada).reduce((s,c)=>s+totalClase(c),0) + tpsMes.filter(t=>!t.cobrado).reduce((s,t)=>s+totalTrabajo(t),0);
   const esperado = clasesMes.reduce((s,c)=>s+totalClase(c),0) + montoTPs;
+  const faltanDar = clasesMes.filter(c=>!claseYaOcurrida(c, ahora));
+  const montoFaltan = faltanDar.reduce((s,c)=>s+totalClase(c),0);
 
   document.getElementById('statsHoras').textContent = fmt1(minutos/60) + ' h';
   document.getElementById('statsMonto').textContent = money(generado);
   document.getElementById('statsCobrado').textContent = money(cobradoMes);
   document.getElementById('statsPendiente').textContent = money(pendienteMes);
   const filaBd = (label, val) => `<div class="bd-row"><span>${label}</span><b>${money(val)}</b></div>`;
-  document.getElementById('statsDesglose').innerHTML = generado>0
-    ? filaBd(`Clases (${clasesDadas.length})`, montoClases) + (montoPasajes ? filaBd('Pasajes', montoPasajes) : '') + (tpsMes.length ? filaBd(`Trabajos prácticos (${tpsMes.length})`, montoTPs) : '')
-    : '';
+  document.getElementById('statsDesglose').innerHTML =
+    (generado>0 ? filaBd(`Clases dadas (${clasesDadas.length})`, montoClases) + (montoPasajes ? filaBd('Pasajes', montoPasajes) : '') + (tpsMes.length ? filaBd(`Trabajos prácticos (${tpsMes.length})`, montoTPs) : '') : '')
+    + (faltanDar.length ? `<div class="bd-row" style="color:var(--accent);"><span>Agendadas que faltan dar (${faltanDar.length})</span><b style="color:var(--accent);">${money(montoFaltan)}</b></div>` : '');
   const esperadoEl = document.getElementById('statsEsperado');
-  esperadoEl.hidden = !(esperado > generado);
-  esperadoEl.innerHTML = `${ic('info')}<span>Si dictás todas las clases agendadas, este mes generás <b>${money(esperado)}</b>.</span>`;
+  esperadoEl.hidden = !faltanDar.length;
+  esperadoEl.innerHTML = `${ic('info')}<span>Si das todas las clases agendadas, este mes generás <b>${money(esperado)}</b> en total.</span>`;
 
   renderHistorialPagos();
 
@@ -3692,7 +3812,7 @@ function abrirAjustesPrecios(){
     </div>
     <label for="f_precioPasaje">Precio del pasaje de bondi</label>
     <input type="number" id="f_precioPasaje" step="50" min="0" inputmode="numeric" value="${db.config.precioPasaje}">
-    <div class="hint">Cuando vas a la casa del alumno se suman 2 pasajes (ida y vuelta) a la clase.</div>
+    <div class="hint">Cuando vas a la casa del alumno se suman pasajes a la clase (2 por defecto, ida y vuelta). Al cambiarlo se actualizan tus próximas clases sin cobrar.</div>
     <div class="sheet-footer"><button type="button" class="btn primary" onclick="guardarAjustesPrecios()">Guardar</button></div>
   `);
 }
@@ -3702,11 +3822,12 @@ function guardarAjustesPrecios(){
   const pasaje = parseFloat(document.getElementById('f_precioPasaje').value);
   if(!(min>0) || min>=max){ showToast('La tarifa mínima tiene que ser menor que la máxima'); return; }
   if(!(pasaje>=0)){ showToast('Poné un precio de pasaje válido'); return; }
-  db.config.tarifaMin = min; db.config.tarifaMax = max; db.config.precioPasaje = pasaje;
+  db.config.tarifaMin = min; db.config.tarifaMax = max;
+  const n = actualizarPrecioPasaje(pasaje);
   saveDB();
   renderAll();
   abrirAjustes();
-  showToast('Precios guardados');
+  showToast(n ? `Precios guardados · pasaje actualizado en ${n} clase${n!==1?'s':''} agendada${n!==1?'s':''}` : 'Precios guardados');
 }
 function abrirAjustesDatosProfe(){
   openSheet(`
@@ -3788,7 +3909,7 @@ function abrirPerfil(){ abrirAjustes(); }
 function guardarPrecioPasaje(){
   const v = parseFloat(document.getElementById('f_precioPasaje').value);
   if(!(v>=0)){ showToast('Poné un precio válido'); return; }
-  db.config.precioPasaje = v;
+  actualizarPrecioPasaje(v);
   saveDB();
   renderAll();
   showToast(`Pasaje: ${money(v)} (2 pasajes = ${money(2*v)})`);

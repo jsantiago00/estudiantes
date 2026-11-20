@@ -1,15 +1,29 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#c1683d"/>
-      <stop offset="1" stop-color="#9c522e"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8d6cd8"/>
+      <stop offset="1" stop-color="#4a2f8c"/>
     </linearGradient>
+    <radialGradient id="glow" cx="0.2" cy="0.1" r="0.75">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
   </defs>
-  <rect x="0" y="0" width="100" height="100" fill="url(#bg)"/>
-  <g fill="#fff8ef">
-    <path d="M50,34 C33,30 20,35 17,40 L17,74 C20,79 33,75 50,71 Z"/>
-    <path d="M50,34 C67,30 80,35 83,40 L83,74 C80,79 67,75 50,71 Z"/>
+  <clipPath id="r"><rect width="100" height="100" rx="22"/></clipPath><g clip-path="url(#r)">
+    <rect width="100" height="100" fill="url(#bg)"/>
+    <rect width="100" height="100" fill="url(#glow)"/>
   </g>
-  <line x1="50" y1="32" x2="50" y2="73" stroke="#c1683d" stroke-width="1.6"/>
-  <path d="M50,32 C53,23 60,21 64,24 C61,29 54,31 50,32 Z" fill="#a8c686"/>
+  
+    <path d="M48.5,40.5 C39,35 28,34 20,37 L20,73.5 C28,71 39,72 48.5,77.5 Z" fill="#26164f" opacity=".22"/>
+    <path d="M51.5,40.5 C61,35 72,34 80,37 L80,73.5 C72,71 61,72 51.5,77.5 Z" fill="#26164f" opacity=".22"/>
+    <path d="M48.5,38 C39,32.5 28,31.5 20,34.5 L20,71 C28,68.5 39,69.5 48.5,75 Z" fill="#ffffff"/>
+    <path d="M51.5,38 C61,32.5 72,31.5 80,34.5 L80,71 C72,68.5 61,69.5 51.5,75 Z" fill="#f0eaff"/>
+    <g fill="none" stroke="#cdbdf2" stroke-width="2.3" stroke-linecap="round">
+      <path d="M26,44 C31,42.3 37,42.5 43,45"/>
+      <path d="M26,51 C31,49.3 37,49.5 43,52"/>
+      <path d="M26,58 C31,56.3 36,56.5 40,58.6"/>
+    </g>
+    <path d="M69.5,30 L69.5,45.5 L72.5,42.8 L75.5,45.5 L75.5,31.2 Z" fill="#ffc94d"/>
+    <path d="M58,55.5 L63.5,61 L73.5,50" fill="none" stroke="#6b4fb6" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M27,17 Q27,22 32,22 Q27,22 27,27 Q27,22 22,22 Q27,22 27,17 Z" fill="#ffffff" opacity=".95"/>
 </svg>
