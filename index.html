@@ -658,9 +658,161 @@
   .tutorial-dot.active{background:var(--primary);width:20px;border-radius:4px;}
   .tutorial-nav{display:flex;gap:10px;}
   .tutorial-nav .btn{margin-top:0;}
+
+  /* ===== elementos que solo existen en pantallas grandes ===== */
+  .sidebar,.hdr-action,.mc-evs{display:none;}
+  .card.list{overflow:hidden;}
+  .card.list .list-item{margin:0 -16px;padding-left:16px;padding-right:16px;}
+
+  /* ===== mouse (computadora) ===== */
+  @media (hover:hover){
+    .list-item.tap:hover,.set-row:hover{background:var(--surface);}
+    .btn.primary:hover{background:var(--primary-dark);}
+    .btn.secondary:hover{background:var(--border);}
+    .btn.outline:hover,.btn.ghost:hover{background:var(--surface);}
+    .btn.danger:hover{filter:brightness(.97);}
+    .icon-btn:hover{background:var(--surface);}
+    .icon-btn.filled:hover{background:var(--border);}
+    .link-btn:hover{text-decoration:underline;text-underline-offset:3px;}
+    .kpi:hover{border-color:var(--border-strong);}
+    .filter-chip:not(.active):hover,.dia-chip:not(.sel):hover,.pill-select button:not(.sel):hover{border-color:var(--border-strong);color:var(--text);}
+    .segmented button:not(.active):hover{color:var(--text);}
+    .wk-slot.libre:hover{background:color-mix(in srgb, var(--ok) 26%, transparent);}
+    .wk-slot:not(.libre):hover{background-color:color-mix(in srgb, var(--text-dim) 10%, transparent);}
+    .wk-ev:hover{box-shadow:0 2px 8px rgba(0,0,0,.14);z-index:4;}
+    .month-cell:not(.selected):not(.other-month):hover{background:var(--surface);}
+    .wk-hcell:hover .dnum{background:var(--surface);}
+    .wk-hcell.selected:hover .dnum{background:var(--primary);}
+    .class-row .cr-main:hover .item-title{color:var(--accent);}
+    .free-chip:hover{background:color-mix(in srgb, var(--ok) 22%, var(--card));}
+    .day-add-btn:hover{border-color:var(--primary);background:var(--soft-tint-bg);}
+    .qa:hover .qa-ic{background:var(--border);}
+    .qa.wa:hover .qa-ic{filter:brightness(.95);}
+    .debt-banner:hover{filter:brightness(.98);}
+    .next-actions button:hover{background:rgba(255,255,255,.28);}
+    .palette-opts button:not(.active):hover{border-color:var(--border-strong);}
+  }
+
+  /* ===== computadora: menú lateral y columnas ===== */
+  @media (min-width: 900px){
+    :root{--sb-w:240px;}
+    body{padding-left:var(--sb-w);padding-bottom:48px;}
+    .sidebar{
+      display:flex;flex-direction:column;gap:2px;position:fixed;left:0;top:0;bottom:0;width:var(--sb-w);z-index:35;
+      padding:22px 14px 18px;background:var(--card);border-right:1px solid var(--border);
+    }
+    .sb-brand{display:flex;align-items:center;gap:11px;font-size:17px;font-weight:700;letter-spacing:-.02em;padding:2px 10px 24px;}
+    .sb-brand img{border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.12);}
+    .sidebar button{
+      display:flex;align-items:center;gap:12px;width:100%;border:none;background:transparent;cursor:pointer;text-align:left;
+      padding:10px 12px;border-radius:11px;font-size:14.5px;font-weight:600;color:var(--text-dim);
+    }
+    .sidebar button .ico{display:flex;}
+    .sidebar button svg{width:20px;height:20px;}
+    .sidebar button:hover{background:var(--surface);color:var(--text);}
+    .sidebar button.active{background:var(--soft-tint-bg);color:var(--accent);}
+    .sb-spacer{flex:1;}
+    nav.bottom-nav,.fab{display:none;}
+    #settingsToggle{display:none;}
+
+    header.app-header{padding:24px 32px 16px;}
+    .hdr-inner{max-width:1200px;gap:10px;}
+    .hdr-titles h1{font-size:28px;}
+    .hdr-titles p{font-size:14px;}
+    .hdr-action{display:inline-flex;width:auto;margin:0;min-height:42px;padding:9px 18px 9px 14px;font-size:14.5px;}
+    #backBtn{margin-left:-6px !important;}
+    main{max-width:1264px;padding:8px 32px 40px;}
+    .toast{bottom:32px;left:calc(50% + var(--sb-w) / 2);}
+
+    .card{padding:18px 20px;}
+    .card.list{padding:2px 20px;}
+    .card.list .list-item{margin:0 -20px;padding-left:20px;padding-right:20px;}
+
+    .kpis{gap:12px;margin-bottom:20px;}
+    .kpi{padding:14px 18px;border-radius:16px;}
+    .kpi .k-label{font-size:13px;}
+    .kpi .k-val{font-size:24px;margin-top:4px;}
+
+    /* grilla semanal más cómoda */
+    .wk-head,.wk-body{grid-template-columns:48px repeat(7,minmax(0,1fr));}
+    .wk-hcell{padding:10px 0 8px;}
+    .wk-hcell .dow{font-size:12px;}
+    .wk-hcell .dnum{width:34px;height:34px;font-size:16px;}
+    .wk-time span{font-size:11px;right:8px;}
+    .wk-ev{font-size:12px;padding:4px 4px 3px 7px;border-radius:8px;}
+    .wk-ev .h{font-size:11px;margin-top:1px;}
+    .wk-legend{font-size:12.5px;}
+
+    /* mes estilo calendario de escritorio, con las clases de cada día */
+    .month-wrap{padding:0;overflow:hidden;}
+    .month-grid{gap:0;}
+    .mg-dow{padding:10px 0;border-bottom:1px solid var(--border);font-size:12px;}
+    .month-cell{
+      aspect-ratio:auto;min-height:108px;align-items:stretch;justify-content:flex-start;gap:3px;
+      padding:6px 6px 8px;border-radius:0;box-shadow:inset -1px -1px 0 var(--border);text-align:left;
+    }
+    .month-grid > :nth-child(7n){box-shadow:inset 0 -1px 0 var(--border);}
+    .month-cell.other-month{visibility:visible;background:color-mix(in srgb, var(--surface) 55%, transparent);cursor:default;}
+    .month-cell.past{color:var(--text);}
+    .month-cell.past .mc-num{color:var(--text-mute);}
+    .month-cell.past .mc-ev{opacity:.7;}
+    .mc-num{align-self:flex-start;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13.5px;font-weight:600;}
+    .month-cell.today{box-shadow:inset -1px -1px 0 var(--border);color:var(--text);}
+    .month-cell.today .mc-num{background:var(--primary);color:#fff;}
+    .month-cell.selected{background:var(--soft-tint-bg);color:var(--text);box-shadow:inset 0 0 0 2px var(--primary);}
+    .month-cell.selected .mc-num{color:var(--accent);}
+    .month-cell.today.selected .mc-num{color:#fff;}
+    .mc-dots{display:none;}
+    .mc-evs{display:flex;flex-direction:column;gap:3px;min-width:0;}
+    .mc-ev{
+      display:block;font-size:11.5px;font-weight:600;padding:2px 6px;border-radius:6px;color:var(--text);
+      background:color-mix(in srgb, var(--c) 18%, var(--card));border-left:3px solid var(--c);
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums;
+    }
+    .mc-more{font-size:11px;color:var(--text-dim);padding-left:6px;font-weight:600;}
+
+    /* dos columnas: Billetera y ficha del alumno */
+    section.view.two-col.active{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 20px;align-items:start;}
+    section.view.two-col.detalle.active{grid-template-columns:340px minmax(0,1fr);}
+    .col-side{position:sticky;top:104px;}
+    section.view.narrow{max-width:780px;}
+
+    /* alumnos en dos columnas */
+    #view-alumnos .search{max-width:420px;}
+    #listaAlumnos .card.list{display:grid;grid-template-columns:1fr 1fr;column-gap:40px;}
+    #listaAlumnos .list-item:nth-last-child(2):nth-child(odd){border-bottom:none;}
+    #resenasRow{max-width:calc(50% - 10px);}
+
+    .saldo-card .big{font-size:32px;}
+    .stat .s-val{font-size:22px;}
+  }
+
+  /* pantallas anchas: la agenda pasa a dos columnas (calendario + día) */
+  @media (min-width: 1180px){
+    section.view.agenda-layout.active{
+      display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:0 24px;align-items:start;
+      grid-template-areas:"kpis kpis" "cal next" "cal day";grid-template-rows:auto auto 1fr;
+    }
+    .agenda-layout .kpis{grid-area:kpis;}
+    .agenda-layout .ag-cal{grid-area:cal;min-width:0;}
+    .agenda-layout .next-card{grid-area:next;margin-bottom:16px;}
+    .agenda-layout .day-detail{grid-area:day;margin-top:0;}
+    .agenda-layout .cal-toolbar{margin-top:0;}
+  }
 </style>
 </head>
 <body>
+
+<!-- menú lateral (solo en pantallas grandes) -->
+<aside class="sidebar" data-nav>
+  <div class="sb-brand"><img src="icons/icon.svg?v=2" alt="" width="34" height="34"><span>EstudiAntes</span></div>
+  <button type="button" data-view="clases" class="active"><span class="ico" data-ic="calendar"></span>Agenda</button>
+  <button type="button" data-view="alumnos"><span class="ico" data-ic="users"></span>Alumnos</button>
+  <button type="button" data-view="tareas"><span class="ico" data-ic="list"></span>Tareas</button>
+  <button type="button" data-view="stats"><span class="ico" data-ic="wallet"></span>Billetera</button>
+  <div class="sb-spacer"></div>
+  <button type="button" class="sb-settings" onclick="abrirAjustes()"><span class="ico" data-ic="settings"></span>Ajustes</button>
+</aside>
 
 <header class="app-header" id="appHeader">
   <div class="hdr-inner">
@@ -669,6 +821,7 @@
       <h1 id="headerTitle">Agenda</h1>
       <p id="headerSub"></p>
     </div>
+    <button type="button" class="btn primary hdr-action" id="hdrActionBtn" onclick="FAB_CFG[fabKey()].fn()"></button>
     <button class="icon-btn filled" id="settingsToggle" type="button" title="Ajustes" aria-label="Ajustes" onclick="abrirAjustes()"></button>
   </div>
 </header>
@@ -676,7 +829,7 @@
 <main>
 
   <!-- AGENDA -->
-  <section class="view active" id="view-clases">
+  <section class="view active agenda-layout" id="view-clases">
     <div class="next-card" id="nextClassCard" hidden>
       <div class="next-top">
         <span class="next-eyebrow" id="nextClassEyebrow">Próxima clase</span>
@@ -707,6 +860,7 @@
       </button>
     </div>
 
+    <div class="ag-cal">
     <div class="cal-toolbar">
       <div class="cal-title" id="calendarioMesLabel"></div>
       <button type="button" class="cal-today" onclick="irAHoyCalendario()">Hoy</button>
@@ -719,6 +873,7 @@
     </div>
     <div id="calendarioGrid"></div>
     <div id="calendarioLeyenda"></div>
+    </div>
 
     <div class="day-detail" id="calendarioDayDetail"></div>
   </section>
@@ -735,7 +890,7 @@
   </section>
 
   <!-- TAREAS -->
-  <section class="view" id="view-tareas">
+  <section class="view narrow" id="view-tareas">
     <div class="segmented" id="tareasEstadoToggle"></div>
     <div class="filter-row" id="filtroAlumnoTareas"></div>
     <div id="listaTareas"></div>
@@ -743,7 +898,8 @@
   </section>
 
   <!-- BILLETERA -->
-  <section class="view" id="view-stats">
+  <section class="view two-col" id="view-stats">
+   <div class="col">
     <div class="saldo-card">
       <div class="saldo-cols">
         <div>
@@ -781,6 +937,8 @@
       <div class="note" id="statsEsperado"></div>
     </div>
 
+   </div>
+   <div class="col">
     <div class="card list">
       <div class="card-head"><h2>Últimos pagos</h2></div>
       <div id="historialPagos"></div>
@@ -798,11 +956,15 @@
       <div class="card-head"><h2>Por alumno este mes</h2></div>
       <div id="statsPorAlumno"></div>
     </div>
+   </div>
   </section>
 
   <!-- FICHA DE ALUMNO -->
-  <section class="view" id="view-alumno-detalle">
+  <section class="view two-col detalle" id="view-alumno-detalle">
+   <div class="col col-side">
     <div class="card profile" id="detalleAlumnoHeader"></div>
+   </div>
+   <div class="col">
 
     <div class="card list">
       <div class="card-head">
@@ -840,13 +1002,14 @@
       </div>
       <div id="detalleTemas"></div>
     </div>
+   </div>
   </section>
 
 </main>
 
 <button class="fab" id="fabBtn" type="button"></button>
 
-<nav class="bottom-nav" id="bottomNav">
+<nav class="bottom-nav" id="bottomNav" data-nav>
   <button data-view="clases" class="active"><span class="ico" data-ic="calendar"></span>Agenda</button>
   <button data-view="alumnos"><span class="ico" data-ic="users"></span>Alumnos</button>
   <button data-view="tareas"><span class="ico" data-ic="list"></span>Tareas</button>
@@ -1212,8 +1375,14 @@ const FAB_CFG = {
 };
 function fabKey(){ return currentAlumnoDetalleId ? 'detalle' : vistaActual; }
 function actualizarFab(){
-  document.getElementById('fabBtn').innerHTML = `${ic('plus')}<span>${FAB_CFG[fabKey()].label}</span>`;
+  const html = `${ic('plus')}<span>${FAB_CFG[fabKey()].label}</span>`;
+  document.getElementById('fabBtn').innerHTML = html;
+  document.getElementById('hdrActionBtn').innerHTML = html;
 }
+// en pantallas grandes la grilla y el mes muestran más detalle: se vuelve a dibujar al cruzar el corte
+const mqDesktop = window.matchMedia('(min-width: 900px)');
+function esDesktop(){ return mqDesktop.matches; }
+if(mqDesktop.addEventListener) mqDesktop.addEventListener('change', ()=>renderCalendario());
 function volverDeDetalle(){ goTo(vistaAntesDeDetalle || 'alumnos'); }
 function initIconos(){
   document.querySelectorAll('[data-ic]').forEach(el=>{ el.innerHTML = ic(el.dataset.ic); });
@@ -1248,7 +1417,7 @@ function goTo(view){
   views.forEach(v=>{
     document.getElementById('view-'+v).classList.toggle('active', v===view);
   });
-  document.querySelectorAll('#bottomNav button').forEach(b=>{
+  document.querySelectorAll('[data-nav] button[data-view]').forEach(b=>{
     b.classList.toggle('active', b.dataset.view===view);
   });
   renderAll();
@@ -1256,7 +1425,7 @@ function goTo(view){
   window.scrollTo(0,0);
 }
 
-document.querySelectorAll('#bottomNav button').forEach(b=>{
+document.querySelectorAll('[data-nav] button[data-view]').forEach(b=>{
   b.addEventListener('click', ()=>goTo(b.dataset.view));
 });
 
@@ -2435,12 +2604,17 @@ function renderCalendarioMes(){
     const clasesDia = (porDia[fechaStr] || []).slice().sort((a,b)=>a.horaEntrada.localeCompare(b.horaEntrada));
     const seleccionado = fechaStr===calendarioSelectedDate;
     const dots = clasesDia.slice(0,4).map(c=>`<span class="mc-dot" style="background:${seleccionado?'#fff':alumnoColor(c.alumnoId)}"></span>`).join('');
+    const evs = clasesDia.slice(0,3).map(c=>`<span class="mc-ev" style="--c:${alumnoColor(c.alumnoId)}">${c.horaEntrada} ${escapeHtml(alumnoNombre(c.alumnoId).split(' ')[0])}</span>`).join('')
+      + (clasesDia.length>3 ? `<span class="mc-more">+${clasesDia.length-3} más</span>` : '');
     celdas += `
       <button type="button" class="month-cell ${fechaStr===hoyStr?'today':''} ${fechaStr<hoyStr?'past':''} ${seleccionado?'selected':''}" onclick="abrirDiaCalendario('${fechaStr}')">
-        <span>${dia}</span>
+        <span class="mc-num">${dia}</span>
         <span class="mc-dots">${dots}</span>
+        <span class="mc-evs">${evs}</span>
       </button>`;
   }
+  const sobrantes = (7 - (offsetInicio + diasEnMes) % 7) % 7;
+  for(let i=0;i<sobrantes;i++) celdas += `<div class="month-cell other-month"></div>`;
   celdas += '</div></div>';
   document.getElementById('calendarioGrid').innerHTML = celdas;
 }
@@ -2458,7 +2632,7 @@ function renderCalendarioSemana(){
     clasesDelDia(f).forEach(c=>{ hMin = Math.min(hMin, horaAMin(c.horaEntrada)); hMax = Math.max(hMax, finClaseMin(c)); });
   });
   hMin = Math.floor(hMin/60)*60; hMax = Math.min(24*60, Math.ceil(hMax/60)*60);
-  const hourH = 44, pxPorMin = hourH/60;
+  const hourH = esDesktop() ? 54 : 44, pxPorMin = hourH/60;
 
   const hoyStr = hoyIso();
   const ahora = new Date();
@@ -2502,9 +2676,9 @@ function renderCalendarioSemana(){
       const color = alumnoColor(c.alumnoId);
       const top = (ini-hMin)*pxPorMin, h = Math.max(18, (finM-ini)*pxPorMin - 2);
       const w = 100/nLanes;
-      const nombre = alumnoNombre(c.alumnoId).split(' ')[0];
+      const nombre = esDesktop() ? alumnoNombre(c.alumnoId) : alumnoNombre(c.alumnoId).split(' ')[0];
       return `<div class="wk-ev ${c.pagada?'pagada':''}" style="top:${top}px;height:${h}px;left:calc(${lane*w}% + 1px);width:calc(${w}% - 3px);border-left-color:${color};background:color-mix(in srgb, ${color} 22%, var(--card));"
-        onclick="event.stopPropagation();openClaseForm('${c.id}')">${escapeHtml(nombre)}${h>30?`<div class="h">${c.horaEntrada}</div>`:''}</div>`;
+        onclick="event.stopPropagation();openClaseForm('${c.id}')" title="${escapeAttr(alumnoNombre(c.alumnoId))} · ${c.horaEntrada}–${c.horaSalida||''}">${escapeHtml(nombre)}${h>30?`<div class="h">${c.horaEntrada}${esDesktop() && c.horaSalida ? '–'+c.horaSalida : ''}</div>`:''}</div>`;
     }).join('');
     const nowLine = (f===hoyStr && ahoraMin>=hMin && ahoraMin<hMax) ? `<div class="wk-now" style="top:${(ahoraMin-hMin)*pxPorMin}px"></div>` : '';
     cols += `<div class="wk-col">${slots}${eventos}${nowLine}</div>`;
@@ -2868,7 +3042,7 @@ function renderTareas(){
     if(t.temaId) partesSub.push(escapeHtml(temaNombre(t.temaId)));
     if(claseInfo) partesSub.push(`Clase: ${fechaCorta(claseInfo.fecha)}`);
     return `
-    <div class="list-item checkbox-line ${t.hecha?'done':''}" style="padding:12px 0;">
+    <div class="list-item checkbox-line ${t.hecha?'done':''}" style="padding-top:12px;padding-bottom:12px;">
       <input type="checkbox" ${t.hecha?'checked':''} onclick="toggleTarea('${t.id}', event)" aria-label="Marcar como hecha">
       <div class="item-main" onclick="openTareaForm('${t.id}')">
         <div class="item-title">${escapeHtml(t.texto)}</div>
@@ -2888,7 +3062,7 @@ function abrirDetalleAlumno(alumnoId){
   currentAlumnoDetalleId = alumnoId;
   views.forEach(v=>document.getElementById('view-'+v).classList.remove('active'));
   document.getElementById('view-alumno-detalle').classList.add('active');
-  document.querySelectorAll('#bottomNav button').forEach(b=>b.classList.toggle('active', b.dataset.view===vistaAntesDeDetalle));
+  document.querySelectorAll('[data-nav] button[data-view]').forEach(b=>b.classList.toggle('active', b.dataset.view===vistaAntesDeDetalle));
   document.getElementById('backBtn').style.display = 'inline-flex';
   if(overlay.classList.contains('show')) closeSheet();
   renderDetalleAlumno();
@@ -3644,7 +3818,7 @@ function renderStats(){
       ${avatarHtml(x.alumno,'sm')}
       <div class="item-main">
         <div class="item-title">${escapeHtml(x.alumno.nombre)}</div>
-        <div class="item-sub">${x.cantidad} clase${x.cantidad!==1?'s':''}${x.tps?` · ${x.tps} TP`:''} · ${fmt1(x.horas)} h</div>
+        <div class="item-sub">${[x.cantidad ? `${x.cantidad} clase${x.cantidad!==1?'s':''}` : '', x.tps ? `${x.tps} TP` : '', `${fmt1(x.horas)} h`].filter(Boolean).join(' · ')}</div>
       </div>
       <div class="item-right">${money(x.monto)}</div>
     </div>
@@ -4252,6 +4426,9 @@ renderThemeSwitch();
 renderProfileIcon();
 renderAll();
 actualizarFab();
+// al recargar, el navegador restauraba el scroll y lo corría al aparecer la tarjeta de próxima clase
+if('scrollRestoration' in history) history.scrollRestoration = 'manual';
+window.scrollTo(0,0);
 if(!db.config.tutorialVisto) mostrarTutorial();
 revisarResenaEnLink();
 window.addEventListener('hashchange', revisarResenaEnLink);
