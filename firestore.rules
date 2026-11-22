@@ -1,0 +1,324 @@
+rules_version = '2';
+
+// ⚠️ ESTE ARCHIVO ES COMPARTIDO: es el mismo en los repos "pizarra" y "estudiantes" (Estudiemos),
+// porque las dos apps usan el mismo proyecto de Firebase (pizarra-d6457). Si lo cambiás en uno,
+// copialo igual al otro antes de publicar (firebase deploy --only firestore:rules), o se pisan.
+//
+// Pizarra: salas compartidas por código. No hay cuentas: cada navegador entra como usuario
+// anónimo de Firebase, así que request.auth.uid identifica al dispositivo.
+//
+// rooms/{code}            título, permisos (editMode, editors, banned), a quién se sigue (follow)
+//                         y orden de páginas
+//   secret/admin          la clave de administración: nadie la puede leer
+//   admins/{uid}          quienes administran: se crea solo con la clave correcta
+//   members/{uid}         nombre y última vez visto
+//   pages/{pageId}        fondo de cada hoja
+//     strokes/{strokeId}  un documento por trazo
+// users/{uid}/boards/…    las copias guardadas de quien entró con Google («Mis pizarras»)
+//
+// Para escribir se usan getAfter/existsAfter: así la sala, su primera página y quien la
+// crea entran en un mismo lote (antes del lote la sala todavía no existe).
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function roomPath(code) {
+      return /databases/$(database)/documents/rooms/$(code);
+    }
+
+    function adminPath(code) {
+      return /databases/$(database)/documents/rooms/$(code)/admins/$(request.auth.uid);
+    }
+
+    // ---- Lecturas (estado actual) ----
+
+    function banned(code) {
+      return get(roomPath(code)).data.banned.get(request.auth.uid, false) == true;
+    }
+
+    function canRead(code) {
+      return signedIn() && !banned(code);
+    }
+
+    // ---- Escrituras (estado después del lote) ----
+
+    function isAdminAfter(code) {
+      return existsAfter(adminPath(code));
+    }
+
+    function canDraw(code) {
+      let room = getAfter(roomPath(code)).data;
+      return signedIn() && (
+        isAdminAfter(code) ||
+        (room.banned.get(request.auth.uid, false) != true &&
+          (room.editMode == 'all' || room.editors.get(request.auth.uid, false) == true))
+      );
+    }
+
+    function validRoom(d) {
+      return d.keys().hasOnly(['title', 'editMode', 'editors', 'banned', 'pageIds', 'follow', 'createdAt', 'updatedAt'])
+        && d.title is string && d.title.size() <= 120
+        && d.editMode in ['all', 'some']
+        && d.editors is map && d.banned is map
+        && d.pageIds is list && d.pageIds.size() <= 300
+        // follow: a quién siguen todos («seguir mi vista»), o nadie
+        && (!('follow' in d) || d.follow == null || d.follow is string);
+    }
+
+    match /rooms/{code} {
+      // Se puede abrir una sala sabiendo el código, pero no listarlas
+      allow get: if signedIn() && (resource == null || resource.data.banned.get(request.auth.uid, false) != true);
+      allow list: if false;
+
+      allow create: if signedIn()
+        && code.matches('^[A-HJKMNP-Z2-9]{6}$')
+        && validRoom(request.resource.data)
+        && request.resource.data.editors.size() == 0
+        && request.resource.data.banned.size() == 0
+        && isAdminAfter(code);
+
+      allow update: if signedIn() && validRoom(request.resource.data) && (
+        // Quien administra cambia título y permisos
+        isAdminAfter(code) ||
+        // Quien puede dibujar puede agregar, borrar u ordenar páginas, nada más
+        (canDraw(code) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pageIds', 'updatedAt']))
+      );
+
+      allow delete: if signedIn() && isAdminAfter(code);
+
+      match /secret/{doc} {
+        allow read: if false;
+        // Solo junto con la sala, en el mismo lote en que se crea
+        allow create: if signedIn()
+          && doc == 'admin'
+          && !exists(roomPath(code))
+          && existsAfter(roomPath(code))
+          && request.resource.data.keys().hasOnly(['key'])
+          && request.resource.data.key is string
+          && request.resource.data.key.size() >= 20;
+        allow delete: if signedIn() && isAdminAfter(code);
+      }
+
+      match /admins/{uid} {
+        allow get: if signedIn() && request.auth.uid == uid;
+        // Con la clave correcta (la del enlace de administración)
+        allow create: if signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['key'])
+          && request.resource.data.key == getAfter(/databases/$(database)/documents/rooms/$(code)/secret/admin).data.key;
+        allow delete: if signedIn() && request.auth.uid == uid;
+      }
+
+      match /members/{uid} {
+        allow read: if canRead(code);
+        allow create, update: if signedIn()
+          && request.auth.uid == uid
+          && getAfter(roomPath(code)).data.banned.get(uid, false) != true
+          && request.resource.data.keys().hasOnly(['name', 'admin', 'joinedAt', 'lastSeen'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 40
+          && request.resource.data.admin == isAdminAfter(code);
+        // Cada uno se va; quien administra puede sacar a cualquiera
+        allow delete: if signedIn() && (request.auth.uid == uid || isAdminAfter(code));
+      }
+
+      match /pages/{pageId} {
+        allow read: if canRead(code);
+        allow create, update: if canDraw(code)
+          && request.resource.data.keys().hasOnly(['width', 'height', 'background', 'createdAt', 'updatedAt'])
+          && request.resource.data.background is map;
+        allow delete: if canDraw(code);
+
+        match /strokes/{strokeId} {
+          allow read: if canRead(code);
+          allow create, update: if canDraw(code)
+            && request.resource.data.keys().hasOnly(['tool', 'color', 'size', 'opacity', 'pts', 'n', 'bbox', 'z', 'simulated', 'shape', 'item', 'createdAt', 'by'])
+            && request.resource.data.by == request.auth.uid
+            && (!('item' in request.resource.data) || request.resource.data.item is map)
+            && request.resource.data.pts is bytes
+            && request.resource.data.pts.size() <= 200000;
+          allow delete: if canDraw(code);
+        }
+      }
+    }
+
+    // «Mis pizarras»: las copias guardadas de cada persona, solo para ella.
+    match /users/{uid}/{document=**} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
+    // =====================================================================================
+    // ESTUDIEMOS (app de clases particulares: santiagososa.com.ar/estudiantes)
+    //
+    // users/{uid}                 todos los datos del profe: solo él/ella
+    // aulas/{aulaId}              lo que ve un estudiante (y su familia); lo escribe el profe.
+    //                             Los miembros solo pueden sumarse (con el link, si la
+    //                             invitación está abierta) y cambiar sus propios datos.
+    //   entregas/{tpId}           lo que resolvió el estudiante + la devolución del profe
+    //   resenas/{uid}             la reseña de cada miembro
+    //   alumno/perfil             lo que le interesa estudiar
+    // perfiles/{uid}              página pública del profe (reseñas elegidas)
+    // notifs/{id}                 notificaciones, solo entre profe y miembros de un aula
+    // tokens/{uid}                tokens de push de cada persona
+    // enviados/…                  registro del notificador (solo el servidor)
+    // =====================================================================================
+
+    function conCuenta() {
+      return signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    function aulaData(aulaId) {
+      return get(/databases/$(database)/documents/aulas/$(aulaId)).data;
+    }
+
+    function esProfeDe(aulaId) {
+      return signedIn() && aulaData(aulaId).ownerUid == request.auth.uid;
+    }
+
+    function esMiembroDe(aulaId) {
+      return signedIn() && request.auth.uid in aulaData(aulaId).miembros;
+    }
+
+    function infoMiembroValida(m) {
+      return m is map
+        && m.keys().hasOnly(['nombre', 'email', 'rol'])
+        && m.nombre is string && m.nombre.size() <= 60
+        && m.email is string && m.email.size() <= 100
+        && m.rol in ['alumno', 'familia'];
+    }
+
+    function soloMisDatosDeMiembro() {
+      return request.resource.data.miembrosInfo.diff(resource.data.miembrosInfo).affectedKeys().hasOnly([request.auth.uid])
+        && infoMiembroValida(request.resource.data.miembrosInfo[request.auth.uid]);
+    }
+
+    match /users/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /aulas/{aulaId} {
+      allow get: if signedIn() && (resource.data.ownerUid == request.auth.uid || request.auth.uid in resource.data.miembros);
+      allow list: if signedIn() && request.auth.uid in resource.data.miembros;
+
+      allow create: if conCuenta()
+        && aulaId.size() >= 16
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.miembros == []
+        && request.resource.data.miembrosInfo == {}
+        && request.resource.data.invitacionAbierta == true;
+
+      allow update: if signedIn() && (
+        // El profe cambia todo lo publicado y puede quitar miembros, pero no sumarlos ni cambiar de dueño
+        (resource.data.ownerUid == request.auth.uid
+          && request.resource.data.ownerUid == resource.data.ownerUid
+          && request.resource.data.miembros.toSet().difference(resource.data.miembros.toSet()).size() == 0)
+        ||
+        // Sumarse con el link de invitación
+        (conCuenta()
+          && resource.data.invitacionAbierta == true
+          && !(request.auth.uid in resource.data.miembros)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['miembros', 'miembrosInfo'])
+          && request.resource.data.miembros == resource.data.miembros.concat([request.auth.uid])
+          && request.resource.data.miembros.size() <= 10
+          && soloMisDatosDeMiembro())
+        ||
+        // Un miembro actualiza su nombre o su rol
+        (request.auth.uid in resource.data.miembros
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['miembrosInfo'])
+          && soloMisDatosDeMiembro())
+      );
+
+      allow delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+
+      match /entregas/{tpId} {
+        allow read: if esProfeDe(aulaId) || esMiembroDe(aulaId);
+
+        allow create: if esMiembroDe(aulaId)
+          && request.resource.data.keys().hasOnly(['respuestas', 'puntaje', 'comentario', 'estado', 'enviadaEn', 'por', 'porNombre'])
+          && entregaValida(request.resource.data);
+
+        allow update: if
+          (esMiembroDe(aulaId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['respuestas', 'puntaje', 'comentario', 'estado', 'enviadaEn', 'por', 'porNombre'])
+            && entregaValida(request.resource.data))
+          ||
+          (esProfeDe(aulaId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['devolucion', 'nota', 'estado', 'corregidaEn'])
+            && request.resource.data.estado == 'corregida'
+            && request.resource.data.devolucion is string && request.resource.data.devolucion.size() <= 4000
+            && request.resource.data.nota is string && request.resource.data.nota.size() <= 40);
+
+        allow delete: if esProfeDe(aulaId);
+      }
+
+      match /resenas/{uid} {
+        allow read: if signedIn() && (request.auth.uid == uid || esProfeDe(aulaId));
+        allow create, update: if signedIn() && request.auth.uid == uid && esMiembroDe(aulaId)
+          && request.resource.data.keys().hasOnly(['estrellas', 'texto', 'autor', 'rol', 'permitePublicar', 'creada', 'actualizada'])
+          && request.resource.data.estrellas is int
+          && request.resource.data.estrellas >= 1 && request.resource.data.estrellas <= 5
+          && request.resource.data.texto is string && request.resource.data.texto.size() <= 1200
+          && request.resource.data.autor is string && request.resource.data.autor.size() <= 80
+          && request.resource.data.rol in ['alumno', 'familia']
+          && request.resource.data.permitePublicar is bool;
+        allow delete: if signedIn() && (request.auth.uid == uid || esProfeDe(aulaId));
+      }
+
+      match /alumno/{docId} {
+        allow read: if esProfeDe(aulaId) || esMiembroDe(aulaId);
+        allow create, update: if docId == 'perfil' && esMiembroDe(aulaId)
+          && request.resource.data.keys().hasOnly(['intereses', 'por', 'actualizado'])
+          && request.resource.data.intereses is string && request.resource.data.intereses.size() <= 2000
+          && request.resource.data.por == request.auth.uid;
+      }
+    }
+
+    function entregaValida(d) {
+      return d.por == request.auth.uid
+        && d.estado == 'enviada'
+        && d.respuestas is map && d.respuestas.size() <= 200
+        && d.comentario is string && d.comentario.size() <= 1500
+        && d.porNombre is string && d.porNombre.size() <= 60;
+    }
+
+    match /perfiles/{uid} {
+      allow read: if true;
+      allow write: if conCuenta() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['nombre', 'bio', 'materias', 'resenas', 'actualizado'])
+        && request.resource.data.resenas is list && request.resource.data.resenas.size() <= 60
+        && request.resource.data.materias is list && request.resource.data.materias.size() <= 30;
+    }
+
+    match /notifs/{id} {
+      allow read, delete: if signedIn() && resource.data.para == request.auth.uid;
+      allow update: if signedIn() && resource.data.para == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['leida']);
+      allow create: if conCuenta() && notifValida(request.resource.data);
+    }
+
+    function notifValida(d) {
+      let a = aulaData(d.aulaId);
+      return d.keys().hasOnly(['para', 'de', 'deNombre', 'aulaId', 'tipo', 'tpId', 'titulo', 'cuerpo', 'url', 'leida', 'pushPendiente', 'creada'])
+        && d.de == request.auth.uid
+        && d.para is string && d.aulaId is string
+        && d.titulo is string && d.titulo.size() <= 120
+        && d.cuerpo is string && d.cuerpo.size() <= 500
+        && d.url is string && d.url.size() <= 300
+        && d.leida == false && d.pushPendiente == true
+        && d.creada == request.time
+        && ((a.ownerUid == request.auth.uid && d.para in a.miembros)
+          || (request.auth.uid in a.miembros && d.para == a.ownerUid));
+    }
+
+    match /tokens/{uid} {
+      allow read, write: if conCuenta() && request.auth.uid == uid;
+    }
+
+    // Todo lo demás, cerrado.
+  }
+}

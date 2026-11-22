@@ -1,0 +1,29 @@
+# Estudiemos: manda los recordatorios de clases y las notificaciones push.
+# Necesita el secreto FIREBASE_SERVICE_ACCOUNT (ver docs/PUESTA_EN_MARCHA.md).
+# GitHub puede atrasar las corridas programadas unos minutos: por eso los recordatorios
+# usan una ventana ("en los próximos 30 min") y no una hora exacta.
+name: Notificador
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: notificador
+  cancel-in-progress: false
+
+jobs:
+  avisar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --omit=dev
+      - run: node scripts/notificador.mjs
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}

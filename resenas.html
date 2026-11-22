@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es" data-palette="terracota">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#bd5d34">
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg?v=2">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<title>Reseñas</title>
+<link rel="stylesheet" href="css/base.css">
+<style>
+  body{padding:0 0 40px;}
+  .cab{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;text-align:center;padding:44px 20px 30px;position:relative;overflow:hidden;}
+  .cab::after{content:'';position:absolute;right:-60px;top:-70px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.08);}
+  .cab h1{font-size:28px;font-weight:700;letter-spacing:-.025em;margin:0 0 8px;position:relative;z-index:1;}
+  .cab p{margin:0 auto;max-width:520px;opacity:.92;line-height:1.5;white-space:pre-wrap;position:relative;z-index:1;}
+  .prom{margin-top:14px;font-size:15px;font-weight:600;position:relative;z-index:1;}
+  .prom .stars{color:#ffd77a;font-size:19px;}
+  .materias{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:14px;position:relative;z-index:1;}
+  .materias span{background:rgba(255,255,255,.18);border-radius:999px;padding:4px 11px;font-size:12.5px;font-weight:600;}
+  main{padding-top:16px;max-width:640px;}
+  .resena .txt{font-size:16px;}
+  .pie{text-align:center;color:var(--text-mute);font-size:12.5px;margin-top:18px;}
+</style>
+</head>
+<body>
+<div class="cab" id="cab"><h1>Reseñas</h1><p>Cargando…</p></div>
+<main><div class="card" id="lista" hidden></div><div class="pie">Hecho con Estudiemos</div></main>
+<script type="module">
+  import { db, doc, getDoc } from './js/firebase.js';
+  const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const uid = new URLSearchParams(location.search).get('p');
+  const cab = document.getElementById('cab'), lista = document.getElementById('lista');
+  const estrellas = n => { n = Math.round(n); return '★'.repeat(n) + '☆'.repeat(5 - n); };
+  async function cargar(){
+    if(!uid){ cab.innerHTML = '<h1>Reseñas</h1><p>Falta el link completo.</p>'; return; }
+    try{
+      const s = await getDoc(doc(db, 'perfiles', uid));
+      if(!s.exists()){ cab.innerHTML = '<h1>Reseñas</h1><p>Esta página todavía no tiene reseñas.</p>'; return; }
+      const p = s.data();
+      const rs = p.resenas || [];
+      const prom = rs.length ? rs.reduce((t, r)=>t + (r.estrellas || 0), 0) / rs.length : 0;
+      document.title = `${p.nombre || 'Clases particulares'} · Reseñas`;
+      cab.innerHTML = `
+        <h1>${esc(p.nombre || 'Clases particulares')}</h1>
+        ${p.bio ? `<p>${esc(p.bio)}</p>` : ''}
+        ${rs.length ? `<div class="prom"><span class="stars">${estrellas(prom)}</span> ${prom.toLocaleString('es-AR', {maximumFractionDigits:1})} · ${rs.length} reseña${rs.length!==1?'s':''}</div>` : ''}
+        ${(p.materias || []).length ? `<div class="materias">${p.materias.map(m=>`<span>${esc(m)}</span>`).join('')}</div>` : ''}`;
+      lista.hidden = false;
+      lista.innerHTML = rs.length ? rs.map(r=>`
+        <div class="resena">
+          <span class="stars">${estrellas(r.estrellas || 5)}</span>
+          <div class="txt">«${esc(r.texto)}»</div>
+          <div class="who">— ${esc(r.autor)}</div>
+        </div>`).join('') : '<div class="empty-msg">Todavía no hay reseñas publicadas.</div>';
+    }catch(e){
+      console.error(e);
+      cab.innerHTML = '<h1>Reseñas</h1><p>No se pudieron cargar las reseñas.</p>';
+    }
+  }
+  cargar();
+</script>
+</body>
+</html>

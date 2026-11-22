@@ -1,0 +1,98 @@
+/* Estudiemos (estudiante): ajustes sobre base.css y la pantalla para resolver actividades */
+
+/* La app del estudiante no tiene menú lateral: la barra de abajo queda también en computadora */
+@media (min-width: 900px){
+  body.est{padding-left:0;padding-bottom:calc(var(--nav-h) + 40px);}
+  body.est nav.bottom-nav{display:flex;max-width:560px;margin:0 auto;left:0;right:0;border:1px solid var(--border);border-bottom:none;border-radius:18px 18px 0 0;}
+  body.est header.app-header{padding:18px 24px 12px;}
+  body.est .hdr-inner{max-width:640px;}
+  body.est main{max-width:640px;padding:8px 16px 40px;}
+  body.est .toast{left:50%;bottom:calc(var(--nav-h) + 24px);}
+}
+body.est #selectorAulas{margin-top:2px;}
+
+.saludo{font-size:22px;font-weight:700;letter-spacing:-.02em;margin:4px 2px 2px;}
+.saludo-sub{color:var(--text-dim);font-size:14px;margin:0 2px 14px;}
+.cuenta{display:flex;align-items:center;gap:12px;}
+.cuenta .row-ic{width:42px;height:42px;border-radius:13px;}
+.cuenta .c-val{font-size:18px;font-weight:700;letter-spacing:-.01em;}
+.cuenta.debe .row-ic{background:var(--warn-bg);color:var(--warn);}
+.cuenta.debe .c-val{color:var(--warn);}
+.cuenta.al-dia .c-val{color:var(--ok);}
+.aviso{padding:10px 0;border-bottom:1px solid var(--border);font-size:14.5px;line-height:1.45;white-space:pre-wrap;}
+.aviso:last-child{border-bottom:none;}
+.aviso .item-sub{font-size:12px;color:var(--text-mute);}
+.next-actions a{
+  display:inline-flex;align-items:center;gap:6px;text-decoration:none;
+  background:rgba(255,255,255,.18);color:#fff;padding:8px 12px;border-radius:10px;font-size:13px;font-weight:600;
+}
+.next-actions a svg{width:16px;height:16px;}
+
+.clase-item{padding:12px 0;border-bottom:1px solid var(--border);}
+.clase-item:last-child{border-bottom:none;}
+.clase-cab{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+.clase-item.pasada .item-title{color:var(--text-dim);}
+.clase-resumen{background:var(--surface);border-radius:12px;padding:10px 12px;font-size:14px;margin-top:8px;white-space:pre-wrap;line-height:1.45;}
+.clase-resumen b{display:block;font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;}
+.clase-extras{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+.clase-extras .btn{text-decoration:none;}
+
+.entrada{text-align:center;padding:30px 18px 24px;margin-top:16px;}
+.entrada .em-ic{width:64px;height:64px;border-radius:20px;background:var(--soft-tint-bg);color:var(--accent);display:inline-flex;align-items:center;justify-content:center;margin-bottom:14px;}
+.entrada .em-ic svg{width:30px;height:30px;}
+.entrada h2{font-size:21px !important;font-weight:700 !important;letter-spacing:-.02em;margin:0 0 8px !important;}
+.entrada p{color:var(--text-dim);font-size:14.5px;line-height:1.5;margin:0 auto;max-width:340px;}
+.entrada .pregunta{font-weight:600;color:var(--text);margin-top:20px;}
+
+.devolucion{background:var(--ok-bg);border-radius:14px;padding:12px 14px;margin:10px 0;white-space:pre-wrap;font-size:14.5px;color:var(--text);}
+.devolucion .nota{font-size:26px;font-weight:700;color:var(--ok);letter-spacing:-.02em;margin-bottom:2px;}
+
+.estrellas-input{display:flex;gap:6px;margin:4px 0;}
+.estrellas-input button{background:none;border:none;padding:0;cursor:pointer;color:var(--border-strong);font-size:36px;line-height:1;}
+.estrellas-input button.on{color:#e5a823;}
+
+/* ---------- Resolver una actividad ---------- */
+body.jugando{overflow:hidden;}
+.jugar{position:fixed;inset:0;z-index:80;background:var(--bg);display:flex;flex-direction:column;
+  padding:calc(12px + env(safe-area-inset-top,0px)) 16px calc(16px + var(--safe-bottom));}
+.jugar[hidden]{display:none !important;}
+.jugar > *{width:100%;max-width:600px;margin-left:auto;margin-right:auto;}
+.jugar-top{display:flex;align-items:center;gap:12px;}
+.barra{flex:1;height:12px;border-radius:999px;background:var(--surface);overflow:hidden;}
+.barra div{height:100%;background:var(--ok);border-radius:999px;transition:width .35s ease;}
+.jugar-num{font-size:13px;font-weight:600;color:var(--text-dim);font-variant-numeric:tabular-nums;}
+.jugar-cuerpo{flex:1;overflow-y:auto;padding:24px 2px 12px;}
+.jugar-cuerpo.final{text-align:center;}
+.jugar-tipo{font-size:12.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);margin-bottom:8px;}
+.jugar-enunciado{font-size:22px;font-weight:700;letter-spacing:-.02em;line-height:1.35;margin-bottom:22px;white-space:pre-wrap;}
+.opciones{display:flex;flex-direction:column;gap:10px;}
+.opciones.vf{flex-direction:row;}
+.opciones.vf .opcion{flex:1;text-align:center;}
+.opcion{
+  text-align:left;padding:15px 16px;border-radius:14px;border:1.5px solid var(--border);border-bottom-width:4px;
+  background:var(--card);color:var(--text);font-size:16px;font-weight:600;cursor:pointer;transition:transform .08s;
+}
+.opcion:active{transform:translateY(2px);}
+.opcion.sel{border-color:var(--primary);background:var(--soft-tint-bg);color:var(--accent);}
+.opcion.correcta{border-color:var(--ok);background:var(--ok-bg);color:var(--ok);}
+.opcion.incorrecta{border-color:var(--danger);background:var(--danger-bg);color:var(--danger);}
+.resp-num{font-size:22px !important;text-align:center;font-weight:700;min-height:58px !important;}
+.resp-texto{min-height:170px !important;}
+.jugar-pie{display:flex;gap:10px;flex-wrap:wrap;}
+.jugar-pie .btn{margin-top:0;flex:1;min-height:52px;font-size:16px;}
+.feedback{width:100%;border-radius:14px;padding:12px 14px;font-size:14.5px;animation:slideup .2s ease;}
+.feedback.bien{background:var(--ok-bg);color:var(--ok);}
+.feedback.mal{background:var(--danger-bg);color:var(--danger);}
+.feedback .f-tit{font-size:18px;font-weight:700;margin-bottom:2px;}
+.final-ic{width:84px;height:84px;border-radius:26px;background:var(--ok-bg);color:var(--ok);display:inline-flex;align-items:center;justify-content:center;margin:24px 0 14px;animation:rebote .6s ease;}
+.final-ic svg{width:42px;height:42px;stroke-width:2.2;}
+.final-puntaje{font-size:28px;font-weight:700;color:var(--ok);letter-spacing:-.02em;margin-bottom:8px;}
+.final textarea{text-align:left;}
+@keyframes rebote{0%{transform:scale(.3);}60%{transform:scale(1.12);}100%{transform:scale(1);}}
+
+.chispa{position:fixed;top:55vh;z-index:90;pointer-events:none;animation:chispa 1.4s ease-out forwards;}
+@keyframes chispa{0%{transform:translateY(0) scale(.6);opacity:1;}100%{transform:translateY(-55vh) rotate(200deg) scale(1.1);opacity:0;}}
+@media (prefers-reduced-motion: reduce){
+  .chispa{display:none;}
+  .final-ic,.feedback{animation:none;}
+}

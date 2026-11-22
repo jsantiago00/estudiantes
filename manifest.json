@@ -1,6 +1,6 @@
 {
-  "name": "EstudiAntes",
-  "short_name": "EstudiAntes",
+  "name": "Estudiemos",
+  "short_name": "Estudiemos",
   "description": "Gestión de clases particulares: alumnos, clases, tareas y pagos.",
   "start_url": "./index.html",
   "scope": "./",

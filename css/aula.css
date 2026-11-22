@@ -1,0 +1,39 @@
+/* Estudiemos: piezas del aula, actividades y notificaciones (profe y estudiante).
+   Solo agrega componentes nuevos sobre base.css; usa sus variables, así anda en las
+   3 paletas y en modo oscuro. No redefinir clases de base.css acá. */
+
+/* Campanita con contador */
+.notif-bell{position:relative;}
+.notif-count{
+  position:absolute;top:3px;right:2px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;
+  background:var(--danger);color:#fff;font-size:10.5px;font-weight:700;line-height:17px;text-align:center;
+  box-shadow:0 0 0 2px var(--bg);font-variant-numeric:tabular-nums;
+}
+.notif-item.nueva .item-title::before{
+  content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--primary);flex-shrink:0;
+}
+
+/* Pizarra en el formulario de clase */
+.pizarra-box{margin-top:14px;}
+.pizarra-box > span:first-child{display:flex;flex-direction:column;gap:2px;color:var(--text);font-weight:600;}
+.pizarra-box > span:first-child svg{width:18px;height:18px;color:var(--accent);margin-bottom:2px;}
+.pizarra-box small{color:var(--text-dim);font-weight:500;}
+
+/* Actividades */
+textarea.tp-preguntas{min-height:190px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;line-height:1.5;}
+.tp-preview{font-size:13px;margin-top:6px;display:flex;flex-direction:column;gap:3px;}
+.tp-preview > div{display:flex;align-items:center;gap:6px;}
+.tp-preview svg{width:15px;height:15px;}
+.tp-preview .ok{color:var(--ok);font-weight:600;}
+.tp-preview .err{color:var(--danger);}
+.tp-consigna{background:var(--surface);border-radius:12px;padding:12px 14px;font-size:14.5px;line-height:1.5;margin:8px 0 4px;white-space:pre-wrap;}
+.entrega-preg{border-left:3px solid var(--border-strong);padding:8px 12px;margin:8px 0;border-radius:4px 10px 10px 4px;background:var(--surface);font-size:14.5px;}
+.entrega-preg.bien{border-left-color:var(--ok);}
+.entrega-preg.mal{border-left-color:var(--danger);}
+.entrega-preg.abierta{border-left-color:var(--primary);}
+.entrega-preg .enunciado{font-weight:600;margin-bottom:4px;white-space:pre-wrap;}
+.entrega-preg .resp{display:flex;gap:6px;align-items:flex-start;}
+.entrega-preg .resp svg{width:16px;height:16px;margin-top:2px;}
+.entrega-preg.bien .resp svg{color:var(--ok);}
+.entrega-preg.mal .resp svg{color:var(--danger);}
+.entrega-preg.abierta .resp svg{color:var(--accent);}

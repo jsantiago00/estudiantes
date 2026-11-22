@@ -167,7 +167,7 @@
     appUrl.search = '';
     appUrl.hash = 'resena=' + b64url(datos);
     const quien = relacion ? `${autor} (${relacion}${alumno && relacion!=='alumno/a' ? ' de '+alumno : ''})` : autor;
-    const msg = `${'⭐'.repeat(estrellas)}\nReseña${profe?' para '+profe:''}:\n"${texto}"\n— ${quien}\n\nGuardala en EstudiAntes 👉 ${appUrl.toString()}`;
+    const msg = `${'⭐'.repeat(estrellas)}\nReseña${profe?' para '+profe:''}:\n"${texto}"\n— ${quien}\n\nGuardala en Estudiemos 👉 ${appUrl.toString()}`;
 
     document.getElementById('formCard').hidden = true;
     document.getElementById('doneCard').hidden = false;
