@@ -11,8 +11,12 @@ Leé primero el [README](README.md). Texto visible en español rioplatense (vose
   `firebase deploy --only firestore:rules` desde acá. No toques la sección de la pizarra.
 - La pizarra entra como usuario **anónimo**: en Estudiemos un anónimo cuenta como «sin sesión»
   (`usuarioActual()`), y las reglas de Estudiemos exigen `conCuenta()`.
-- **Nombres:** en los datos, `db.tps` son las *actividades para resolver* (así se llaman en la interfaz);
-  `db.trabajos` son los *trabajos prácticos* que el profe cobra (Billetera). No mezclarlos.
+- **Nombres:** `db.tareas` son los *pendientes* del profe (privados, no se publican); `db.tps` son las
+  *tareas* del alumno (texto + preguntas opcionales); `db.trabajos` son los *trabajos prácticos* que se
+  cobran (Billetera). Un pendiente se cierra con "Listo" o con "Mandar" (se vuelve tarea, `pendiente.tpId`).
+- **Simple primero:** alumno nuevo = nombre y WhatsApp; lo demás va en `alumno.porCompletar` y se pregunta
+  en la ficha ("Completá la ficha"). La configuración inicial y todo eso está en `js/primeros-pasos.js`.
+  Antes de agregar un campo obligatorio a un formulario, preguntarse si puede ir ahí.
 - Los estilos están en `css/base.css` (el sistema de diseño). Componentes: `ic()`, `confirmar()`,
   `openSheet()` con `.sheet-footer`, `.card-head`, `.switch-row`, `.list-item.tap`, `.badge`.
 - Las reseñas de la app se copian a `db.resenas` con id `app:<aula>:<uid>` (las borradas quedan en

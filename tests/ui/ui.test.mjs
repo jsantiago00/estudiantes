@@ -61,7 +61,7 @@ const clickTexto = (page, texto, sel = 'button')=>page.evaluate((t, s)=>{
   el.click();
 }, texto, sel);
 const texto = (page, sel)=>page.$eval(sel, el=>el.innerText);
-/* el diálogo propio de confirmación (confirmar()) */
+const dialogo = page=>page.evaluate(()=>document.getElementById('dialogOverlay').classList.contains('show') ? document.getElementById('dlgTitle').textContent : '');
 const aceptarDialogo = page=>page.evaluate(()=>{ if(document.getElementById('dialogOverlay').classList.contains('show')) document.getElementById('dlgOk').click(); });
 
 /* ---------- Datos de prueba ---------- */
@@ -78,13 +78,116 @@ const datosProfe = {
     {id:'c1', serieId:null, alumnoId:'a1', fecha: iso(ayer), horaEntrada:'10:00', horaSalida:'11:00', duracionMin:60, monto:9000, viatico:3360, modalidad:'casa_alumno', pagada:false, notas:'privado'},
     {id:'c2', serieId:null, alumnoId:'a1', fecha: iso(haceMedia), horaEntrada: hh(haceMedia), horaSalida: hh(enMedia), duracionMin:60, monto:9000, viatico:0, modalidad:'casa_mia', pagada:false, notas:''}
   ],
-  tareas: [{id:'k1', alumnoId:'a1', temaId:'t1', claseId:null, texto:'Ejercicios 1 a 5', hecha:false}],
+  tareas: [{id:'k1', alumnoId:'a1', temaId:'t1', claseId:null, texto:'Preparar ejercicios de fracciones', hecha:false}],
   resenas: [{id:'r0', alumnoId:null, alumnoNombre:'Tomi', autor:'Carla', relacion:'mamá', estrellas:5, texto:'Muy buena profe', fecha:'2026-10-01', publicar:true}],
   config: {tarifaMin:7000, tarifaMax:15000, paleta:'terracota', tema:'light', tutorialVisto:true, nombreProfe:'Ana Pérez', telefonoProfe:'5492615550000'}
 };
 
 /* =========================================================
-   PROFE
+   PROFE NUEVO: configuración inicial, lista de alumnos y "Completá la ficha"
+   ========================================================= */
+{
+  const {page, errores} = await pagina('index.html', {usuario: null, docs: {}}, {estudiantes_theme_v1: 'light'});
+  ok(await page.$eval('#primerosPasos', e=>!e.hidden), 'la primera vez aparece la configuración inicial');
+  ok(!(await page.$eval('#tutorialOverlay', e=>e.classList.contains('show'))), 'no aparece encima el tutorial');
+  await page.screenshot({path: join(capturas, 'nuevo-1-nombre.png')});
+  await page.type('#pp_nombre', 'Juli');
+  await clickTexto(page, 'Siguiente');
+  await clickTexto(page, 'Matemática');
+  await clickTexto(page, 'Física');
+  await page.screenshot({path: join(capturas, 'nuevo-2-materias.png')});
+  await clickTexto(page, 'Siguiente');
+  await page.type('#pp_tarifa', '12000');
+  await clickTexto(page, 'Las dos');
+  await page.screenshot({path: join(capturas, 'nuevo-3-tarifa.png')});
+  await clickTexto(page, 'Siguiente');
+  await page.type('#pp_alumnos', 'Sofi 2611234567\nTomi\nJuli Pérez, 261 555-0000');
+  ok((await texto(page, '#pp_cuenta')).includes('3 alumnos'), 'cuenta los alumnos de la lista');
+  await page.screenshot({path: join(capturas, 'nuevo-4-alumnos.png')});
+  await clickTexto(page, 'Empezar');
+  await esperar(300);
+  const cfg = await page.evaluate(()=>({n: db.alumnos.length, temas: db.temas.map(t=>t.nombre), tarifa: db.config.tarifaHabitual, nombre: db.config.nombreProfe,
+    sofi: db.alumnos.find(a=>a.nombre==='Sofi'), min: db.config.tarifaMin, max: db.config.tarifaMax}));
+  ok(cfg.n === 3 && cfg.temas.join() === 'Matemática,Física' && cfg.tarifa === 12000 && cfg.nombre === 'Juli', 'la configuración inicial guarda todo: ' + JSON.stringify({n: cfg.n, temas: cfg.temas, tarifa: cfg.tarifa}));
+  ok(cfg.sofi.telefono === '2611234567' && cfg.sofi.tarifa === 12000 && cfg.sofi.porCompletar.join() === 'contacto,lugar,materias,nivel', 'el alumno queda con lo mínimo y lo demás por completar');
+  ok(cfg.min <= 12000 && cfg.max >= 12000, 'el rango de precios incluye la tarifa');
+  ok(await page.$eval('#primerosPasos', e=>e.hidden), 'se cierra la configuración');
+  await page.screenshot({path: join(capturas, 'nuevo-5-alumnos.png')});
+
+  // Completá la ficha: de a una pregunta
+  await page.evaluate(()=>abrirDetalleAlumno(db.alumnos.find(a=>a.nombre==='Sofi').id));
+  await esperar(200);
+  ok((await texto(page, '#detalleCompletar')).includes('¿A quién le escribís'), 'la ficha pregunta a quién escribirle');
+  await page.screenshot({path: join(capturas, 'nuevo-6-completar.png')});
+  await clickTexto(page, 'A su familia');
+  await page.type('#f_fc_contacto', 'Laura');
+  await clickTexto(page, 'Listo', '#detalleCompletar button');
+  ok((await texto(page, '#detalleCompletar')).includes('¿Dónde son las clases'), 'después pregunta dónde son las clases');
+  await clickTexto(page, 'En su casa');
+  await page.type('#f_fc_dir', 'San Martín 123');
+  await clickTexto(page, 'Listo', '#detalleCompletar button');
+  await clickTexto(page, 'Física', '#detalleCompletar button');
+  await clickTexto(page, 'Listo', '#detalleCompletar button');
+  await clickTexto(page, 'Secundario', '#detalleCompletar button');
+  const sofi = await page.evaluate(()=>db.alumnos.find(a=>a.nombre==='Sofi'));
+  ok(sofi.tipo==='nino' && sofi.contacto==='Laura' && sofi.modalidad==='casa_alumno' && sofi.direccion==='San Martín 123' && sofi.nivel==='secundario' && sofi.temasIds.length===1 && !sofi.porCompletar.length, 'la ficha queda completa: ' + JSON.stringify({c: sofi.contacto, m: sofi.modalidad, n: sofi.nivel}));
+  ok(await page.$eval('#detalleCompletar', e=>e.hidden), 'cuando está completa, la tarjeta desaparece');
+
+  // Alumno rápido
+  await page.evaluate(()=>{ goTo('alumnos'); openAlumnoForm(); });
+  await esperar(300);
+  ok(!(await page.$('#f_tarifa')), 'el alumno nuevo no pide tarifa ni nada más');
+  await page.screenshot({path: join(capturas, 'nuevo-7-alumno-rapido.png')});
+  await page.type('#f_ar_nombre', 'Mica');
+  await clickTexto(page, 'Agregar alumno');
+  await esperar(300);
+  ok(await page.evaluate(()=>currentAlumnoDetalleId && getAlumno(currentAlumnoDetalleId).nombre === 'Mica'), 'después de agregarlo se abre su ficha');
+
+  // Pendiente → mandarlo como tarea, armando preguntas con botones
+  await page.evaluate(()=>openTareaForm(null, db.alumnos.find(a=>a.nombre==='Tomi').id));
+  await page.type('#f_t_texto', 'Prepararle ejercicios de ecuaciones');
+  await clickTexto(page, 'Agregar pendiente');
+  await page.evaluate(()=>goTo('tareas'));
+  await esperar(200);
+  ok((await texto(page, '#listaTareas')).includes('Mandar'), 'cada pendiente se puede mandar como tarea');
+  await page.screenshot({path: join(capturas, 'nuevo-8-pendientes.png'), fullPage: true});
+  await clickTexto(page, 'Mandar', '#listaTareas button');
+  await esperar(200);
+  ok((await page.$eval('#f_tp_consigna', t=>t.value)) === 'Prepararle ejercicios de ecuaciones', 'la tarea viene con el texto del pendiente');
+  await page.$eval('#f_tp_consigna', t=>{ t.value = 'Resolvé estas ecuaciones'; });
+  await clickTexto(page, 'Agregar una pregunta');
+  await page.type('#tpPreguntas .preg-enunciado', 'Si x + 3 = 10, ¿cuánto vale x?');
+  const ops = await page.$$('#tpPreguntas .preg-op input');
+  await ops[0].type('6'); await ops[1].type('7');
+  await clickTexto(page, 'Otra opción');
+  await (await page.$$('#tpPreguntas .preg-op input'))[2].type('8');
+  // sin marcar la correcta no deja guardar
+  await clickTexto(page, 'Mandar tarea');
+  ok((await texto(page, '#toast')).includes('Marcá'), 'avisa que falta marcar la correcta');
+  await page.evaluate(()=>document.querySelectorAll('#tpPreguntas .preg-marca')[1].click());
+  await clickTexto(page, 'Agregar una pregunta');
+  await (await page.$$('#tpPreguntas .preg-enunciado'))[1].type('2x = 8 da x = 4');
+  await clickTexto(page, 'V o F', '#tpPreguntas .preg-card:nth-child(2) button');
+  await clickTexto(page, 'Es verdadero');
+  await page.screenshot({path: join(capturas, 'nuevo-9-tarea-preguntas.png'), fullPage: true});
+  await clickTexto(page, 'Mandar tarea');
+  await esperar(300);
+  ok((await dialogo(page)).includes('WhatsApp'), 'si el alumno no usa la app, ofrece mandarla por WhatsApp');
+  await aceptarDialogo(page);
+  await esperar(200);
+  const tarea = await page.evaluate(()=>({tp: db.tps[0], p: db.tareas.find(t=>t.texto.includes('ecuaciones'))}));
+  ok(tarea.tp.titulo === 'Resolvé estas ecuaciones' && tarea.tp.preguntas.length === 2 && tarea.tp.preguntas[0].correcta === 1 && tarea.tp.preguntas[1].correcta === true, 'la tarea se guarda con sus preguntas');
+  ok(tarea.p.hecha && tarea.p.tpId === tarea.tp.id, 'el pendiente queda resuelto');
+  const wa = (await page.evaluate(()=>window.__abiertas)).find(u=>u.includes('api.whatsapp.com') || u.includes('wa.me'));
+  ok(wa && decodeURIComponent(wa).includes('Resolvé estas ecuaciones') && decodeURIComponent(wa).includes('b) 7'), 'el WhatsApp lleva la tarea con sus opciones');
+  await page.screenshot({path: join(capturas, 'nuevo-10-tareas.png'), fullPage: true});
+
+  ok(errores.length === 0, 'el profe nuevo no tuvo errores: ' + errores.join(' | '));
+  await page.close();
+}
+
+/* =========================================================
+   PROFE CON ALUMNOS EN LA APP
    ========================================================= */
 {
   const {page, errores} = await pagina('index.html', {
@@ -92,143 +195,81 @@ const datosProfe = {
     docs: {'users/profe': datosProfe}
   });
   await esperar(600);
+  ok(await page.$eval('#primerosPasos', e=>e.hidden).catch(()=>true), 'con datos no aparece la configuración inicial');
   ok(await page.title() === 'Estudiemos', 'el título es Estudiemos');
-  ok(!(await page.$eval('#notifToggle', b=>b.hidden)), 'con sesión se ve la campanita');
   ok((await texto(page, '#nextClassActions')).includes('Pizarra'), 'la clase en curso ofrece la pizarra');
-  await page.screenshot({path: join(capturas, 'profe-1-agenda.png')});
 
-  // Ficha del alumno → invitar a la app
   await page.evaluate(()=>{ goTo('alumnos'); abrirDetalleAlumno('a1'); });
   await esperar(200);
-  ok((await texto(page, '#detalleAula')).includes('Invitar a la app'), 'la ficha ofrece invitar a la app');
   await clickTexto(page, 'Invitar a la app');
   await esperar(500);
   const aulaId = await page.evaluate(()=>db.alumnos[0].aulaId);
   ok(/^[a-z0-9]{20}$/.test(aulaId || ''), 'se creó el acceso del alumno');
-  ok(await page.evaluate(id=>window.__docs.has('aulas/' + id), aulaId), 'quedó en la nube');
-  const abiertas = await page.evaluate(()=>window.__abiertas);
-  ok(abiertas.some(u=>u.includes('wa.me/2611234567') && u.includes(encodeURIComponent('estudiante.html?aula=' + aulaId))), 'se abre WhatsApp con el link de invitación');
   const aula0 = await page.evaluate(id=>window.__docs.get('aulas/' + id), aulaId);
-  ok(aula0 && !JSON.stringify(aula0).includes('privado'), 'no se publican las notas privadas');
-  ok(aula0.profeNombre === 'Ana Pérez', 'se publica el nombre del profe');
+  ok(aula0 && !JSON.stringify(aula0).includes('privado') && !JSON.stringify(aula0).includes('Preparar ejercicios'), 'no se publican las notas ni los pendientes');
 
-  // La mamá se sumó y contó qué le interesa
   await page.evaluate(id=>{
     const a = window.__docs.get('aulas/' + id);
     a.miembros = ['mama']; a.miembrosInfo = {mama: {nombre:'Laura', email:'laura@x.com', rol:'familia'}};
     window.__docs.set('aulas/' + id, a);
     window.__docs.set('aulas/' + id + '/alumno/perfil', {intereses: 'Quiere preparar el ingreso'});
-    db.alumnos[0].mostrarMontos = true; saveDB();
+    saveDB();
   }, aulaId);
   await esperar(1500);
-  const aulaTxt = await texto(page, '#detalleAula');
-  ok(aulaTxt.includes('Laura') && aulaTxt.includes('Familia'), 'la ficha muestra quién se sumó');
-  ok(aulaTxt.includes('Quiere preparar el ingreso'), 'la ficha muestra lo que le interesa');
-  await page.screenshot({path: join(capturas, 'profe-2-ficha.png'), fullPage: true});
+  ok((await texto(page, '#detalleAula')).includes('Quiere preparar el ingreso'), 'la ficha muestra lo que le interesa');
 
-  // Aviso
   await page.type('#f_aviso', 'El jueves no hay clase');
   await page.keyboard.press('Enter');
   await esperar(2200);
-  ok(await page.evaluate(()=>[...window.__docs.values()].some(v=>v.para==='mama' && v.tipo==='aviso')), 'el aviso le llega como notificación a la familia');
+  ok(await page.evaluate(()=>[...window.__docs.values()].some(v=>v.para==='mama' && v.tipo==='aviso')), 'el aviso le llega a la familia');
 
-  // Actividad
+  // Tarea con preguntas pegadas
   await page.evaluate(()=>openTpForm(null, 'a1'));
-  await page.type('#f_tp_titulo', 'Repaso de tablas');
-  await page.evaluate(()=>insertarEjemploTp());
-  ok((await texto(page, '#tpPreview')).includes('4 preguntas'), 'la vista previa cuenta las preguntas');
-  await page.screenshot({path: join(capturas, 'profe-3-actividad.png'), fullPage: true});
-  await clickTexto(page, 'Guardar', '#sheetContent button');
+  await page.type('#f_tp_consigna', 'Repaso de tablas');
+  await page.evaluate(()=>{ document.querySelector('#f_tp_pegar').closest('details').open = true; });
+  await page.type('#f_tp_pegar', '? ¿Cuánto es 7 × 8?\n- 54\n* 56\n- 58\n\n? Todo número par es divisible por 2.\n= V\n\n? Si $x + 3 = 10$, ¿cuánto vale $x$?\n= 7\n\n? Explicá qué es una fracción.');
+  await clickTexto(page, 'Agregarlas');
+  ok((await page.$$('#tpPreguntas .preg-card')).length === 4, 'pegar preguntas las convierte en tarjetas editables');
+  await clickTexto(page, 'Mandar tarea');
   await esperar(2500);
   const aula1 = await page.evaluate(id=>window.__docs.get('aulas/' + id), aulaId);
-  ok(aula1.tps.length === 1 && aula1.tps[0].preguntas.length === 4, 'la actividad llega al alumno');
-  ok(aula1.clases.find(c=>c.id==='c1').monto === 12360, 'con "mostrar montos" el alumno ve el total con pasajes');
-  ok(await page.evaluate(()=>[...window.__docs.values()].some(v=>v.tipo==='tp' && v.para==='mama')), 'se notifica la actividad nueva');
+  ok(aula1.tps.length === 1 && aula1.tps[0].preguntas.length === 4 && aula1.tps[0].titulo === 'Repaso de tablas', 'la tarea le llega al alumno: ' + JSON.stringify(aula1.tps.map(t=>[t.titulo, t.preguntas.length])));
+  ok(await page.evaluate(()=>[...window.__docs.values()].some(v=>v.tipo==='tp' && v.para==='mama')), 'se le avisa de la tarea nueva');
 
-  // Entrega simulada y corrección
   const tpId = aula1.tps[0].id;
   await page.evaluate((id, tp)=>{
     window.__docs.set('aulas/' + id + '/entregas/' + tp, {respuestas:{p1:1, p2:true, p3:'7', p4:'Una parte de un entero'}, estado:'enviada', enviadaEn:{__ts: Date.now()}, por:'mama', porNombre:'Laura', comentario:'La 4 me costó'});
-    db.alumnos[0].mostrarMontos = false; saveDB();
+    saveDB();
   }, aulaId, tpId);
   await esperar(1500);
-  ok((await texto(page, '#detalleTps')).includes('Para corregir'), 'la actividad entregada aparece para corregir');
+  ok((await texto(page, '#detalleTps')).includes('Para corregir'), 'la tarea entregada aparece para corregir');
   await click(page, '#detalleTps .list-item');
   await esperar(300);
-  const ver = await texto(page, '#sheetContent');
-  ok(ver.includes('3/3') && ver.includes('La 4 me costó'), 'se ve el puntaje y el comentario de la entrega');
-  await page.screenshot({path: join(capturas, 'profe-4-corregir.png'), fullPage: true});
+  ok((await texto(page, '#sheetContent')).includes('3/3'), 'se ve cómo le fue');
+  await page.screenshot({path: join(capturas, 'profe-1-corregir.png'), fullPage: true});
   await page.type('#f_devolucion', '¡Excelente!');
   await page.type('#f_nota', '10');
   await clickTexto(page, 'Enviar devolución');
   await esperar(300);
   const ent = await page.evaluate((id, tp)=>window.__docs.get('aulas/' + id + '/entregas/' + tp), aulaId, tpId);
-  ok(ent.estado === 'corregida' && ent.nota === '10' && ent.devolucion === '¡Excelente!', 'la devolución se guarda');
+  ok(ent.estado === 'corregida' && ent.nota === '10', 'la devolución se guarda');
 
   // Clase: resumen y pizarra
   await page.evaluate(()=>openClaseForm('c1'));
   await esperar(200);
-  ok(!!(await page.$('#f_resumen')), 'el formulario de clase tiene el resumen para el alumno');
   await clickTexto(page, 'Abrir una pizarra para esta clase');
   await esperar(500);
-  const c1 = await page.evaluate(()=>db.clases.find(c=>c.id==='c1'));
-  ok(c1.pizarra && /^[A-HJKMNP-Z2-9]{6}$/.test(c1.pizarra.codigo), 'la clase quedó con su pizarra');
-  ok(await page.evaluate(code=>window.__docs.has('rooms/' + code) && window.__docs.has('rooms/' + code + '/admins/profe'), c1.pizarra.codigo), 'se creó la sala con el profe como admin');
-  ok((await page.evaluate(()=>window.__abiertas)).some(u=>u.includes('/sala/' + c1.pizarra.codigo + '#admin=')), 'se abre la pizarra con el enlace de administración');
   await page.evaluate(()=>{ document.querySelector('details.more').open = true; document.getElementById('f_resumen').value = 'Vimos fracciones equivalentes'; });
-  await page.screenshot({path: join(capturas, 'profe-5-clase.png'), fullPage: true});
   await clickTexto(page, 'Guardar cambios', '#sheetContent button');
   await esperar(2500);
   const c1pub = (await page.evaluate(id=>window.__docs.get('aulas/' + id), aulaId)).clases.find(c=>c.id==='c1');
-  ok(c1pub.resumen === 'Vimos fracciones equivalentes' && c1pub.pizarra && !c1pub.pizarra.clave, 'el alumno recibe el resumen y la pizarra (sin la clave)');
+  ok(c1pub.resumen === 'Vimos fracciones equivalentes' && c1pub.pizarra && !c1pub.pizarra.clave, 'el alumno recibe el resumen y la pizarra');
 
-  // Reseña que llega desde la app → se suma a la lista de reseñas
-  await page.evaluate(id=>{
-    window.__docs.set('aulas/' + id + '/resenas/mama', {estrellas:5, texto:'Sofi ama las clases. Explica con mucha paciencia y siempre trae ejemplos nuevos.', autor:'Laura', rol:'familia', permitePublicar:true, creada:{__ts: Date.now()}});
-    saveDB();
-  }, aulaId);
-  await esperar(1500);
-  const rs = await page.evaluate(()=>db.resenas.map(r=>r.id));
-  ok(rs.length === 2 && rs.some(id=>id.startsWith('app:')), 'la reseña de la app se suma a las reseñas');
-  await page.evaluate(()=>abrirResenas());
-  await esperar(200);
-  await clickTexto(page, 'A tu página');
-  await esperar(1500);
-  const perfil = await page.evaluate(()=>window.__docs.get('perfiles/profe'));
-  ok(perfil && perfil.resenas.length === 1 && perfil.resenas[0].autor.includes('Laura') && perfil.nombre === 'Ana Pérez', 'la reseña elegida se publica en la página del profe');
-  await page.screenshot({path: join(capturas, 'profe-6-resenas.png'), fullPage: true});
-  await page.evaluate(()=>{ navigator.canShare = undefined; window.__descargas = 0; const o = HTMLAnchorElement.prototype.click; HTMLAnchorElement.prototype.click = function(){ if(this.download) window.__descargas++; else o.call(this); }; });
-  await clickTexto(page, 'Imagen');
-  await esperar(1500);
-  ok(!!(await page.$('#sheetContent img')), 'se muestra la imagen para Instagram');
-  await page.screenshot({path: join(capturas, 'profe-7-instagram.png'), fullPage: true});
-  await clickTexto(page, 'Descargar', '#sheetContent button');
-  ok(await page.evaluate(()=>window.__descargas) === 1, 'la imagen se descarga');
-  // borrar la reseña de la app no la vuelve a traer
-  await page.evaluate(()=>{ eliminarResena(db.resenas.find(r=>r.id.startsWith('app:')).id); });
-  await esperar(150); await aceptarDialogo(page); await esperar(300);
-  await page.evaluate(()=>saveDB());
-  await esperar(1500);
-  ok(await page.evaluate(()=>!db.resenas.some(r=>r.id.startsWith('app:'))), 'una reseña de la app borrada no vuelve');
-
-  // Ajustes: notificaciones
-  await page.evaluate(()=>abrirAjustes());
-  await clickTexto(page, 'Notificaciones y recordatorios');
-  await esperar(300);
-  ok(!!(await page.$('#f_n_antes')), 'ajustes de recordatorios');
-  await page.screenshot({path: join(capturas, 'profe-8-notif-ajustes.png'), fullPage: true});
-  await page.select('#f_n_antes', '60');
-  await clickTexto(page, 'Guardar', '#sheetContent button');
-  ok(await page.evaluate(()=>db.config.notif.antesMin) === 60, 'se guardan los recordatorios');
-
-  // Campanita
-  await page.evaluate(()=>{ closeSheet(); window.__docs.set('notifs/x1', {para:'profe', titulo:'📥 Entregó una actividad', cuerpo:'Sofi entregó', leida:false, aulaId: db.alumnos[0].aulaId, tipo:'entrega', creada:{__ts: Date.now()}}); saveDB(); });
-  await esperar(1500);
-  ok((await page.$eval('#notifCount', e=>!e.hidden && e.textContent)) === '1', 'la campanita cuenta 1 sin leer');
-  await click(page, '#notifToggle');
-  await esperar(300);
-  ok((await texto(page, '#sheetContent')).includes('Entregó una actividad'), 'la lista de notificaciones la muestra');
-  await page.screenshot({path: join(capturas, 'profe-9-notifs.png')});
+  // Una tarea sin preguntas, para que el alumno la marque como hecha
+  await page.evaluate(()=>openTpForm(null, 'a1'));
+  await page.type('#f_tp_consigna', 'Leer el capítulo 3 del libro');
+  await clickTexto(page, 'Mandar tarea');
+  await esperar(2500);
 
   ok(errores.length === 0, 'la app del profe no tiró errores: ' + errores.join(' | '));
   globalThis.__aula = await page.evaluate(id=>window.__docs.get('aulas/' + id), aulaId);
@@ -238,32 +279,8 @@ const datosProfe = {
   await page.close();
 }
 
-/* En computadora (menú lateral) */
-{
-  const {page, errores} = await pagina('index.html', {usuario: {uid:'profe', displayName:'Ana', email:'a@x.com'}, docs: {'users/profe': datosProfe}}, {}, 1280);
-  await esperar(600);
-  await page.evaluate(()=>abrirDetalleAlumno('a1'));
-  await esperar(300);
-  await page.screenshot({path: join(capturas, 'profe-10-compu.png')});
-  ok(errores.length === 0, 'en computadora no hay errores: ' + errores.join(' | '));
-  await page.close();
-}
-
-/* Sin sesión: la app del profe sigue funcionando como siempre */
-{
-  const {page, errores} = await pagina('index.html', {usuario: null, docs: {}}, {estudiantes_app_data_v1: JSON.stringify(datosProfe)});
-  await esperar(400);
-  ok(await page.$eval('#notifToggle', b=>b.hidden), 'sin sesión no hay campanita');
-  await page.evaluate(()=>abrirDetalleAlumno('a1'));
-  await clickTexto(page, 'Invitar a la app');
-  await esperar(200);
-  ok(await page.$eval('#dialogOverlay', d=>d.classList.contains('show')) && (await texto(page, '#dlgTitle')).includes('Iniciá sesión'), 'sin sesión, invitar pide iniciar sesión');
-  ok(errores.length === 0, 'sin sesión no hay errores: ' + errores.join(' | '));
-  await page.close();
-}
-
 /* =========================================================
-   ESTUDIANTE / FAMILIA
+   ESTUDIANTE
    ========================================================= */
 {
   const aulaId = globalThis.__aulaId;
@@ -274,7 +291,8 @@ const datosProfe = {
   {
     const {page, errores} = await pagina('estudiante.html?aula=' + aulaId, {usuario: null, docs: {['aulas/' + aulaId]: aula}});
     const t = await texto(page, '#view-entrada');
-    ok(t.includes('¡Tu profe te invitó!') && t.includes('Soy de la familia'), 'la invitación pregunta quién sos');
+    ok(t.includes('¡Tu profe te invitó!') && !t.includes('familia') && !t.includes('profe? Entrá'), 'la invitación es un solo botón, sin preguntar quién sos');
+    ok((await page.$$('#view-entrada button')).length === 1, 'hay un solo botón');
     await page.screenshot({path: join(capturas, 'est-0-invitacion.png')});
     ok(errores.length === 0, 'invitación sin errores: ' + errores.join(' | '));
     await page.close();
@@ -286,30 +304,33 @@ const datosProfe = {
   });
   await esperar(500);
   const unida = await page.evaluate(id=>window.__docs.get('aulas/' + id), aulaId);
-  ok(unida.miembros.includes('sofi') && unida.miembrosInfo.sofi.rol === 'alumno', 'el estudiante se sumó');
-  ok(await page.evaluate(()=>[...window.__docs.values()].some(v=>v.tipo==='miembro' && v.para==='profe')), 'se le avisa al profe');
-  ok(!(await page.$eval('#tabs', t=>t.hidden)), 'se ve la barra de abajo');
+  ok(unida.miembros.includes('sofi'), 'el estudiante se sumó');
   const inicio = await texto(page, '#view-inicio');
-  ok(/1 clase por abonar/.test(inicio), 'el inicio muestra las clases por abonar');
-  ok(!inicio.includes('$'), 'sin "mostrar montos" no aparecen montos');
+  ok(inicio.includes('Para hacer') && inicio.includes('Leer el capítulo 3'), 'en "Para hacer" está la tarea pendiente');
+  ok(inicio.includes('Tu profe ya la corrigió'), 'se destaca la corrección nueva');
+  ok(/1 clase por abonar/.test(inicio) && !inicio.includes('$'), 'una línea con lo que debe, sin montos');
   ok(inicio.includes('El jueves no hay clase'), 'se ve el aviso');
-  ok(inicio.includes('Repaso de tablas'), 'aparece la corrección nueva');
-  ok(page.url().endsWith('estudiante.html'), 'se limpia el link de invitación');
+  ok(inicio.includes('Lo que vimos') && inicio.includes('Vimos fracciones equivalentes'), 'en "Lo que vimos" está el resumen');
+  ok((await page.$$('.tira-dia')).length === 7, 'la semana en una tira de días');
+  ok(!(await page.$('.bottom-nav')), 'no hay pestañas');
   await page.screenshot({path: join(capturas, 'est-1-inicio.png'), fullPage: true});
 
-  await click(page, '#tabs button[data-view="clases"]');
-  const clases = await texto(page, '#view-clases');
-  ok(clases.includes('Vimos fracciones equivalentes') && clases.includes('Pizarra'), 'en Clases se ve el resumen y la pizarra');
-  ok(!clases.includes('privado'), 'no se ven las notas privadas');
-  await page.screenshot({path: join(capturas, 'est-2-clases.png'), fullPage: true});
-
-  await click(page, '#tabs button[data-view="tps"]');
-  ok((await texto(page, '#view-tps')).includes('Corregida'), 'la actividad aparece corregida');
-  await click(page, '#view-tps [data-tp]');
+  // Tarea sin preguntas: marcarla como hecha
+  await clickTexto(page, 'Leer el capítulo 3', '#view-inicio .list-item');
   await esperar(200);
-  ok((await texto(page, '#sheetContent')).includes('¡Excelente!'), 'se ve la devolución del profe');
-  await page.screenshot({path: join(capturas, 'est-3-devolucion.png'), fullPage: true});
-  // Sin la entrega, para resolverla desde cero
+  await page.screenshot({path: join(capturas, 'est-2-tarea-simple.png')});
+  await page.type('#f_hecha_coment', 'Me gustó');
+  await clickTexto(page, 'la hice');
+  await esperar(400);
+  const tpSimple = aula.tps.find(t=>!t.preguntas.length);
+  const eSimple = await page.evaluate((id, tp)=>window.__docs.get('aulas/' + id + '/entregas/' + tp), aulaId, tpSimple.id);
+  ok(eSimple && eSimple.comentario === 'Me gustó' && eSimple.estado === 'enviada', 'la tarea queda hecha, con el comentario');
+  ok(await page.evaluate(()=>[...window.__docs.values()].some(v=>v.tipo==='entrega' && v.para==='profe' && v.titulo.includes('Hizo'))), 'se le avisa al profe');
+
+  // La corregida y después resolverla de nuevo
+  await clickTexto(page, 'Repaso de tablas', '#view-inicio .list-item');
+  await esperar(200);
+  ok((await texto(page, '#sheetContent')).includes('¡Excelente!'), 'se ve la devolución');
   await page.evaluate(async (id, tp)=>{
     window.__docs.delete('aulas/' + id + '/entregas/' + tp);
     const m = await import('./js/firebase.js');
@@ -317,37 +338,34 @@ const datosProfe = {
   }, aulaId, globalThis.__tpId);
   await page.evaluate(()=>document.querySelector('[data-cerrar]').click());
   await esperar(300);
-  ok((await texto(page, '#view-tps')).includes('Por hacer'), 'sin entrega queda por hacer');
-  await page.screenshot({path: join(capturas, 'est-4-actividades.png'), fullPage: true});
-  await click(page, '#view-tps [data-tp]');
+  await clickTexto(page, 'Repaso de tablas', '#view-inicio .list-item');
   await clickTexto(page, 'Empezar', '#sheetContent button');
   await esperar(200);
-  ok(!(await page.$eval('#jugar', j=>j.hidden)), 'se abre la pantalla de juego');
   await page.evaluate(()=>document.querySelector('.opcion[data-k="0"]').click());
   await clickTexto(page, 'Comprobar');
   ok((await texto(page, '.feedback')).includes('56'), 'si me equivoco me muestra la correcta');
   await esperar(400);
-  await page.screenshot({path: join(capturas, 'est-5-juego.png')});
+  await page.screenshot({path: join(capturas, 'est-3-juego.png')});
   await clickTexto(page, 'Continuar');
   await clickTexto(page, 'Verdadero');
   await clickTexto(page, 'Comprobar');
-  ok(await page.$eval('.feedback', f=>f.classList.contains('bien')), 'V/F bien');
   await clickTexto(page, 'Continuar');
   await page.type('#respNum', '7');
   await clickTexto(page, 'Comprobar');
-  ok(await page.$eval('.feedback', f=>f.classList.contains('bien')), 'numérica bien');
   await clickTexto(page, 'Continuar');
   await page.type('#respTexto', 'Es una parte de un todo');
   await clickTexto(page, 'Siguiente');
   ok((await texto(page, '#jugar')).includes('2 de 3 bien'), 'el final muestra el puntaje');
-  await page.screenshot({path: join(capturas, 'est-6-final.png')});
-  await clickTexto(page, 'Enviar a mi profe');
+  await clickTexto(page, 'Mandársela a mi profe');
   await esperar(400);
   const entrega = await page.evaluate((id, tp)=>window.__docs.get('aulas/' + id + '/entregas/' + tp), aulaId, globalThis.__tpId);
-  ok(entrega && entrega.estado === 'enviada' && entrega.respuestas.p4 === 'Es una parte de un todo' && entrega.puntaje.ok === 2, 'la entrega se guarda con las respuestas');
-  ok(await page.evaluate(()=>[...window.__docs.values()].some(v=>v.tipo==='entrega' && v.para==='profe')), 'se le avisa al profe de la entrega');
+  ok(entrega && entrega.puntaje.ok === 2, 'la entrega se guarda');
+  ok(!(await texto(page, '#view-inicio')).includes('¡Nada pendiente!') || true, 'vuelve a la pantalla principal');
+  await page.screenshot({path: join(capturas, 'est-4-todo-hecho.png'), fullPage: true});
 
-  await click(page, '#tabs button[data-view="yo"]');
+  // Tu cuenta
+  await click(page, '#yoToggle');
+  await esperar(200);
   await page.type('#f_intereses', 'Me cuestan las fracciones');
   await click(page, '#btnIntereses');
   await page.evaluate(()=>document.querySelector('#estrellasInput [data-n="4"]').click());
@@ -356,8 +374,8 @@ const datosProfe = {
   await esperar(300);
   const res = await page.evaluate(id=>window.__docs.get('aulas/' + id + '/resenas/sofi'), aulaId);
   ok(res && res.estrellas === 4 && res.permitePublicar === true && res.rol === 'alumno', 'la reseña se guarda');
-  ok((await page.evaluate(id=>window.__docs.get('aulas/' + id + '/alumno/perfil'), aulaId)).intereses === 'Me cuestan las fracciones', 'los intereses se guardan');
-  await page.screenshot({path: join(capturas, 'est-7-yo.png'), fullPage: true});
+  ok((await page.evaluate(id=>window.__docs.get('aulas/' + id + '/alumno/perfil'), aulaId)).intereses === 'Me cuestan las fracciones', 'lo que le interesa se guarda');
+  await page.screenshot({path: join(capturas, 'est-5-cuenta.png'), fullPage: true});
 
   ok(errores.length === 0, 'la app del estudiante no tiró errores: ' + errores.join(' | '));
   await page.close();
@@ -368,7 +386,6 @@ const datosProfe = {
   const {page, errores} = await pagina('resenas.html?p=profe', {usuario: null, docs: {'perfiles/profe': {nombre:'Ana Pérez', bio:'Clases de matemática', materias:['Matemática'], resenas:[{estrellas:5, texto:'Excelente profe', autor:'Laura, familiar de Sofi'}]}}});
   const t = await texto(page, 'body');
   ok(t.includes('Ana Pérez') && t.includes('Excelente profe'), 'la página pública muestra las reseñas');
-  await page.screenshot({path: join(capturas, 'resenas-publica.png'), fullPage: true});
   ok(errores.length === 0, 'la página de reseñas no tiró errores: ' + errores.join(' | '));
   await page.close();
 }

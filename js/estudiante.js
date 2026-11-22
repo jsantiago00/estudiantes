@@ -2,10 +2,12 @@
    Estudiemos (estudiante / familia)
 
    Se entra con Google. El profe manda un link estudiante.html?aula=ID: al entrar con ese
-   link, la persona se suma al aula (aulas/{ID}.miembros). Después ve todas las aulas de
-   las que es miembro (puede tener más de un profe, o una familia con dos hijos).
-   Lo que se ve lo publica la app del profe; acá solo se escriben las entregas de las
-   actividades, la reseña y lo que le interesa estudiar.
+   link, la persona se suma al aula (aulas/{ID}.miembros). Puede estar en más de un aula
+   (más de un profe, o una familia con dos hijos): arriba aparecen para elegir.
+
+   Una sola pantalla, en orden de importancia: la próxima clase, lo que hay que hacer,
+   si está al día, su semana y lo que vieron. Lo de la cuenta va en una hoja aparte.
+   Acá solo se escriben las entregas de las tareas, la reseña y lo que le interesa.
    ========================================================= */
 import {
   db, usuarioActual, alCambiarSesion, entrarConGoogle, salir,
@@ -19,7 +21,9 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 const LS_AULA = 'estudiemos_aula_sel';
-const LS_ROL = 'estudiemos_rol';
+
+function lunesDe(d){ const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
+function sumarDias(d, n){ const x = new Date(d); x.setDate(x.getDate() + n); return x; }
 
 const estado = {
   usuario: null,
@@ -29,9 +33,12 @@ const estado = {
   miResena: null,
   perfilAlumno: null,
   notifs: [],
-  vista: 'inicio',
   cargando: true,
-  errorUnirse: null
+  errorUnirse: null,
+  semana: lunesDe(new Date()),   // la semana que se ve en la tira de días
+  dia: Comun.isoLocal(new Date()),
+  verHechas: false,
+  verTodoLoVisto: false
 };
 
 const params = new URLSearchParams(location.search);
@@ -40,11 +47,9 @@ let aulaInvitacion = params.get('aula');
 /* ---------- Íconos (los mismos trazos que la app del profe) ---------- */
 
 const ICONS = {
-  home:'<path d="M3.5 10.5 12 3.5l8.5 7V20a1 1 0 0 1-1 1H15v-6H9v6H4.5a1 1 0 0 1-1-1Z"/>',
   calendar:'<rect x="3" y="4.5" width="18" height="17" rx="3"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/>',
   list:'<path d="M10 6h10M10 12h10M10 18h10"/><path d="m3.5 6 1.2 1.2L7 5M3.5 12l1.2 1.2L7 11M3.5 18l1.2 1.2L7 17"/>',
   user:'<circle cx="12" cy="8" r="4"/><path d="M4.5 21c.8-4 3.7-6 7.5-6s6.7 2 7.5 6"/>',
-  users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.8a3.3 3.3 0 0 1 0 6.4M18 14.7c2 .7 3.2 2.5 3.5 5.3"/>',
   bell:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
   x:'<path d="M18 6 6 18M6 6l12 12"/>',
   check:'<path d="M20 6 9 17l-5-5"/>',
@@ -53,21 +58,19 @@ const ICONS = {
   message:'<path d="M20.5 11.6a8.5 8.5 0 0 1-12.6 7.4L3 20.5l1.6-4.6a8.5 8.5 0 1 1 15.9-4.3Z"/>',
   pen:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
   file:'<path d="M14 3H6.5A2.5 2.5 0 0 0 4 5.5v13A2.5 2.5 0 0 0 6.5 21h11a2.5 2.5 0 0 0 2.5-2.5V9Z"/><path d="M14 3v6h6M8 13h8M8 17h5"/>',
-  star:'<path d="m12 3.2 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17.2l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z"/>',
   info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
   send:'<path d="M21 3 10.5 13.5M21 3l-6.5 18-4-7.5L3 9.5Z"/>',
+  'chevron-left':'<path d="m15 18-6-6 6-6"/>',
   'chevron-right':'<path d="m9 18 6-6-6-6"/>',
   'log-out':'<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4"/>',
   sparkles:'<path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/>',
   repeat:'<path d="m17 2 3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/>',
   edit:'<path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17Z"/><path d="m14 8 2 2"/>',
-  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
-  moon:'<path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z"/>',
-  auto:'<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor"/>'
+  book:'<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5Z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/>'
 };
 function ic(name, cls){ return `<svg class="ic ${cls||''}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]||''}</svg>`; }
-document.querySelectorAll('[data-ic]').forEach(el=>{ el.innerHTML = ic(el.dataset.ic); });
 $('notifToggle').insertAdjacentHTML('afterbegin', ic('bell'));
+$('yoToggle').innerHTML = ic('user');
 
 /* ---------- Utilidades de UI (mismo comportamiento que la app del profe) ---------- */
 
@@ -110,10 +113,7 @@ function fechaCorta(iso){
   const f = new Date(iso+'T00:00:00');
   return `${DIAS[f.getDay()].slice(0,3)} ${f.getDate()}/${f.getMonth()+1}`;
 }
-function money(n){
-  n = Number(n)||0;
-  return '$' + n.toLocaleString('es-AR', {maximumFractionDigits: 2});
-}
+function money(n){ return '$' + (Number(n)||0).toLocaleString('es-AR', {maximumFractionDigits: 2}); }
 function duracionCorta(ms){
   const tm = Math.max(0, Math.round(ms/60000)), d = Math.floor(tm/1440), h = Math.floor((tm%1440)/60), m = tm%60;
   if(d > 0) return `${d} d${h ? ' ' + h + ' h' : ''}`;
@@ -133,31 +133,18 @@ function hace(f){
 const inicioClase = c => Comun.instanteArg(c.fecha, c.horaEntrada);
 const finClase = c => Comun.instanteArg(c.fecha, c.horaSalida || c.horaEntrada);
 
-/* ---------- Tema claro / oscuro ---------- */
+/* ---------- Tema claro / oscuro (se elige en "Tu cuenta") ---------- */
 
 function temaActual(){ try{ return localStorage.getItem('estudiantes_theme_v1') || 'auto'; }catch(e){ return 'auto'; } }
 function aplicarTema(t){
   if(t === 'auto') document.documentElement.removeAttribute('data-theme');
   else document.documentElement.setAttribute('data-theme', t);
-  $('modeToggle').innerHTML = ic(({auto:'auto', light:'sun', dark:'moon'})[t]);
-  $('modeToggle').title = ({auto:'Automático', light:'Claro', dark:'Oscuro'})[t];
 }
-$('modeToggle').addEventListener('click', ()=>{
-  const orden = ['auto','light','dark'];
-  const t = orden[(orden.indexOf(temaActual())+1) % 3];
+function setTema(t){
   try{ localStorage.setItem('estudiantes_theme_v1', t); }catch(e){}
   aplicarTema(t);
-});
-aplicarTema(temaActual());
-
-/* ---------- Pestañas ---------- */
-
-document.querySelectorAll('#tabs button').forEach(b=>b.addEventListener('click', ()=>irA(b.dataset.view)));
-function irA(v){
-  estado.vista = v;
-  render();
-  window.scrollTo(0, 0);
 }
+aplicarTema(temaActual());
 
 /* ---------- Sesión ---------- */
 
@@ -182,24 +169,21 @@ alCambiarSesion(async user=>{
   render();
   if(aulaInvitacion) await unirseAula(aulaInvitacion);
   escucharMisAulas();
-  soltar.push(escucharNotifs(lista=>{ estado.notifs = lista; renderCampanita(); if(estado.vista==='inicio') render(); }));
+  soltar.push(escucharNotifs(lista=>{ estado.notifs = lista; renderCampanita(); }));
   renovarPushSiCorresponde(alRecibirPush);
 });
 
-async function entrar(rol){
-  if(rol){ try{ localStorage.setItem(LS_ROL, rol); }catch(e){} }
+async function entrar(){
   try{ await entrarConGoogle(); }
   catch(e){ if(e.code !== 'auth/popup-closed-by-user') toast('No se pudo iniciar sesión'); console.error(e); }
 }
-
-function rolGuardado(){ try{ return localStorage.getItem(LS_ROL) || 'alumno'; }catch(e){ return 'alumno'; } }
 
 async function unirseAula(aulaId){
   const u = usuarioActual();
   try{
     await updateDoc(doc(db, 'aulas', aulaId), {
       miembros: arrayUnion(u.uid),
-      ['miembrosInfo.' + u.uid]: {nombre: (u.displayName || '').slice(0, 60), email: (u.email || '').slice(0, 100), rol: rolGuardado()}
+      ['miembrosInfo.' + u.uid]: {nombre: (u.displayName || '').slice(0, 60), email: (u.email || '').slice(0, 100), rol: 'alumno'}
     });
     const snap = await getDoc(doc(db, 'aulas', aulaId));
     const a = snap.data();
@@ -209,8 +193,7 @@ async function unirseAula(aulaId){
     let yaAvisado = false;
     try{ yaAvisado = localStorage.getItem(clave) === '1'; localStorage.setItem(clave, '1'); }catch(e){}
     if(!yaAvisado && a && a.ownerUid){
-      const quien = rolGuardado() === 'familia' ? `${u.displayName || 'Alguien'} (familia de ${a.alumnoNombre})` : (u.displayName || a.alumnoNombre);
-      notificar(aulaId, [a.ownerUid], '👋 Se sumó a la app', `${quien} entró a Estudiemos.`, 'index.html', {tipo:'miembro'});
+      notificar(aulaId, [a.ownerUid], '👋 Se sumó a la app', `${u.displayName || a.alumnoNombre} entró a Estudiemos (${a.alumnoNombre}).`, 'index.html', {tipo:'miembro'});
       toast('¡Listo! Ya estás adentro');
     }
     estado.errorUnirse = null;
@@ -248,10 +231,10 @@ function escucharAulaElegida(aulaId){
     estado.entregas = m; render();
   }, e=>console.warn(e)));
   soltarAula.push(onSnapshot(doc(db, 'aulas', aulaId, 'resenas', u.uid), s=>{
-    estado.miResena = s.exists() ? s.data() : null; if(estado.vista==='yo') render();
+    estado.miResena = s.exists() ? s.data() : null;
   }, e=>console.warn(e)));
   soltarAula.push(onSnapshot(doc(db, 'aulas', aulaId, 'alumno', 'perfil'), s=>{
-    estado.perfilAlumno = s.exists() ? s.data() : null; if(estado.vista==='yo') render();
+    estado.perfilAlumno = s.exists() ? s.data() : null;
   }, e=>console.warn(e)));
 }
 
@@ -266,57 +249,41 @@ function aula(){ return estado.aulas.find(a=>a.id===estado.aulaSel) || null; }
 
 /* ---------- Render ---------- */
 
-const TITULOS = {inicio:'Inicio', clases:'Clases', tps:'Actividades', yo:'Yo'};
-
-function setHeader(titulo, sub){
-  $('headerTitle').textContent = titulo;
-  $('headerSub').textContent = sub || '';
-  $('headerSub').style.display = sub ? '' : 'none';
-}
-
 function render(){
   const a = aula();
   const conAula = !!(estado.usuario && a);
-  $('tabs').hidden = !conAula;
   $('notifToggle').hidden = !estado.usuario;
-  document.body.style.paddingBottom = conAula ? '' : '32px';
-  document.querySelectorAll('main section.view').forEach(s=>s.classList.remove('active'));
+  $('yoToggle').hidden = !conAula;
+  $('view-entrada').classList.toggle('active', !conAula);
+  $('view-inicio').classList.toggle('active', conAula);
+  $('headerTitle').textContent = 'Estudiemos';
   if(!conAula){
     $('selectorAulas').hidden = true;
-    setHeader('Estudiemos', '');
-    $('view-entrada').classList.add('active');
+    $('headerSub').style.display = 'none';
     renderEntrada();
     return;
   }
-  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active', b.dataset.view===estado.vista));
-  $('view-' + estado.vista).classList.add('active');
-  setHeader(TITULOS[estado.vista], a.profeNombre ? `Con ${a.profeNombre}` : '');
+  $('headerSub').textContent = a.profeNombre ? `Tus clases con ${a.profeNombre}` : 'Tus clases';
+  $('headerSub').style.display = '';
   renderSelector();
-  ({inicio: renderInicio, clases: renderClases, tps: renderTps, yo: renderYo})[estado.vista]();
+  renderInicio();
   renderCampanita();
-  mate($('view-' + estado.vista));
+  mate($('view-inicio'));
 }
 
 function renderEntrada(){
   const cont = $('view-entrada');
   if(estado.cargando){ cont.innerHTML = '<div class="card entrada"><p>Cargando…</p></div>'; return; }
   if(!estado.usuario){
-    const invitado = !!aulaInvitacion;
     cont.innerHTML = `
       <div class="card entrada">
-        <div class="em-ic">${ic(invitado ? 'send' : 'sparkles')}</div>
-        <h2>${invitado ? '¡Tu profe te invitó!' : 'Tus clases, en un solo lugar'}</h2>
-        <p>${invitado
-          ? 'Entrá con tu cuenta de Google para ver tus clases, los resúmenes, las pizarras, las tareas y las actividades.'
-          : 'Acá ves tus clases, los resúmenes, las pizarras, las tareas y las actividades que te carga tu profe. La primera vez se entra con el link que te manda.'}</p>
-        ${invitado ? `
-          <p class="pregunta">¿Quién sos?</p>
-          <button type="button" class="btn primary" data-entrar="alumno">${ic('user')}Soy el/la estudiante</button>
-          <button type="button" class="btn outline" data-entrar="familia">${ic('users')}Soy de la familia</button>
-        ` : `<button type="button" class="btn primary" data-entrar="">Entrar con Google</button>`}
-        <p class="hint" style="margin-top:18px;">¿Sos profe? <a href="index.html" style="color:var(--accent);font-weight:600;">Entrá por acá</a></p>
+        <div class="em-ic">${ic(aulaInvitacion ? 'send' : 'book')}</div>
+        <h2>${aulaInvitacion ? '¡Tu profe te invitó!' : 'Tus clases, en un solo lugar'}</h2>
+        <p>Acá vas a ver tus clases, lo que tenés que hacer y lo que vieron juntos.</p>
+        <button type="button" class="btn primary" id="btnEntrar">Entrar con Google</button>
+        ${aulaInvitacion ? '' : '<p class="hint" style="margin-top:14px;">La primera vez, entrá con el link que te mandó tu profe.</p>'}
       </div>`;
-    cont.querySelectorAll('[data-entrar]').forEach(b=>b.addEventListener('click', ()=>entrar(b.dataset.entrar)));
+    $('btnEntrar').addEventListener('click', entrar);
     return;
   }
   cont.innerHTML = `
@@ -324,7 +291,7 @@ function renderEntrada(){
       <div class="em-ic">${ic('info')}</div>
       <h2>Todavía no tenés clases acá</h2>
       ${estado.errorUnirse ? `<p style="color:var(--danger);margin-bottom:10px;">${esc(estado.errorUnirse)}</p>` : ''}
-      <p>Entraste como <b>${esc(estado.usuario.email || '')}</b>. Para sumarte, abrí con esta cuenta el link que te mandó tu profe (por WhatsApp, por ejemplo).</p>
+      <p>Abrí el link que te mandó tu profe con esta misma cuenta (<b>${esc(estado.usuario.email || '')}</b>).</p>
       <button type="button" class="btn outline" id="btnSalir">${ic('log-out')}Usar otra cuenta</button>
     </div>`;
   $('btnSalir').addEventListener('click', ()=>salir());
@@ -351,7 +318,7 @@ function claseActualOProxima(a){
 
 function proximaClaseHtml(a){
   const r = claseActualOProxima(a);
-  if(!r) return '';
+  if(!r) return `<div class="card"><div class="empty-msg" style="padding:0;">No hay clases agendadas por ahora.</div></div>`;
   const ahora = new Date();
   const acciones = [];
   if(r.c.pizarra) acciones.push(`<a href="${linkSala(r.c.pizarra.codigo)}" target="_blank" rel="noopener">${ic('pen')}Pizarra</a>`);
@@ -371,73 +338,147 @@ function proximaClaseHtml(a){
     ${acciones.length ? `<div class="next-actions">${acciones.join('')}</div>` : ''}
   </div>`;
 }
-setInterval(()=>{ if(aula() && estado.vista==='inicio' && !$('overlay').classList.contains('show') && $('jugar').hidden) render(); }, 60000);
+setInterval(()=>{ if(aula() && !$('overlay').classList.contains('show') && $('jugar').hidden) render(); }, 60000);
+
+function estadoTarea(tp){
+  const e = estado.entregas[tp.id];
+  const conPreg = (tp.preguntas||[]).length > 0;
+  if(e && e.estado === 'corregida') return {clase:'pagada', texto:'Corregida', hecha:true};
+  if(e) return {clase:'neutral', texto: conPreg ? 'Entregada' : 'Hecha', hecha:true};
+  if(tp.fechaEntrega && tp.fechaEntrega < Comun.isoLocal(new Date())) return {clase:'pendiente', texto:'Atrasada', hecha:false};
+  if(borrador(tp.id)) return {clase:'pendiente', texto:'A medias', hecha:false};
+  return {clase:'pendiente', texto: tp.fechaEntrega ? 'Para el ' + fechaCorta(tp.fechaEntrega).toLowerCase() : 'Por hacer', hecha:false};
+}
+
+function tareaItemHtml(tp){
+  const est = estadoTarea(tp);
+  const n = (tp.preguntas||[]).length;
+  const e = estado.entregas[tp.id];
+  const nueva = e && e.estado === 'corregida' && !vistaDevolucion(tp.id, e);
+  return `<div class="list-item tap" data-tp="${tp.id}">
+    <div class="row-ic ${est.hecha ? 'ok' : ''}">${ic(est.hecha ? 'check' : (n ? 'file' : 'list'))}</div>
+    <div class="item-main">
+      <div class="item-title">${esc(tp.titulo || Comun.tituloDeTexto(tp.consigna))}</div>
+      <div class="item-sub">${nueva ? '<b style="color:var(--ok);">Tu profe ya la corrigió</b>' : (est.hecha ? 'Hecha' : (n ? `${n} pregunta${n!==1?'s':''}` : 'Tocá cuando la termines'))}${tp.tema ? ' · ' + esc(tp.tema) : ''}</div>
+    </div>
+    <span class="badge ${est.clase}">${est.texto}</span>
+  </div>`;
+}
 
 function renderInicio(){
   const a = aula();
   const nombre = (estado.usuario.displayName || '').split(' ')[0];
   const cuenta = Comun.estadoCuenta(a.clases, new Date());
-  const tpsPend = (a.tps||[]).filter(tp=>!estado.entregas[tp.id]);
-  const tpsCorr = (a.tps||[]).filter(tp=>{ const e = estado.entregas[tp.id]; return e && e.estado === 'corregida' && !vistaDevolucion(tp.id, e); });
-  const tareasPend = (a.tareas||[]).filter(t=>!t.hecha);
-  const avisos = (a.avisos||[]).slice().reverse().slice(0, 3);
-  const notifs = estado.notifs.slice(0, 5);
-  const familia = rolGuardado() === 'familia';
+  const tareas = (a.tps||[]).slice().sort((x,y)=>String(x.fechaEntrega||'9999').localeCompare(String(y.fechaEntrega||'9999')) || String(y.publicadoEn||'').localeCompare(String(x.publicadoEn||'')));
+  const pendientes = tareas.filter(tp=>!estadoTarea(tp).hecha);
+  const corregidasNuevas = tareas.filter(tp=>{ const e = estado.entregas[tp.id]; return e && e.estado === 'corregida' && !vistaDevolucion(tp.id, e); });
+  const hechas = tareas.filter(tp=>estadoTarea(tp).hecha && !corregidasNuevas.includes(tp));
+  const aviso = (a.avisos||[]).slice(-1)[0];
+  const avisoReciente = aviso && (Date.now() - new Date(aviso.fecha).getTime()) < 14 * 86400000;
 
   $('view-inicio').innerHTML = `
     <div class="saludo">Hola${nombre ? ', ' + esc(nombre) : ''}</div>
-    <p class="saludo-sub">${familia ? `Las clases de ${esc(a.alumnoNombre)}` : 'Esto es lo que tenés'}${a.profeNombre ? ` con ${esc(a.profeNombre)}` : ''}.</p>
+
+    ${avisoReciente ? `<div class="note aviso-profe">${ic('message')}<div><b>Tu profe:</b> ${esc(aviso.texto)}</div></div>` : ''}
 
     ${proximaClaseHtml(a)}
 
-    <div class="kpis">
-      <button type="button" class="kpi ${tpsPend.length ? 'warn' : ''}" data-ir="tps"><div class="k-label">Actividades</div><div class="k-val">${tpsPend.length}<small> por hacer</small></div></button>
-      <button type="button" class="kpi" data-ir="tps"><div class="k-label">Tareas</div><div class="k-val">${tareasPend.length}<small> pendiente${tareasPend.length!==1?'s':''}</small></div></button>
-      <button type="button" class="kpi" data-ir="clases"><div class="k-label">Clases</div><div class="k-val">${(a.clases||[]).filter(c=>finClase(c) > new Date()).length}<small> agendadas</small></div></button>
-    </div>
-
-    <div class="card">
-      <div class="cuenta ${cuenta.alDia ? 'al-dia' : 'debe'}">
-        <div class="row-ic ${cuenta.alDia ? 'ok' : ''}">${ic(cuenta.alDia ? 'check' : 'cash')}</div>
-        <div class="item-main">
-          <div class="c-val">${cuenta.alDia ? 'Al día' : `${cuenta.clasesAdeudadas} clase${cuenta.clasesAdeudadas!==1?'s':''} por abonar`}</div>
-          <div class="item-sub">${cuenta.alDia ? 'No hay clases pendientes de pago.' : (a.mostrarMontos ? `Total: <b>${money(cuenta.monto)}</b> · ` : '') + 'El detalle está en Clases.'}</div>
-        </div>
-      </div>
-    </div>
-
-    ${avisos.length ? `<div class="card"><div class="card-head"><h2>Avisos de tu profe</h2></div>${avisos.map(av=>`
-      <div class="aviso">${esc(av.texto)}<div class="item-sub">${new Date(av.fecha).toLocaleDateString('es-AR', {day:'numeric', month:'long'})}</div></div>`).join('')}</div>` : ''}
-
-    ${tpsCorr.length ? `<div class="card list"><div class="card-head"><h2>Correcciones nuevas</h2></div>${tpsCorr.map(tp=>`
-      <div class="list-item tap" data-tp="${tp.id}">
-        <div class="row-ic ok">${ic('check')}</div>
-        <div class="item-main"><div class="item-title">${esc(tp.titulo)}</div><div class="item-sub">Tu profe ya la corrigió${estado.entregas[tp.id].nota ? ' · ' + esc(estado.entregas[tp.id].nota) : ''}</div></div>
-        ${ic('chevron-right','chev')}
-      </div>`).join('')}</div>` : ''}
-
     <div class="card list">
-      <div class="card-head"><h2>Novedades</h2></div>
-      ${notifs.length ? notifs.map(n=>`
-        <div class="list-item tap notif-item ${n.leida?'':'nueva'}" data-notif="${n.id}">
-          <div class="row-ic">${ic(iconoNotif(n))}</div>
-          <div class="item-main"><div class="item-title">${esc(n.titulo)}</div><div class="item-sub">${esc(n.cuerpo)} · ${hace(fechaDe(n.creada))}</div></div>
-        </div>`).join('') : '<div class="empty-msg" style="padding-bottom:12px;">Acá te avisamos cuando tu profe te carga una actividad, un resumen o una pizarra.</div>'}
-      <div id="pushInicio" style="padding-bottom:12px;"></div>
+      <div class="card-head"><h2>Para hacer</h2>${pendientes.length ? `<span class="badge pendiente">${pendientes.length}</span>` : ''}</div>
+      ${pendientes.concat(corregidasNuevas).map(tareaItemHtml).join('') || '<div class="empty-msg" style="padding-bottom:12px;">¡Nada pendiente! 🎉</div>'}
+      ${hechas.length ? `<button type="button" class="link-btn ver-mas" id="btnHechas">${estado.verHechas ? 'Ocultar las hechas' : `Ver las hechas (${hechas.length})`}</button>` : ''}
+      ${estado.verHechas ? hechas.map(tareaItemHtml).join('') : ''}
     </div>
+
+    <div class="estado-cuenta ${cuenta.alDia ? 'ok' : 'debe'}">
+      ${ic(cuenta.alDia ? 'check' : 'cash')}
+      <span>${cuenta.alDia ? 'Estás al día con las clases' : `Tenés ${cuenta.clasesAdeudadas} clase${cuenta.clasesAdeudadas!==1?'s':''} por abonar${a.mostrarMontos ? ` (${money(cuenta.monto)})` : ''}`}</span>
+    </div>
+
+    ${semanaHtml(a)}
+
+    ${loVistoHtml(a)}
   `;
   enganchar($('view-inicio'));
-  renderPushBox('pushInicio', true);
+  const bh = $('btnHechas');
+  if(bh) bh.addEventListener('click', ()=>{ estado.verHechas = !estado.verHechas; render(); });
 }
 
-function iconoNotif(n){
-  return ({tp:'file', correccion:'check', aviso:'message', clase:'calendar', pizarra:'pen', resumen:'file'})[n.tipo] || 'bell';
+/* La semana en una tira de días: un punto en los días con clase; tocás uno y ves esa clase */
+function semanaHtml(a){
+  const hoy = Comun.isoLocal(new Date());
+  const dias = Array.from({length: 7}, (_, i)=>sumarDias(estado.semana, i));
+  const porDia = {};
+  (a.clases||[]).forEach(c=>{ (porDia[c.fecha] = porDia[c.fecha] || []).push(c); });
+  const ini = dias[0], fin = dias[6];
+  const titulo = Comun.isoLocal(lunesDe(new Date())) === Comun.isoLocal(ini)
+    ? 'Esta semana'
+    : `${ini.getDate()} ${MESES[ini.getMonth()].slice(0,3)} – ${fin.getDate()} ${MESES[fin.getMonth()].slice(0,3)}`;
+  const clasesDia = (porDia[estado.dia] || []).slice().sort((x,y)=>x.horaEntrada.localeCompare(y.horaEntrada));
+  const ahora = new Date();
+  return `<div class="card semana">
+    <div class="card-head">
+      <h2>${titulo}</h2>
+      <span style="display:flex;gap:4px;">
+        <button type="button" class="icon-btn sm filled" data-semana="-1" aria-label="Semana anterior">${ic('chevron-left')}</button>
+        <button type="button" class="icon-btn sm filled" data-semana="1" aria-label="Semana siguiente">${ic('chevron-right')}</button>
+      </span>
+    </div>
+    <div class="tira">${dias.map(d=>{
+      const iso = Comun.isoLocal(d);
+      return `<button type="button" class="tira-dia ${iso===estado.dia?'sel':''} ${iso===hoy?'hoy':''}" data-dia="${iso}">
+        <span class="dow">${'DLMMJVS'[d.getDay()]}</span><span class="num">${d.getDate()}</span><span class="pto ${porDia[iso] ? '' : 'vacio'}"></span>
+      </button>`;
+    }).join('')}</div>
+    <div class="tira-detalle">
+      ${clasesDia.length ? clasesDia.map(c=>{
+        const pasada = finClase(c) <= ahora;
+        const extras = [];
+        if(c.pizarra) extras.push(`<a class="btn sm outline" href="${linkSala(c.pizarra.codigo)}" target="_blank" rel="noopener">${ic('pen')}Pizarra</a>`);
+        (a.tps||[]).filter(tp=>tp.claseId===c.id).forEach(tp=>extras.push(`<button type="button" class="btn sm outline" data-tp="${tp.id}">${ic('list')}${esc(tp.titulo || 'Tarea')}</button>`));
+        return `<div class="clase-dia">
+          <div class="clase-cab">
+            <div class="item-title">${c.horaEntrada}${c.horaSalida ? ' a ' + c.horaSalida : ''}</div>
+            ${pasada ? `<span class="badge ${c.pagada ? 'pagada' : 'pendiente'}">${c.pagada ? 'Abonada' : 'Por abonar'}</span>` : ''}
+          </div>
+          ${c.resumen ? `<div class="clase-resumen"><b>Lo que vimos</b>${esc(c.resumen)}</div>` : ''}
+          ${extras.length ? `<div class="clase-extras">${extras.join('')}</div>` : ''}
+        </div>`;
+      }).join('') : `<div class="empty-msg" style="padding:2px 0 0;">${fechaLarga(estado.dia)}: sin clase.</div>`}
+    </div>
+  </div>`;
+}
+
+/* Solo las clases pasadas que dejaron algo: resumen o pizarra */
+function loVistoHtml(a){
+  const ahora = new Date();
+  const vistas = (a.clases||[]).filter(c=>finClase(c) <= ahora && (c.resumen || c.pizarra)).sort((x,y)=>inicioClase(y)-inicioClase(x));
+  if(!vistas.length) return '';
+  const lista = estado.verTodoLoVisto ? vistas : vistas.slice(0, 3);
+  return `<div class="card list">
+    <div class="card-head"><h2>Lo que vimos</h2></div>
+    ${lista.map(c=>`
+      <div class="visto">
+        <div class="item-sub">${fechaLarga(c.fecha)}</div>
+        ${c.resumen ? `<div class="visto-txt">${esc(c.resumen)}</div>` : ''}
+        ${c.pizarra ? `<a class="btn sm outline" href="${linkSala(c.pizarra.codigo)}" target="_blank" rel="noopener" style="margin-top:6px;">${ic('pen')}Ver la pizarra</a>` : ''}
+      </div>`).join('')}
+    ${vistas.length > 3 ? `<button type="button" class="link-btn ver-mas" id="btnVisto">${estado.verTodoLoVisto ? 'Ver menos' : `Ver todo (${vistas.length})`}</button>` : ''}
+  </div>`;
 }
 
 function enganchar(cont){
-  cont.querySelectorAll('[data-ir]').forEach(b=>b.addEventListener('click', ()=>irA(b.dataset.ir)));
   cont.querySelectorAll('[data-tp]').forEach(b=>b.addEventListener('click', ()=>abrirTp(b.dataset.tp)));
-  cont.querySelectorAll('[data-notif]').forEach(b=>b.addEventListener('click', ()=>abrirNotif(b.dataset.notif)));
+  cont.querySelectorAll('[data-dia]').forEach(b=>b.addEventListener('click', ()=>{ estado.dia = b.dataset.dia; render(); }));
+  cont.querySelectorAll('[data-semana]').forEach(b=>b.addEventListener('click', ()=>{
+    estado.semana = sumarDias(estado.semana, 7 * Number(b.dataset.semana));
+    const hoy = Comun.isoLocal(new Date());
+    const dias = Array.from({length: 7}, (_, i)=>Comun.isoLocal(sumarDias(estado.semana, i)));
+    estado.dia = dias.includes(hoy) ? hoy : (dias.find(d=>(aula().clases||[]).some(c=>c.fecha===d)) || dias[0]);
+    render();
+  }));
+  const bv = $('btnVisto');
+  if(bv) bv.addEventListener('click', ()=>{ estado.verTodoLoVisto = !estado.verTodoLoVisto; render(); });
 }
 
 /* Recuerda qué devoluciones ya vio, para destacar las nuevas */
@@ -450,145 +491,55 @@ function marcarDevolucionVista(tpId, e){
   try{ localStorage.setItem('estudiemos_dev_' + estado.aulaSel + '_' + tpId, String(f ? f.getTime() : '')); }catch(x){}
 }
 
-function renderClases(){
-  const a = aula();
-  const ahora = new Date();
-  const futuras = (a.clases||[]).filter(c=>finClase(c) > ahora).sort((x,y)=>inicioClase(x)-inicioClase(y));
-  const pasadas = (a.clases||[]).filter(c=>finClase(c) <= ahora).sort((x,y)=>inicioClase(y)-inicioClase(x));
-  const tpsDe = id => (a.tps||[]).filter(tp=>tp.claseId===id);
-  const tareasDe = id => (a.tareas||[]).filter(t=>t.claseId===id);
-  const item = (c, pasada)=>{
-    const extras = [];
-    if(c.pizarra) extras.push(`<a class="btn sm outline" href="${linkSala(c.pizarra.codigo)}" target="_blank" rel="noopener">${ic('pen')}Pizarra</a>`);
-    tpsDe(c.id).forEach(tp=>extras.push(`<button type="button" class="btn sm outline" data-tp="${tp.id}">${ic('file')}${esc(tp.titulo)}</button>`));
-    const tareas = tareasDe(c.id);
-    return `<div class="clase-item ${pasada ? 'pasada' : ''}">
-      <div class="clase-cab">
-        <div>
-          <div class="item-title">${fechaCorta(c.fecha)} · ${c.horaEntrada}${c.horaSalida ? '–' + c.horaSalida : ''}</div>
-          <div class="item-sub">${fechaLarga(c.fecha)}${a.mostrarMontos && typeof c.monto === 'number' ? ' · ' + money(c.monto) : ''}</div>
-        </div>
-        ${pasada ? `<span class="badge ${c.pagada ? 'pagada' : 'pendiente'}">${c.pagada ? 'Abonada' : 'Por abonar'}</span>` : ''}
-      </div>
-      ${c.resumen ? `<div class="clase-resumen"><b>Resumen</b>${esc(c.resumen)}</div>` : ''}
-      ${tareas.length ? tareas.map(t=>`<div class="checkbox-line compact ${t.hecha?'done':''}"><span>${t.hecha ? '✓' : '•'} ${esc(t.texto)}</span></div>`).join('') : ''}
-      ${extras.length ? `<div class="clase-extras">${extras.join('')}</div>` : ''}
-    </div>`;
-  };
-  $('view-clases').innerHTML = `
-    <div class="card list"><div class="card-head"><h2>Próximas</h2></div>${futuras.length ? futuras.map(c=>item(c, false)).join('') : '<div class="empty-msg" style="padding-bottom:12px;">No hay clases agendadas.</div>'}</div>
-    <div class="card list"><div class="card-head"><h2>Ya tuvimos</h2></div>${pasadas.length ? pasadas.map(c=>item(c, true)).join('') : '<div class="empty-msg" style="padding-bottom:12px;">Todavía no hay clases pasadas.</div>'}</div>
-    ${a.temas && a.temas.length ? `<div class="card"><div class="card-head"><h2>Materias</h2></div><div class="dias-chips">${a.temas.map(t=>`<span class="dia-chip">${esc(t)}</span>`).join('')}</div></div>` : ''}
-  `;
-  enganchar($('view-clases'));
-}
+/* ---------- Tu cuenta ---------- */
 
-function estadoTpEst(tp){
-  const e = estado.entregas[tp.id];
-  if(e && e.estado === 'corregida') return {clase:'pagada', texto:'Corregida', orden:3};
-  if(e) return {clase:'neutral', texto:'Entregada', orden:2};
-  if(tp.fechaEntrega && tp.fechaEntrega < Comun.isoLocal(new Date())) return {clase:'pendiente', texto:'Vencida', orden:0};
-  if(borrador(tp.id)) return {clase:'pendiente', texto:'A medias', orden:1};
-  return {clase:'pendiente', texto:'Por hacer', orden:1};
-}
+$('yoToggle').addEventListener('click', abrirYo);
 
-function renderTps(){
-  const a = aula();
-  const tps = (a.tps||[]).slice().sort((x,y)=>estadoTpEst(x).orden - estadoTpEst(y).orden || String(y.publicadoEn||'').localeCompare(String(x.publicadoEn||'')));
-  const tareas = (a.tareas||[]).slice().sort((x,y)=>x.hecha - y.hecha);
-  $('view-tps').innerHTML = `
-    <div class="card list">
-      <div class="card-head"><h2>Para resolver</h2></div>
-      ${tps.length ? tps.map(tp=>{
-        const est = estadoTpEst(tp);
-        const n = (tp.preguntas||[]).length;
-        return `<div class="list-item tap" data-tp="${tp.id}">
-          <div class="row-ic">${ic('file')}</div>
-          <div class="item-main">
-            <div class="item-title">${esc(tp.titulo)}</div>
-            <div class="item-sub">${tp.tema ? esc(tp.tema) + ' · ' : ''}${n} pregunta${n!==1?'s':''}${tp.fechaEntrega ? ' · para el ' + fechaCorta(tp.fechaEntrega).toLowerCase() : ''}</div>
-          </div>
-          <span class="badge ${est.clase}">${est.texto}</span>
-        </div>`;
-      }).join('') : '<div class="empty-msg" style="padding-bottom:12px;">Tu profe todavía no te cargó actividades.</div>'}
-    </div>
-    <div class="card">
-      <div class="card-head"><h2>Tareas</h2></div>
-      ${tareas.length ? tareas.map(t=>`
-        <div class="checkbox-line ${t.hecha?'done':''}" style="border-bottom:1px solid var(--border);">
-          <span class="row-ic ${t.hecha?'ok':''}" style="width:28px;height:28px;border-radius:9px;">${ic(t.hecha?'check':'list')}</span>
-          <div class="item-main"><div class="item-title" style="font-weight:500;">${esc(t.texto)}</div>${t.tema ? `<div class="item-sub">${esc(t.tema)}</div>` : ''}</div>
-        </div>`).join('') : '<div class="empty-msg">No tenés tareas cargadas.</div>'}
-      <div class="hint">Las tareas las marca como hechas tu profe.</div>
-    </div>
-  `;
-  enganchar($('view-tps'));
-}
-
-function renderYo(){
+function abrirYo(){
   const a = aula();
   const u = estado.usuario;
   const r = estado.miResena;
-  const familia = rolGuardado() === 'familia';
-  $('view-yo').innerHTML = `
-    <div class="card">
-      <div class="card-head"><h2>Tu cuenta</h2></div>
-      <p class="ajustes-desc">Entraste como <b>${esc(u.email||'')}</b>.</p>
-      <div class="segmented" style="margin:0;">
-        <button type="button" class="${!familia?'active':''}" data-rol="alumno">Soy estudiante</button>
-        <button type="button" class="${familia?'active':''}" data-rol="familia">Soy de la familia</button>
-      </div>
-    </div>
+  const tema = temaActual();
+  abrirSheet(`
+    <h3>Tu cuenta</h3>
+    <p class="sheet-sub">${esc(u.email || '')}</p>
 
-    <div class="card">
-      <div class="card-head"><h2>Lo que me interesa estudiar</h2></div>
-      <p class="ajustes-desc">Contale a tu profe qué te gustaría aprender, repasar o preparar.</p>
-      <textarea id="f_intereses" placeholder="Ej: quiero prepararme para el examen de ingreso, me cuestan las fracciones…">${esc(estado.perfilAlumno ? estado.perfilAlumno.intereses : '')}</textarea>
-      <button type="button" class="btn secondary" id="btnIntereses">Guardar</button>
-    </div>
+    <label for="f_intereses">¿Qué te gustaría estudiar o repasar?</label>
+    <textarea id="f_intereses" placeholder="Ej: me cuestan las fracciones, quiero prepararme para el examen…">${esc(estado.perfilAlumno ? estado.perfilAlumno.intereses : '')}</textarea>
+    <button type="button" class="btn secondary" id="btnIntereses">Contárselo a mi profe</button>
 
-    <div class="card">
-      <div class="card-head"><h2>${r ? 'Tu reseña' : 'Dejale una reseña a tu profe'}</h2></div>
-      <div class="estrellas-input" id="estrellasInput">${[1,2,3,4,5].map(n=>`<button type="button" data-n="${n}" class="${r && r.estrellas>=n ? 'on' : ''}" aria-label="${n} estrellas">★</button>`).join('')}</div>
-      <textarea id="f_resena" placeholder="¿Cómo son las clases? ¿Qué te gusta?">${esc(r ? r.texto : '')}</textarea>
-      <label for="f_autor">Cómo querés que aparezca tu nombre</label>
-      <input type="text" id="f_autor" value="${esc(r ? r.autor : (u.displayName||'').split(' ')[0])}" placeholder="Ej: Sofi">
-      <label class="switch-row">
-        <span>Tu profe la puede compartir<small>En su página de reseñas y en sus redes</small></span>
-        <input type="checkbox" class="switch" id="f_publicar" ${!r || r.permitePublicar ? 'checked' : ''}>
-      </label>
-      <button type="button" class="btn primary" id="btnResena">${r ? 'Actualizar reseña' : 'Enviar reseña'}</button>
-    </div>
+    <div class="section-label">${r ? 'Tu reseña' : `¿Qué te parecen las clases${a.profeNombre ? ' con ' + esc(a.profeNombre) : ''}?`}</div>
+    <div class="estrellas-input" id="estrellasInput">${[1,2,3,4,5].map(n=>`<button type="button" data-n="${n}" class="${r && r.estrellas>=n ? 'on' : ''}" aria-label="${n} estrellas">★</button>`).join('')}</div>
+    <textarea id="f_resena" placeholder="Contá en pocas palabras cómo son">${esc(r ? r.texto : '')}</textarea>
+    <label class="switch-row">
+      <span>Tu profe la puede compartir<small>Con tu nombre: ${esc(r ? r.autor : (u.displayName||'').split(' ')[0])}</small></span>
+      <input type="checkbox" class="switch" id="f_publicar" ${!r || r.permitePublicar ? 'checked' : ''}>
+    </label>
+    <button type="button" class="btn secondary" id="btnResena">${r ? 'Actualizar reseña' : 'Dejar reseña'}</button>
 
-    <div class="section-label">Notificaciones</div>
+    <div class="section-label">Avisos</div>
     <div id="pushYo"></div>
 
-    <div class="set-group" style="margin-top:20px;">
-      <button type="button" class="set-row" id="btnSalirYo" style="color:var(--danger);">
-        <div class="row-ic" style="background:var(--danger-bg);color:var(--danger);">${ic('log-out')}</div><div class="item-main">Cerrar sesión</div>
-      </button>
+    <div class="section-label">Apariencia</div>
+    <div class="segmented" style="margin:0;">
+      ${[['auto','Automático'],['light','Claro'],['dark','Oscuro']].map(([v,l])=>`<button type="button" class="${tema===v?'active':''}" data-tema="${v}">${l}</button>`).join('')}
     </div>
-  `;
+
+    <button type="button" class="btn ghost" id="btnSalirYo" style="color:var(--danger);margin-top:18px;">${ic('log-out')}Cerrar sesión</button>
+  `);
   let estrellas = r ? r.estrellas : 0;
   $('estrellasInput').querySelectorAll('button').forEach(b=>b.addEventListener('click', ()=>{
     estrellas = Number(b.dataset.n);
     $('estrellasInput').querySelectorAll('button').forEach(x=>x.classList.toggle('on', Number(x.dataset.n) <= estrellas));
   }));
-  $('view-yo').querySelectorAll('[data-rol]').forEach(b=>b.addEventListener('click', ()=>cambiarRol(b.dataset.rol)));
+  $('sheetContent').querySelectorAll('[data-tema]').forEach(b=>b.addEventListener('click', ()=>{
+    setTema(b.dataset.tema);
+    $('sheetContent').querySelectorAll('[data-tema]').forEach(x=>x.classList.toggle('active', x === b));
+  }));
   $('btnIntereses').addEventListener('click', guardarIntereses);
   $('btnResena').addEventListener('click', ()=>enviarResena(estrellas));
-  $('btnSalirYo').addEventListener('click', ()=>salir());
+  $('btnSalirYo').addEventListener('click', ()=>{ cerrarSheet(); salir(); });
   renderPushBox('pushYo', false);
-}
-
-async function cambiarRol(rol){
-  try{ localStorage.setItem(LS_ROL, rol); }catch(e){}
-  const u = usuarioActual();
-  const a = aula();
-  try{
-    await updateDoc(doc(db, 'aulas', a.id), {['miembrosInfo.' + u.uid]: {nombre: (u.displayName||'').slice(0,60), email: (u.email||'').slice(0,100), rol}});
-  }catch(e){ console.error(e); }
-  render();
 }
 
 async function guardarIntereses(){
@@ -596,7 +547,7 @@ async function guardarIntereses(){
   const texto = $('f_intereses').value.trim().slice(0, 2000);
   try{
     await setDoc(doc(db, 'aulas', a.id, 'alumno', 'perfil'), {intereses: texto, por: usuarioActual().uid, actualizado: serverTimestamp()});
-    toast('¡Guardado! Tu profe lo va a ver');
+    toast('¡Listo! Tu profe lo va a ver');
   }catch(e){ console.error(e); toast('No se pudo guardar'); }
 }
 
@@ -609,8 +560,9 @@ async function enviarResena(estrellas){
   const nueva = !estado.miResena;
   try{
     await setDoc(doc(db, 'aulas', a.id, 'resenas', u.uid), {
-      estrellas, texto: texto.slice(0, 1200), autor: $('f_autor').value.trim().slice(0, 80) || (u.displayName||''),
-      rol: rolGuardado(), permitePublicar: $('f_publicar').checked,
+      estrellas, texto: texto.slice(0, 1200),
+      autor: (estado.miResena ? estado.miResena.autor : ((u.displayName||'').split(' ')[0] || 'Alumno/a')).slice(0, 80),
+      rol: 'alumno', permitePublicar: $('f_publicar').checked,
       creada: estado.miResena && estado.miResena.creada ? estado.miResena.creada : serverTimestamp(),
       actualizada: serverTimestamp()
     });
@@ -626,9 +578,12 @@ function renderCampanita(){
   $('notifCount').hidden = sinLeer === 0;
   $('notifCount').textContent = sinLeer > 9 ? '9+' : String(sinLeer);
 }
+function iconoNotif(n){
+  return ({tp:'list', correccion:'check', aviso:'message', clase:'calendar', pizarra:'pen', resumen:'book'})[n.tipo] || 'bell';
+}
 $('notifToggle').addEventListener('click', ()=>{
   abrirSheet(`
-    <h3>Notificaciones</h3>
+    <h3>Novedades</h3>
     <div id="pushSheet"></div>
     <div style="margin-top:6px;">
     ${estado.notifs.length ? estado.notifs.map(n=>`
@@ -636,7 +591,7 @@ $('notifToggle').addEventListener('click', ()=>{
         <div class="row-ic">${ic(iconoNotif(n))}</div>
         <div class="item-main"><div class="item-title">${esc(n.titulo)}</div><div class="item-sub">${esc(n.cuerpo)}</div><div class="item-sub" style="font-size:12px;color:var(--text-mute);">${hace(fechaDe(n.creada))}</div></div>
         <button type="button" class="icon-btn sm" style="color:var(--text-mute);" data-borrar="${n.id}" aria-label="Borrar">${ic('x')}</button>
-      </div>`).join('') : '<div class="empty-msg">No tenés notificaciones.</div>'}
+      </div>`).join('') : '<div class="empty-msg">Acá te avisamos cuando tu profe te manda una tarea, un resumen o una pizarra.</div>'}
     </div>
   `);
   $('sheetContent').querySelectorAll('[data-borrar]').forEach(b=>b.addEventListener('click', ev=>{ ev.stopPropagation(); borrarNotif(b.dataset.borrar); b.closest('.list-item').remove(); }));
@@ -651,9 +606,7 @@ function abrirNotif(id){
   if(!n) return;
   if(!n.leida) marcarLeidas([n.id]);
   if(n.aulaId && n.aulaId !== estado.aulaSel && estado.aulas.some(a=>a.id===n.aulaId)) elegirAula(n.aulaId);
-  if(n.tpId && aula() && (aula().tps||[]).some(t=>t.id===n.tpId)){ abrirTp(n.tpId); return; }
-  if(n.tipo === 'tp' || n.tipo === 'correccion') irA('tps');
-  else if(n.tipo === 'clase' || n.tipo === 'pizarra' || n.tipo === 'resumen') irA('clases');
+  if(n.tpId && aula() && (aula().tps||[]).some(t=>t.id===n.tpId)) abrirTp(n.tpId);
 }
 
 async function renderPushBox(contId, compacto){
@@ -662,14 +615,14 @@ async function renderPushBox(contId, compacto){
   const disponible = await pushDisponible();
   const permiso = estadoPermisoPush();
   const nota = t => `<div class="note">${ic('info')}<div>${t}</div></div>`;
-  if(permiso === 'granted'){ box.innerHTML = compacto ? '' : nota('Las notificaciones de este dispositivo están activadas.'); return; }
+  if(permiso === 'granted'){ box.innerHTML = compacto ? '' : nota('Te avisamos en este celular cuando haya novedades.'); return; }
   if(!disponible){
     const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
     box.innerHTML = ios ? nota('Para recibir avisos en iPhone, agregá esta página a la pantalla de inicio (Compartir → «Agregar a inicio») y abrila desde ahí.')
-      : (compacto ? '' : nota('Este navegador no permite notificaciones push.'));
+      : (compacto ? '' : nota('Este navegador no permite avisos.'));
     return;
   }
-  if(permiso === 'denied'){ box.innerHTML = compacto ? '' : nota('Bloqueaste las notificaciones de este sitio. Se habilitan desde los ajustes del navegador.'); return; }
+  if(permiso === 'denied'){ box.innerHTML = compacto ? '' : nota('Bloqueaste los avisos de este sitio. Se habilitan desde los ajustes del navegador.'); return; }
   box.innerHTML = `<button type="button" class="btn ${compacto ? 'outline' : 'primary'}">${ic('bell')}Avisame cuando haya novedades</button>`;
   box.querySelector('button').addEventListener('click', async ()=>{
     try{ await activarPush(alRecibirPush); toast('¡Listo! Te vamos a avisar'); }
@@ -681,7 +634,8 @@ async function renderPushBox(contId, compacto){
 function alRecibirPush(d){ toast(d.titulo || 'Novedad'); }
 
 /* =========================================================
-   RESOLVER UNA ACTIVIDAD (estilo efecen: de a una pregunta, con corrección al toque)
+   TAREAS: marcar como hecha, o resolver las preguntas estilo efecen
+   (de a una, con corrección al toque)
    ========================================================= */
 
 const LS_BORRADOR = 'estudiemos_tp_';
@@ -705,15 +659,18 @@ function abrirTp(tpId){
 function portadaTp(tp){
   const b = borrador(tp.id);
   const n = (tp.preguntas||[]).length;
+  const titulo = tp.titulo || Comun.tituloDeTexto(tp.consigna);
   abrirSheet(`
-    <h3>${esc(tp.titulo)}</h3>
-    <p class="sheet-sub">${tp.tema ? esc(tp.tema) + ' · ' : ''}${n} pregunta${n!==1?'s':''}${tp.fechaEntrega ? ' · para el ' + fechaLarga(tp.fechaEntrega).toLowerCase() : ''}</p>
-    ${tp.consigna ? `<div class="tp-consigna">${esc(tp.consigna)}</div>` : ''}
-    ${n ? (b ? '<button type="button" class="btn ghost" id="btnReiniciar">' + ic('repeat') + 'Empezar de cero</button>' : '')
-        : `<label for="f_soloConsigna">Tu respuesta</label><textarea id="f_soloConsigna" placeholder="Escribí acá…">${esc(b && b.comentario || '')}</textarea>`}
+    <h3>${esc(titulo)}</h3>
+    <p class="sheet-sub">${tp.fechaEntrega ? 'Para el ' + fechaLarga(tp.fechaEntrega).toLowerCase() : 'Sin fecha'}${tp.tema ? ' · ' + esc(tp.tema) : ''}</p>
+    ${tp.consigna && tp.consigna !== titulo ? `<div class="tp-consigna">${esc(tp.consigna)}</div>` : ''}
+    ${n ? `<p class="hint">Son ${n} pregunta${n!==1?'s':''}. Te decimos al toque si está bien.</p>
+           ${b ? '<button type="button" class="btn ghost" id="btnReiniciar">' + ic('repeat') + 'Empezar de cero</button>' : ''}`
+        : `<label for="f_hecha_coment">¿Querés contarle algo a tu profe? <span style="font-weight:400;">(opcional)</span></label>
+           <textarea id="f_hecha_coment" placeholder="Ej: el 4 no me salió">${esc(b && b.comentario || '')}</textarea>`}
     <div class="sheet-footer">
       ${n ? `<button type="button" class="btn primary" id="btnEmpezar">${b ? 'Seguir donde lo dejé' : 'Empezar'}</button>`
-          : '<button type="button" class="btn primary" id="btnEnviarConsigna">Enviar a mi profe</button>'}
+          : `<button type="button" class="btn primary" id="btnHecha">${ic('check')}¡Listo, la hice!</button>`}
     </div>
   `);
   mate($('sheetContent'));
@@ -721,17 +678,16 @@ function portadaTp(tp){
     $('btnEmpezar').addEventListener('click', ()=>{ cerrarSheet(); jugar(tp, b, true); });
     if(b) $('btnReiniciar').addEventListener('click', ()=>{ borrarBorrador(tp.id); cerrarSheet(); jugar(tp, null, true); });
   }else{
-    $('btnEnviarConsigna').addEventListener('click', ()=>{
-      const t = $('f_soloConsigna').value.trim();
-      if(!t){ toast('Escribí tu respuesta'); return; }
-      enviarEntrega(tp, {}, t).then(ok=>{ if(ok) cerrarSheet(); });
+    $('btnHecha').addEventListener('click', async ()=>{
+      const ok = await enviarEntrega(tp, {}, $('f_hecha_coment').value.trim());
+      if(ok){ borrarBorrador(tp.id); cerrarSheet(); chispas(); }
     });
   }
 }
 
 /**
  * Pantalla de juego. paraEntregar=false es "practicar de nuevo" (no se manda nada).
- * Las de opción, V/F y numéricas se corrigen al tocar "Comprobar"; las abiertas no.
+ * Las de opción, V/F y numéricas se corrigen al tocar "Comprobar"; las escritas no.
  */
 function jugar(tp, previo, paraEntregar){
   const pregs = tp.preguntas || [];
@@ -842,7 +798,7 @@ function jugar(tp, previo, paraEntregar){
       </div>
       <div class="jugar-pie">
         <button type="button" class="btn secondary" id="jugarRevisar">Revisar</button>
-        ${paraEntregar ? '<button type="button" class="btn primary" id="jugarEnviar">Enviar a mi profe</button>' : '<button type="button" class="btn primary" id="jugarListo">Listo</button>'}
+        ${paraEntregar ? '<button type="button" class="btn primary" id="jugarEnviar">Mandársela a mi profe</button>' : '<button type="button" class="btn primary" id="jugarListo">Listo</button>'}
       </div>`;
     if(pct >= .8) chispas(true);
     $('jugarCerrar').addEventListener('click', ()=>{ guardar(); salirJuego(); });
@@ -889,14 +845,17 @@ async function enviarEntrega(tp, respuestas, comentario){
     if(v === undefined || v === '') return;
     limpias[k] = typeof v === 'string' ? v.slice(0, 3000) : v;
   });
+  const conPreg = (tp.preguntas||[]).length > 0;
+  const titulo = tp.titulo || Comun.tituloDeTexto(tp.consigna);
   try{
     await setDoc(doc(db, 'aulas', a.id, 'entregas', tp.id), {
       respuestas: limpias, puntaje: Comun.puntaje(tp.preguntas, limpias), comentario: (comentario || '').slice(0, 1500),
       estado: 'enviada', enviadaEn: serverTimestamp(), por: u.uid, porNombre: (u.displayName || '').slice(0, 60)
     }, {merge: true});
     const pt = Comun.puntaje(tp.preguntas, limpias);
-    notificar(a.id, [a.ownerUid], '📥 Entregó una actividad', `${a.alumnoNombre} entregó "${tp.titulo}"${pt.total ? ` · ${pt.ok}/${pt.total} bien` : ''}.`, 'index.html', {tipo:'entrega', tpId: tp.id});
-    toast('¡Enviada a tu profe!');
+    notificar(a.id, [a.ownerUid], conPreg ? '📥 Entregó una tarea' : '✅ Hizo una tarea',
+      `${a.alumnoNombre}: "${titulo}"${pt.total ? ` · ${pt.ok}/${pt.total} bien` : ''}${comentario ? ' · te dejó un comentario' : ''}.`, 'index.html', {tipo:'entrega', tpId: tp.id});
+    toast(conPreg ? '¡Se la mandaste a tu profe!' : '¡Bien! Tu profe ya lo sabe');
     return true;
   }catch(e){
     console.error(e);
@@ -908,14 +867,16 @@ async function enviarEntrega(tp, respuestas, comentario){
 function verEntrega(tp, e){
   const r = e.respuestas || {};
   const pt = Comun.puntaje(tp.preguntas, r);
+  const conPreg = (tp.preguntas||[]).length > 0;
   if(e.estado === 'corregida') marcarDevolucionVista(tp.id, e);
   abrirSheet(`
-    <h3>${esc(tp.titulo)}</h3>
-    <p class="sheet-sub"><span class="badge ${e.estado==='corregida' ? 'pagada' : 'neutral'}">${e.estado==='corregida' ? 'Corregida' : 'Entregada'}</span>${pt.total ? ` · ${pt.ok}/${pt.total} bien` : ''}${e.estado!=='corregida' ? ' · falta que la corrija tu profe' : ''}</p>
+    <h3>${esc(tp.titulo || Comun.tituloDeTexto(tp.consigna))}</h3>
+    <p class="sheet-sub"><span class="badge ${e.estado==='corregida' ? 'pagada' : 'neutral'}">${e.estado==='corregida' ? 'Corregida' : conPreg ? 'Entregada' : 'Hecha'}</span>${pt.total ? ` · ${pt.ok}/${pt.total} bien` : ''}</p>
     ${e.estado==='corregida' && (e.nota || e.devolucion) ? `<div class="devolucion">
       ${e.nota ? `<div class="nota">${esc(e.nota)}</div>` : ''}
       ${e.devolucion ? esc(e.devolucion) : ''}
     </div>` : ''}
+    ${!conPreg && tp.consigna ? `<div class="tp-consigna">${esc(tp.consigna)}</div>` : ''}
     ${(tp.preguntas||[]).map((p, i)=>{
       const ok = Comun.corregir(p, r[p.id]);
       const resp = r[p.id] === undefined ? '<i class="hint">Sin responder</i>'
@@ -925,19 +886,11 @@ function verEntrega(tp, e){
         <div class="resp">${ic(p.tipo==='texto' ? 'edit' : ok ? 'check' : 'x')}<span>${resp}</span></div>
       </div>`;
     }).join('')}
-    ${e.comentario ? `<div class="note">${ic('message')}<div><b>Tu comentario:</b> ${esc(e.comentario)}</div></div>` : ''}
-    <div class="sheet-footer">
-      ${(tp.preguntas||[]).length ? `<button type="button" class="btn outline grow" id="btnPracticar">${ic('repeat')}Practicar</button>` : ''}
-      ${e.estado !== 'corregida' ? `<button type="button" class="btn outline grow" id="btnRehacer">${ic('edit')}Cambiar</button>` : ''}
-    </div>
+    ${e.comentario ? `<div class="note">${ic('message')}<div><b>Le dijiste:</b> ${esc(e.comentario)}</div></div>` : ''}
+    ${conPreg ? `<div class="sheet-footer"><button type="button" class="btn outline grow" id="btnPracticar">${ic('repeat')}Practicar de nuevo</button></div>` : ''}
   `);
   mate($('sheetContent'));
   if($('btnPracticar')) $('btnPracticar').addEventListener('click', ()=>{ cerrarSheet(); jugar(tp, null, false); });
-  if($('btnRehacer')) $('btnRehacer').addEventListener('click', ()=>{
-    cerrarSheet();
-    if((tp.preguntas||[]).length) jugar(tp, {i: 0, respuestas: r, comentario: e.comentario}, true);
-    else{ guardarBorrador(tp.id, {comentario: e.comentario}); portadaTp(tp); }
-  });
   render();
 }
 

@@ -87,7 +87,7 @@
         <div class="k-val" id="statRestoMes">$0</div>
       </button>
       <button type="button" class="kpi" onclick="goTo('tareas')">
-        <div class="k-label">Tareas</div>
+        <div class="k-label">Pendientes</div>
         <div class="k-val" id="statTareas">0</div>
       </button>
     </div>
@@ -128,8 +128,8 @@
     <div id="listaTareas"></div>
     <div class="card list">
       <div class="card-head">
-        <h2>Actividades para resolver</h2>
-        <button type="button" class="link-btn" onclick="openTpForm()">Nueva</button>
+        <h2>Tareas para tus alumnos</h2>
+        <button type="button" class="link-btn" onclick="openTpForm()">Mandar una</button>
       </div>
       <div id="listaTps"></div>
     </div>
@@ -205,6 +205,8 @@
    </div>
    <div class="col">
 
+    <div class="card completar" id="detalleCompletar" hidden></div>
+
     <div class="card" id="detalleAula"></div>
 
     <div class="card list">
@@ -222,7 +224,7 @@
 
     <div class="card">
       <div class="card-head">
-        <h2>Tareas</h2>
+        <h2>Mis pendientes</h2>
         <button type="button" class="link-btn" onclick="openTareaForm(null, currentAlumnoDetalleId)">Agregar</button>
       </div>
       <div id="detalleTareasPorTema"></div>
@@ -230,8 +232,8 @@
 
     <div class="card list">
       <div class="card-head">
-        <h2>Actividades para resolver</h2>
-        <button type="button" class="link-btn" onclick="openTpForm(null, currentAlumnoDetalleId)">Nueva</button>
+        <h2>Tareas que le mandaste</h2>
+        <button type="button" class="link-btn" onclick="openTpForm(null, currentAlumnoDetalleId)">Mandar una</button>
       </div>
       <div id="detalleTps"></div>
     </div>
@@ -301,6 +303,7 @@
 
 <script src="js/comun.js"></script>
 <script src="js/profe-aula.js"></script>
+<script src="js/primeros-pasos.js"></script>
 <script>
 /* =========================================================
    ESTRUCTURA DE DATOS
@@ -328,11 +331,11 @@ let db = {
   alumnos: [],  // {id, nombre, tarifa, color, contacto, activo, temasIds:[], nivel, modalidad:'casa_mia'|'casa_alumno', temario:[{id,texto,dado}]}
   clases:  [],  // {id, serieId|null, alumnoId, fecha, horaEntrada, horaSalida, duracionMin, monto, viatico, modalidad, temarioIds:[], pagada, pagoId, notas}
   temas:   [],  // {id, nombre} -- materias globales del profesor, se vinculan a alumnos vía alumno.temasIds
-  tareas:  [],  // {id, alumnoId|null, temaId|null, claseId|null, texto, hecha}
+  tareas:  [],  // pendientes del profe (privados): {id, alumnoId|null, temaId|null, claseId|null, texto, hecha, tpId?}
   trabajos:[],  // {id, titulo, alumnoId|null, cliente, fecha, minutos, tarifaHora, monto, cobrado, pagoId, notas}
   pagos:   [],  // {id, fecha, alumnoId|null, cliente, monto, claseIds:[], trabajoIds:[]}
   resenas: [],  // {id, alumnoId|null, alumnoNombre, autor, relacion, estrellas, texto, fecha, publicar, enPagina, origen:'app'|undefined, privada}
-  tps:     [],  // actividades para resolver en la app: {id, alumnoId, titulo, consigna, temaId|null, claseId|null, fechaEntrega|null, preguntas:[], publicado, publicadoEn}
+  tps:     [],  // tareas para el alumno (lo que hace en casa, con preguntas opcionales): {id, alumnoId, titulo, consigna, temaId|null, claseId|null, fechaEntrega|null, preguntas:[], publicado, publicadoEn}
   // en alumnos además: aulaId|null (si usa la app), avisos:[], mostrarMontos; en clases: resumen, pizarra:{codigo,clave}|null
   config:  JSON.parse(JSON.stringify(CONFIG_DEFAULT))
 };
@@ -634,14 +637,14 @@ function actualizarHeader(){
   let sub = '';
   if(v==='clases') sub = formatoFechaLarga(hoyIso());
   if(v==='alumnos') sub = db.alumnos.length ? `${db.alumnos.length} alumno${db.alumnos.length!==1?'s':''}` : '';
-  if(v==='tareas'){ const n = db.tareas.filter(t=>!t.hecha).length; sub = db.tareas.length ? (n ? `${n} pendiente${n!==1?'s':''}` : 'Todo listo') : ''; }
+  if(v==='tareas'){ const n = db.tareas.filter(t=>!t.hecha).length; sub = db.tareas.length ? (n ? `${n} pendiente${n!==1?'s':''} tuyo${n!==1?'s':''}` : 'Todo listo') : 'Lo que preparás y lo que mandás'; }
   if(v==='stats') sub = 'Pagos, saldo y trabajos';
   setHeader(TITULOS[v], sub);
 }
 const FAB_CFG = {
   clases:{label:'Clase', fn:()=>openClaseForm(null, calendarioSelectedDate < hoyIso() ? hoyIso() : calendarioSelectedDate)},
   alumnos:{label:'Alumno', fn:()=>openAlumnoForm()},
-  tareas:{label:'Tarea', fn:()=>openTareaForm()},
+  tareas:{label:'Pendiente', fn:()=>openTareaForm()},
   stats:{label:'Trabajo práctico', fn:()=>openTrabajoForm()},
   detalle:{label:'Agendar clase', fn:()=>openClaseForm(null, null, null, currentAlumnoDetalleId)}
 };
@@ -852,7 +855,14 @@ function setTipoAlumnoForm(tipo){
   document.querySelectorAll('#tipoBox button').forEach(b=>b.classList.toggle('active', b.dataset.tipo===tipo));
   document.getElementById('contactoRow').style.display = tipo==='nino' ? 'block' : 'none';
 }
+// Alumno nuevo: el formulario corto (nombre y WhatsApp, ver js/primeros-pasos.js); el resto
+// se completa después desde la ficha. Para editar, el formulario completo.
 function openAlumnoForm(id){
+  if(id) return openAlumnoFormCompleto(id);
+  abrirAlumnoRapido();
+}
+
+function openAlumnoFormCompleto(id){
   const editing = id ? getAlumno(id) : null;
   formTemario = editing ? JSON.parse(JSON.stringify(editing.temario||[])) : [];
   formNivel = editing ? (editing.nivel||'') : '';
@@ -869,19 +879,9 @@ function openAlumnoForm(id){
     <label for="f_nombre">Nombre</label>
     <input type="text" id="f_nombre" value="${editing ? escapeAttr(editing.nombre) : ''}" placeholder="Nombre y apellido" autocomplete="off">
 
-    <label>Nivel</label>
-    <div class="pill-select compact" id="nivelBox">
-      ${NIVELES.map(n=>`<button type="button" data-nivel="${n.id}" class="${formNivel===n.id?'sel':''}" onclick="setFormNivel('${n.id}')">${n.corto}</button>`).join('')}
-    </div>
+    <label for="f_telefono">WhatsApp</label>
+    <input type="tel" id="f_telefono" inputmode="tel" value="${editing ? escapeAttr(editing.telefono||'') : ''}" placeholder="Ej: 2611234567">
 
-    <label for="f_tarifa">Tarifa por hora</label>
-    <select id="f_tarifa">${tarifaOptionsHtml(editing ? editing.tarifa : db.config.tarifaMin)}</select>
-
-    <label>¿Dónde son las clases?</label>
-    <div class="pill-select" id="modalidadAlumnoBox">${modalidadPillsHtml(formModalidad, 'setFormModalidad')}</div>
-    ${pasajeBoxHtml(formModalidad==='casa_alumno', precioPasaje(), editing ? (editing.pasajes||2) : 2)}
-
-    <div class="form-section">Contacto</div>
     <label>¿A quién le escribís?</label>
     <div class="segmented" id="tipoBox" style="margin:0;">
       <button type="button" data-tipo="nino" class="${!esAdulto?'active':''}" onclick="setTipoAlumnoForm('nino')">A la mamá / papá</button>
@@ -892,17 +892,31 @@ function openAlumnoForm(id){
       <label for="f_contacto">Nombre del contacto</label>
       <input type="text" id="f_contacto" value="${editing ? escapeAttr(editing.contacto||'') : ''}" placeholder="Ej: Marta (mamá)" autocomplete="off">
     </div>
-    <label for="f_telefono">WhatsApp</label>
-    <input type="tel" id="f_telefono" inputmode="tel" value="${editing ? escapeAttr(editing.telefono||'') : ''}" placeholder="Ej: 2611234567">
-    <label for="f_direccion">Dirección <span style="font-weight:400;">(opcional)</span></label>
-    <input type="text" id="f_direccion" value="${editing ? escapeAttr(editing.direccion||'') : ''}" placeholder="Para el botón «Cómo llego»" autocomplete="off">
 
-    <div class="form-section">Temas a dar</div>
-    <div id="temarioFormBox" style="margin-top:12px;"></div>
-    <div class="row2" style="margin-top:8px;">
-      <input type="text" id="f_temarioNuevo" placeholder="Ej: Perímetro y Área" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarTemarioForm();}">
-      <button type="button" class="btn secondary" onclick="agregarTemarioForm()" aria-label="Agregar tema">${ic('plus')}</button>
-    </div>
+    <label for="f_tarifa">Tarifa por hora</label>
+    <select id="f_tarifa">${tarifaOptionsHtml(editing ? editing.tarifa : (db.config.tarifaHabitual || db.config.tarifaMin))}</select>
+
+    <details class="more">
+      <summary>${ic('chevron-right')}Nivel, lugar y dirección</summary>
+      <label>Nivel</label>
+      <div class="pill-select compact" id="nivelBox">
+        ${NIVELES.map(n=>`<button type="button" data-nivel="${n.id}" class="${formNivel===n.id?'sel':''}" onclick="setFormNivel('${n.id}')">${n.corto}</button>`).join('')}
+      </div>
+      <label>¿Dónde son las clases?</label>
+      <div class="pill-select" id="modalidadAlumnoBox">${modalidadPillsHtml(formModalidad, 'setFormModalidad')}</div>
+      ${pasajeBoxHtml(formModalidad==='casa_alumno', precioPasaje(), editing ? (editing.pasajes||2) : 2)}
+      <label for="f_direccion">Dirección</label>
+      <input type="text" id="f_direccion" value="${editing ? escapeAttr(editing.direccion||'') : ''}" placeholder="Para el botón «Cómo llego»" autocomplete="off">
+    </details>
+
+    <details class="more">
+      <summary>${ic('chevron-right')}Temas a dar</summary>
+      <div id="temarioFormBox" style="margin-top:12px;"></div>
+      <div class="row2" style="margin-top:8px;">
+        <input type="text" id="f_temarioNuevo" placeholder="Ej: Perímetro y Área" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarTemarioForm();}">
+        <button type="button" class="btn secondary" onclick="agregarTemarioForm()" aria-label="Agregar tema">${ic('plus')}</button>
+      </div>
+    </details>
 
     <details class="more">
       <summary>${ic('chevron-right')}Materias y color</summary>
@@ -930,7 +944,7 @@ function openAlumnoForm(id){
       sw.classList.add('sel');
     });
   });
-  if(!editing) setTimeout(()=>{ const n = document.getElementById('f_nombre'); if(n) n.focus(); }, 250);
+  if(!editing) enfocarSiLibre('f_nombre');
 }
 
 
@@ -980,6 +994,7 @@ function guardarAlumno(id){
     a.pasajes = cantPasajes;
     a.nombre = nombre; a.tarifa = tarifa; a.tipo = tipo; a.contacto = contacto; a.telefono = telefono; a.direccion = direccion; a.color = color; a.temasIds = temasIds;
     a.nivel = formNivel; a.modalidad = formModalidad; a.temario = formTemario;
+    a.porCompletar = [];   // ya vio todos los datos: no hace falta la tarjeta "Completá la ficha"
   }else{
     db.alumnos.push({id: uid(), nombre, tarifa, tipo, contacto, telefono, direccion, mensajes:[], color, temasIds, activo:true,
       nivel: formNivel, modalidad: formModalidad, temario: formTemario, pasajes: cantPasajes});
@@ -1156,7 +1171,7 @@ function renderAlumnos(){
   if(db.alumnos.length===0){
     filtroBox.innerHTML = '';
     searchBox.hidden = true;
-    cont.innerHTML = emptyState('users', 'Todavía no tenés alumnos', 'Agregá tu primer alumno con su tarifa, nivel y datos de contacto.', 'Agregar alumno', 'openAlumnoForm()');
+    cont.innerHTML = emptyState('users', 'Todavía no tenés alumnos', 'Con el nombre alcanza: lo demás lo completás después. Si tenés varios, los cargás todos juntos.', 'Agregar alumnos', 'abrirCargaRapida()');
     return;
   }
   searchBox.hidden = db.alumnos.length < 5;
@@ -2143,7 +2158,8 @@ function renderDayDetail(){
 }
 
 /* =========================================================
-   TAREAS (material a preparar)
+   PENDIENTES DEL PROFE (en los datos: db.tareas). Lo que hace el alumno son las
+   tareas de js/profe-aula.js (en los datos: db.tps)
    ========================================================= */
 let filtroTareasAlumno = 'todos';
 
@@ -2170,39 +2186,44 @@ function openTareaForm(id, alumnoIdPreset){
   const opciones = `<option value="">General (sin alumno)</option>` + alumnoOptionsHtml(alumnoIdInicial);
 
   openSheet(`
-    <h3>${editing ? 'Editar tarea' : 'Nueva tarea'}</h3>
-    <label for="f_t_texto">¿Qué tenés que hacer o preparar?</label>
-    <textarea id="f_t_texto" placeholder="Ej: preparar ejercicios de fracciones">${editing ? escapeHtml(editing.texto) : ''}</textarea>
+    <h3>${editing ? 'Editar pendiente' : 'Nuevo pendiente'}</h3>
+    <p class="sheet-sub">Algo que tenés que preparar o revisar. Solo lo ves vos; cuando esté listo, lo tachás o se lo mandás al alumno como tarea.</p>
+    <label for="f_t_texto">¿Qué tenés que preparar?</label>
+    <textarea id="f_t_texto" placeholder="Ej: ejercicios de fracciones para Sofi">${editing ? escapeHtml(editing.texto) : ''}</textarea>
 
-    <label for="f_t_alumnoId">Alumno</label>
+    <label for="f_t_alumnoId">Para quién</label>
     <select id="f_t_alumnoId" onchange="actualizarTemaYClaseForm()">${opciones}</select>
 
-    <div id="temaBox" style="display:${alumnoIdInicial?'block':'none'};">
-      <label for="f_t_temaId">Materia</label>
-      <select id="f_t_temaId" onchange="onCambioTema()">${temaOptionsHtml(alumnoIdInicial, editing?editing.temaId:null)}</select>
-      <div id="temaNuevoBox" style="display:none;">
-        <label for="f_t_temaNuevo">Nombre de la nueva materia</label>
-        <input type="text" id="f_t_temaNuevo" placeholder="Ej: Matemáticas">
+    <details class="more" ${editing && (editing.temaId || editing.claseId) ? 'open' : ''}>
+      <summary>${ic('chevron-right')}Materia y clase</summary>
+      <div id="temaBox" style="display:${alumnoIdInicial?'block':'none'};">
+        <label for="f_t_temaId">Materia</label>
+        <select id="f_t_temaId" onchange="onCambioTema()">${temaOptionsHtml(alumnoIdInicial, editing?editing.temaId:null)}</select>
+        <div id="temaNuevoBox" style="display:none;">
+          <label for="f_t_temaNuevo">Nombre de la nueva materia</label>
+          <input type="text" id="f_t_temaNuevo" placeholder="Ej: Matemáticas">
+        </div>
       </div>
-    </div>
-
-    <div id="claseBox" style="display:${alumnoIdInicial?'block':'none'};">
-      <label for="f_t_claseId">Para qué clase <span style="font-weight:400;">(opcional)</span></label>
-      <select id="f_t_claseId">${claseOptionsHtmlParaAlumno(alumnoIdInicial, editing?editing.claseId:null)}</select>
-    </div>
+      <div id="claseBox" style="display:${alumnoIdInicial?'block':'none'};">
+        <label for="f_t_claseId">Para qué clase</label>
+        <select id="f_t_claseId">${claseOptionsHtmlParaAlumno(alumnoIdInicial, editing?editing.claseId:null)}</select>
+      </div>
+      <div class="hint" id="temaClaseVacio" style="display:${alumnoIdInicial?'none':'block'};">Elegí un alumno para poder asociarlo a una materia o a una clase.</div>
+    </details>
 
     <div class="sheet-footer">
-      ${editing ? `<button type="button" class="btn danger" onclick="eliminarTarea('${editing.id}')" aria-label="Eliminar tarea">${ic('trash')}</button>` : ''}
-      <button type="button" class="btn primary" onclick="guardarTarea(${editing ? `'${editing.id}'` : 'null'})">${editing ? 'Guardar cambios' : 'Agregar tarea'}</button>
+      ${editing ? `<button type="button" class="btn danger" onclick="eliminarTarea('${editing.id}')" aria-label="Eliminar pendiente">${ic('trash')}</button>` : ''}
+      <button type="button" class="btn primary" onclick="guardarTarea(${editing ? `'${editing.id}'` : 'null'})">${editing ? 'Guardar cambios' : 'Agregar pendiente'}</button>
     </div>
   `);
-  if(!editing) setTimeout(()=>{ const t = document.getElementById('f_t_texto'); if(t) t.focus(); }, 250);
+  if(!editing) enfocarSiLibre('f_t_texto');
 }
 
 function actualizarTemaYClaseForm(){
   const alumnoId = document.getElementById('f_t_alumnoId').value;
   document.getElementById('temaBox').style.display = alumnoId ? 'block' : 'none';
   document.getElementById('claseBox').style.display = alumnoId ? 'block' : 'none';
+  document.getElementById('temaClaseVacio').style.display = alumnoId ? 'none' : 'block';
   if(alumnoId){
     document.getElementById('f_t_temaId').innerHTML = temaOptionsHtml(alumnoId, null);
     document.getElementById('temaNuevoBox').style.display = 'none';
@@ -2250,17 +2271,17 @@ function guardarTarea(id){
   saveDB();
   closeSheet();
   renderAll();
-  showToast('Tarea guardada');
+  showToast('Pendiente guardado');
 }
 
 async function eliminarTarea(id){
-  const ok = await confirmar({titulo:'¿Eliminar esta tarea?', ok:'Eliminar', peligro:true});
+  const ok = await confirmar({titulo:'¿Eliminar este pendiente?', ok:'Eliminar', peligro:true});
   if(!ok) return;
   db.tareas = db.tareas.filter(t=>t.id!==id);
   saveDB();
   closeSheet();
   renderAll();
-  showToast('Tarea eliminada');
+  showToast('Pendiente eliminado');
 }
 
 function toggleTarea(id, ev){
@@ -2299,7 +2320,7 @@ function renderTareas(){
 
   if(db.tareas.length===0){
     toggle.hidden = true;
-    cont.innerHTML = emptyState('list', 'Sin tareas por ahora', 'Anotá el material que tenés que preparar para cada alumno y tachalo cuando esté listo.', 'Agregar tarea', 'openTareaForm()');
+    cont.innerHTML = emptyState('list', 'Sin pendientes', 'Anotá lo que tenés que prepararle a cada alumno. Cuando esté listo, lo tachás o se lo mandás como tarea.', 'Agregar pendiente', 'openTareaForm()');
     return;
   }
   toggle.hidden = false;
@@ -2312,11 +2333,11 @@ function renderTareas(){
   if(filtroTareasAlumno!=='todos') lista = lista.filter(t=>t.alumnoId===filtroTareasAlumno);
 
   if(lista.length===0){
-    cont.innerHTML = `<div class="card"><div class="empty-msg">${filtroTareasEstado==='pendientes' ? '¡No tenés tareas pendientes! 🎉' : 'Todavía no completaste ninguna tarea.'}</div></div>`;
+    cont.innerHTML = `<div class="card"><div class="empty-msg">${filtroTareasEstado==='pendientes' ? '¡No tenés nada pendiente! 🎉' : 'Todavía no terminaste ningún pendiente.'}</div></div>`;
     return;
   }
 
-  cont.innerHTML = '<div class="card list">' + lista.map(t=>{
+  cont.innerHTML = '<div class="card list"><div class="card-head"><h2>Mis pendientes</h2></div>' + lista.map(t=>{
     const claseInfo = t.claseId ? db.clases.find(c=>c.id===t.claseId) : null;
     const partesSub = [];
     if(t.alumnoId) partesSub.push(escapeHtml(alumnoNombre(t.alumnoId)));
@@ -2329,6 +2350,7 @@ function renderTareas(){
         <div class="item-title">${escapeHtml(t.texto)}</div>
         ${partesSub.length ? `<div class="item-sub">${partesSub.join(' · ')}</div>` : ''}
       </div>
+      ${botonMandarPendiente(t)}
     </div>`;
   }).join('') + '</div>';
 }
@@ -2367,6 +2389,7 @@ function tareaLineHtml(t){
       <div class="item-main" onclick="openTareaForm('${t.id}')">
         <div class="item-title" style="font-size:14.5px;font-weight:500;">${escapeHtml(t.texto)}</div>
       </div>
+      ${botonMandarPendiente(t)}
     </div>`;
 }
 
@@ -2532,6 +2555,7 @@ function renderDetalleAlumno(){
   }
   document.getElementById('detalleTareasPorTema').innerHTML = html || '<div class="empty-msg">No hay tareas para este alumno.</div>';
 
+  renderCompletarFicha(alumno);
   renderDetalleAula(alumno);
   renderDetalleTps(alumno);
 }
@@ -3683,11 +3707,12 @@ function revisarResenaEnLink(){
    ========================================================= */
 const TUTORIAL_PASOS = [
   {icon:'sparkles', titulo:'Bienvenido/a a Estudiemos', desc:'Tus clases particulares en un solo lugar: alumnos, agenda, cobros y tareas. Movete con la barra de abajo.'},
-  {icon:'users', titulo:'Cargá tus alumnos', desc:'Tarifa, nivel, si viene a tu casa o vas vos (se suman 2 pasajes) y los temas que le tenés que dar.'},
+  {icon:'users', titulo:'Cargá tus alumnos', desc:'Con el nombre alcanza. Lo demás (contacto, nivel, si vas a su casa) te lo va preguntando la ficha de cada uno.'},
   {icon:'calendar', titulo:'Tu semana de un vistazo', desc:'Lo verde es tiempo libre: tocalo para agendar una clase ahí. También podés compartir tus horarios libres por WhatsApp.'},
   {icon:'wallet', titulo:'Cobrá sin olvidarte', desc:'En Billetera ves quién te debe, registrás pagos y sumás los trabajos prácticos que hiciste.'},
-  {icon:'book', titulo:'Tus alumnos, si quieren, también', desc:'Desde la ficha de un alumno lo invitás a la app: ve sus clases, si debe alguna, los resúmenes, las pizarras y las actividades que le cargás para resolver. No es obligatorio.'},
-  {icon:'bell', titulo:'Te avisamos', desc:'Con tu cuenta de Google y las notificaciones activadas, te avisamos antes de cada clase y cuando un alumno entrega una actividad o te deja una reseña.'},
+  {icon:'list', titulo:'Pendientes y tareas', desc:'Anotá lo que tenés que prepararle a cada alumno. Cuando esté listo, lo tachás o se lo mandás como tarea, con preguntas si querés.'},
+  {icon:'book', titulo:'Tus alumnos, si quieren, también', desc:'Desde la ficha de un alumno lo invitás a la app: ve su semana, si debe alguna clase, los resúmenes, las pizarras y sus tareas. No es obligatorio.'},
+  {icon:'bell', titulo:'Te avisamos', desc:'Con tu cuenta de Google y las notificaciones activadas, te avisamos antes de cada clase y cuando un alumno hace una tarea o te deja una reseña.'},
   {icon:'star', titulo:'Juntá reseñas', desc:'Pedile a las familias una reseña con un toque y usala en tu CV o redes. Todo lo configurás desde el botón de ajustes, arriba a la derecha.'}
 ];
 let tutorialPasoActual = 0;
@@ -3736,7 +3761,8 @@ actualizarFab();
 // al recargar, el navegador restauraba el scroll y lo corría al aparecer la tarjeta de próxima clase
 if('scrollRestoration' in history) history.scrollRestoration = 'manual';
 window.scrollTo(0,0);
-if(!db.config.tutorialVisto) mostrarTutorial();
+if(necesitaPrimerosPasos()) abrirPrimerosPasos();
+else if(!db.config.tutorialVisto) mostrarTutorial();
 revisarResenaEnLink();
 window.addEventListener('hashchange', revisarResenaEnLink);
 

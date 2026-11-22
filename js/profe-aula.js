@@ -1,5 +1,5 @@
 /* =========================================================
-   Estudiemos (profe): alumnos en la app (aulas), actividades para resolver,
+   Estudiemos (profe): alumnos en la app (aulas), tareas para el alumno,
    pizarra por clase, notificaciones y reseñas que llegan desde la app.
 
    Es un script clásico que comparte el ámbito global con el script principal de
@@ -53,6 +53,7 @@ function alCambiarSesionProfe(user){
 function alSincronizarProfe(user){
   // En un dispositivo nuevo el tutorial arranca antes de que lleguen los datos de la nube
   if(db.config.tutorialVisto) document.getElementById('tutorialOverlay').classList.remove('show');
+  if(db.alumnos.length || db.config.configInicial) cerrarPrimerosPasos();
   if(!db.config.nombreProfe && user.displayName){ db.config.nombreProfe = user.displayName; saveDB(); }
   else if(window.firebaseQueueSave) window.firebaseQueueSave(db);   // publica aulas y perfil
   refrescarEscuchasAulas();
@@ -98,7 +99,7 @@ function renderDetalleAula(alumno){
   if(!alumno.aulaId){
     cont.innerHTML = `
       <div class="card-head"><h2>En la app</h2></div>
-      <p class="ajustes-desc">Si quiere, ${escapeHtml(alumno.nombre)}${alumno.tipo==='adulto' ? '' : ' (o su familia)'} puede entrar a Estudiemos y ver sus clases, si debe alguna, los resúmenes, las pizarras, las tareas y las actividades que le cargues. No es obligatorio.</p>
+      <p class="ajustes-desc">Si quiere, ${escapeHtml(alumno.nombre)}${alumno.tipo==='adulto' ? '' : ' (o su familia)'} puede entrar a Estudiemos y ver sus clases, si debe alguna, los resúmenes, las pizarras, las tareas que le mandes. No es obligatorio.</p>
       <button type="button" class="btn outline" onclick="invitarAlumnoApp('${alumno.id}')">${ic('send')}Invitar a la app</button>`;
     return;
   }
@@ -170,10 +171,10 @@ function textoInvitacion(a){
   const link = nube.linkInvitacion(a.aulaId);
   const profe = db.config.nombreProfe ? ` con ${db.config.nombreProfe}` : '';
   if(a.tipo === 'adulto'){
-    return `¡Hola ${a.nombre}! Te paso el link para que veas tus clases${profe}, los resúmenes, las tareas y las actividades en Estudiemos: ${link}\nSe entra con una cuenta de Google.`;
+    return `¡Hola ${a.nombre}! Te paso el link para que veas tus clases${profe}, los resúmenes y las tareas en Estudiemos: ${link}\nSe entra con una cuenta de Google.`;
   }
   const saludo = a.contacto ? `¡Hola ${a.contacto}!` : '¡Hola!';
-  return `${saludo} Les paso el link para que ${a.nombre} (y ustedes) vean sus clases${profe}, los resúmenes, las tareas y las actividades en Estudiemos: ${link}\nSe entra con una cuenta de Google.`;
+  return `${saludo} Les paso el link para que ${a.nombre} (y ustedes) vean sus clases${profe}, los resúmenes y las tareas en Estudiemos: ${link}\nSe entra con una cuenta de Google.`;
 }
 
 function compartirInvitacion(alumnoId){
@@ -191,7 +192,7 @@ function toggleInvitacion(alumnoId, abierta){
 async function quitarMiembroAula(alumnoId, uid){
   const a = getAlumno(alumnoId);
   if(!a || !nubeLista()) return;
-  const ok = await confirmar({titulo:'¿Quitar a esta persona?', mensaje:'Ya no va a poder ver las clases ni las actividades.', ok:'Quitar', peligro:true});
+  const ok = await confirmar({titulo:'¿Quitar a esta persona?', mensaje:'Ya no va a poder ver las clases ni las tareas.', ok:'Quitar', peligro:true});
   if(!ok) return;
   nube.quitarMiembro(a.aulaId, uid).then(()=>showToast('Listo'), ()=>showToast('No se pudo quitar'));
 }
@@ -287,23 +288,12 @@ function copiarLinkPizarraAlumno(claseId){
 }
 
 /* =========================================================
-   ACTIVIDADES PARA RESOLVER
-   (en los datos se llaman "tps"; en la interfaz "actividades", porque "trabajo
-   práctico" en la Billetera es un trabajo que se cobra)
+   TAREAS PARA EL ALUMNO (en los datos: db.tps)
+   Una tarea es "qué tiene que hacer" y, si querés, preguntas que se arman tocando
+   botones (escrita, con opciones, verdadero o falso, número). El alumno la marca como
+   hecha o responde las preguntas; las que tienen respuesta se corrigen solas.
+   Tus pendientes (db.tareas, en index.html) se convierten en tarea con "Mandar".
    ========================================================= */
-
-const EJEMPLO_PREGUNTAS = `? ¿Cuánto es 7 × 8?
-- 54
-* 56
-- 58
-
-? Todo número par es divisible por 2.
-= V
-
-? Si $x + 3 = 10$, ¿cuánto vale $x$?
-= 7
-
-? Explicá con tus palabras qué es una fracción.`;
 
 function entregaDe(tp){
   const a = getAlumno(tp.alumnoId);
@@ -312,27 +302,31 @@ function entregaDe(tp){
   return v && v.entregas ? (v.entregas[tp.id] || null) : null;
 }
 
+function tienePreguntas(tp){ return (tp.preguntas || []).length > 0; }
+
 function estadoTp(tp){
-  if(!tp.publicado) return {clase:'neutral', texto:'Borrador', orden:3};
   const e = entregaDe(tp);
   if(e && e.estado === 'corregida') return {clase:'pagada', texto:'Corregida', orden:4};
+  if(e && !tienePreguntas(tp)) return {clase:'pagada', texto:'Hecha', orden:3};
   if(e) return {clase:'pendiente', texto:'Para corregir', orden:0};
   if(tp.fechaEntrega && tp.fechaEntrega < hoyIso()) return {clase:'neutral', texto:'Vencida', orden:1};
-  return {clase:'neutral', texto:'Sin entregar', orden:2};
+  return {clase:'neutral', texto:'Sin hacer', orden:2};
 }
+
+function tituloTp(tp){ return tp.titulo || Comun.tituloDeTexto(tp.consigna) || 'Tarea'; }
 
 function tpItemHtml(tp, conAlumno){
   const est = estadoTp(tp);
   const n = (tp.preguntas||[]).length;
   const partes = [];
-  if(tp.temaId) partes.push(escapeHtml(temaNombre(tp.temaId)));
-  partes.push(`${n} pregunta${n!==1?'s':''}`);
+  if(conAlumno) partes.push(escapeHtml(alumnoNombre(tp.alumnoId)));
+  if(n) partes.push(`${n} pregunta${n!==1?'s':''}`);
   if(tp.fechaEntrega) partes.push('para el ' + fechaCorta(tp.fechaEntrega).toLowerCase());
   return `<div class="list-item tap" onclick="verTp('${tp.id}')">
-    ${conAlumno ? avatarHtml(getAlumno(tp.alumnoId), 'sm') : `<div class="row-ic">${ic('file')}</div>`}
+    ${conAlumno ? avatarHtml(getAlumno(tp.alumnoId), 'sm') : `<div class="row-ic">${ic(n ? 'file' : 'list')}</div>`}
     <div class="item-main">
-      <div class="item-title">${escapeHtml(tp.titulo)}</div>
-      <div class="item-sub">${conAlumno ? escapeHtml(alumnoNombre(tp.alumnoId)) + ' · ' : ''}${partes.join(' · ')}</div>
+      <div class="item-title">${escapeHtml(tituloTp(tp))}</div>
+      ${partes.length ? `<div class="item-sub">${partes.join(' · ')}</div>` : ''}
     </div>
     <span class="badge ${est.clase}">${est.texto}</span>
   </div>`;
@@ -348,180 +342,257 @@ function renderTps(){
   let lista = db.tps.slice();
   if(typeof filtroTareasAlumno !== 'undefined' && filtroTareasAlumno !== 'todos') lista = lista.filter(t=>t.alumnoId===filtroTareasAlumno);
   lista.sort(ordenTps);
-  cont.innerHTML = lista.length ? lista.map(tp=>tpItemHtml(tp, true)).join('')
-    : '<div class="empty-msg" style="padding-bottom:14px;">Armá preguntas para que tus alumnos resuelvan desde el celular. Las de opción múltiple, verdadero o falso y numéricas se corrigen solas; las abiertas las corregís vos.</div>';
+  cont.innerHTML = lista.length ? lista.slice(0, 30).map(tp=>tpItemHtml(tp, true)).join('')
+    : '<div class="empty-msg" style="padding-bottom:14px;">Las tareas que les mandes a tus alumnos aparecen acá, con lo que hicieron. Si un alumno usa la app, la recibe en su celular.</div>';
 }
 
 function renderDetalleTps(alumno){
   const cont = document.getElementById('detalleTps');
   if(!cont) return;
   const lista = db.tps.filter(t=>t.alumnoId===alumno.id).sort(ordenTps);
-  cont.innerHTML = lista.length ? lista.map(tp=>tpItemHtml(tp, false)).join('') : '<div class="empty-msg" style="padding-bottom:12px;">Sin actividades todavía.</div>';
+  cont.innerHTML = lista.length ? lista.map(tp=>tpItemHtml(tp, false)).join('') : '<div class="empty-msg" style="padding-bottom:12px;">Todavía no le mandaste tareas.</div>';
 }
 
-function openTpForm(id, alumnoIdPreset){
+/* ---------- "Mandar" un pendiente: se convierte en tarea ---------- */
+
+function botonMandarPendiente(t){
+  if(t.hecha || !t.alumnoId) return '';
+  return `<button type="button" class="btn sm outline" onclick="event.stopPropagation(); mandarPendiente('${t.id}')" title="Mandárselo como tarea">${ic('send')}Mandar</button>`;
+}
+
+function mandarPendiente(pendienteId){
+  const p = db.tareas.find(t=>t.id===pendienteId);
+  if(!p) return;
+  openTpForm(null, p.alumnoId, {consigna: p.texto, temaId: p.temaId, claseId: p.claseId, pendienteId: p.id});
+}
+
+/* ---------- Formulario de tarea ---------- */
+
+let formTp = null;   // {id, pendienteId, preguntas:[{tipo, enunciado, opciones, correcta, tolerancia}]}
+
+function openTpForm(id, alumnoIdPreset, prefill){
   if(db.alumnos.length===0){ showToast('Primero agregá un alumno'); return; }
   const tp = id ? db.tps.find(t=>t.id===id) : null;
+  const pre = prefill || {};
   const ordenados = db.alumnos.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'));
   const alumnoId = tp ? tp.alumnoId : (alumnoIdPreset || (typeof filtroTareasAlumno!=='undefined' && filtroTareasAlumno!=='todos' ? filtroTareasAlumno : ordenados[0].id));
+  formTp = {
+    id: tp ? tp.id : null,
+    pendienteId: pre.pendienteId || null,
+    temaId: tp ? tp.temaId : (pre.temaId || null),
+    claseId: tp ? tp.claseId : (pre.claseId || null),
+    preguntas: tp ? JSON.parse(JSON.stringify(tp.preguntas || [])) : []
+  };
+  const consigna = tp ? (tp.consigna || tp.titulo || '') : (pre.consigna || '');
   const hayEntrega = tp && entregaDe(tp);
   openSheet(`
-    <h3>${tp ? 'Editar actividad' : 'Nueva actividad'}</h3>
-    <p class="sheet-sub">Preguntas que el alumno resuelve desde su celular, con corrección al toque.</p>
-    <label for="f_tp_alumno">Alumno</label>
+    <h3>${tp ? 'Editar tarea' : 'Mandar una tarea'}</h3>
+    <label for="f_tp_alumno">Para</label>
     <select id="f_tp_alumno" onchange="actualizarTpForm()">${ordenados.map(a=>`<option value="${a.id}" ${a.id===alumnoId?'selected':''}>${escapeHtml(a.nombre)}</option>`).join('')}</select>
-    <div id="tpSinAulaAviso"></div>
 
-    <label for="f_tp_titulo">Título</label>
-    <input type="text" id="f_tp_titulo" value="${tp ? escapeAttr(tp.titulo) : ''}" placeholder="Ej: Repaso de fracciones" autocomplete="off">
+    <label for="f_tp_consigna">¿Qué tiene que hacer?</label>
+    <textarea id="f_tp_consigna" placeholder="Ej: Hacer los ejercicios 1 al 5 de la página 30">${escapeHtml(consigna)}</textarea>
 
-    <div class="field-row">
-      <div>
-        <label for="f_tp_tema">Materia</label>
-        <select id="f_tp_tema">${temaOptionsSimple(alumnoId, tp ? tp.temaId : null)}</select>
-      </div>
-      <div>
-        <label for="f_tp_fecha">Para cuándo</label>
-        <input type="date" id="f_tp_fecha" value="${tp && tp.fechaEntrega ? tp.fechaEntrega : ''}">
-      </div>
-    </div>
+    <label for="f_tp_fecha">Para cuándo <span style="font-weight:400;">(opcional)</span></label>
+    <input type="date" id="f_tp_fecha" value="${tp && tp.fechaEntrega ? tp.fechaEntrega : ''}">
 
-    <label for="f_tp_preguntas">Preguntas</label>
-    <textarea id="f_tp_preguntas" class="tp-preguntas" oninput="previewPreguntas()" placeholder="? ¿Cuánto es 2 + 2?&#10;- 3&#10;* 4&#10;- 5">${tp ? escapeHtml(Comun.preguntasATexto(tp.preguntas)) : ''}</textarea>
-    <div id="tpPreview" class="tp-preview"></div>
-    <details class="more" style="margin-top:8px;">
-      <summary>${ic('chevron-right')}Cómo se escriben</summary>
-      <div class="hint" style="font-size:13.5px;">
-        <p><b>?</b> abre una pregunta · <b>*</b> opción correcta · <b>-</b> opción incorrecta · <b>= V</b> o <b>= F</b> verdadero o falso · <b>= 42</b> respuesta numérica (con <b>± 0.5</b> de margen si querés) · sin nada, pregunta abierta que corregís vos. Fórmulas entre <b>$…$</b>.</p>
-        <p>Tip: pedile a una IA <i>«armame 10 preguntas sobre ecuaciones para 2.º año en este formato»</i>, pegale el ejemplo, y pegá acá lo que te devuelva.</p>
-      </div>
-      <button type="button" class="btn secondary sm" onclick="insertarEjemploTp()">${ic('plus')}Insertar ejemplo</button>
-    </details>
+    <div class="section-label" style="margin-top:22px;">Preguntas <span style="text-transform:none;letter-spacing:0;font-weight:500;">(opcional)</span></div>
+    <div id="tpPreguntas"></div>
+    <button type="button" class="btn outline" onclick="agregarPreguntaTp()">${ic('plus')}Agregar una pregunta</button>
     ${hayEntrega ? `<div class="note">${ic('info')}<div>Ya hay una entrega: si cambiás o reordenás las preguntas, sus respuestas pueden dejar de coincidir.</div></div>` : ''}
-
-    <details class="more" ${tp && (tp.consigna || tp.claseId) ? 'open' : ''}>
-      <summary>${ic('chevron-right')}Explicación y clase</summary>
-      <label for="f_tp_consigna">Explicación antes de empezar</label>
-      <textarea id="f_tp_consigna" placeholder="Lo que tiene que saber. Podés escribir fórmulas entre $...$">${tp ? escapeHtml(tp.consigna||'') : ''}</textarea>
-      <label for="f_tp_clase">Clase asociada</label>
-      <select id="f_tp_clase">${claseOptionsTodas(alumnoId, tp ? tp.claseId : null)}</select>
+    <details class="more">
+      <summary>${ic('chevron-right')}Pegar varias preguntas de una vez</summary>
+      <p class="hint">Si tenés preguntas escritas (o te las armó una IA), pegalas así: <b>?</b> abre una pregunta, <b>*</b> marca la opción correcta, <b>-</b> las incorrectas, <b>= V</b> o <b>= F</b> para verdadero o falso, <b>= 42</b> para un número. Sin nada, es una pregunta escrita.</p>
+      <textarea id="f_tp_pegar" class="tp-preguntas" placeholder="? ¿Cuánto es 7 × 8?&#10;- 54&#10;* 56&#10;- 58"></textarea>
+      <button type="button" class="btn secondary sm" style="margin-top:8px;" onclick="pegarPreguntasTp()">${ic('plus')}Agregarlas</button>
     </details>
-
-    <label class="switch-row">
-      <span>Mandársela al alumno<small>Si no, queda como borrador</small></span>
-      <input type="checkbox" class="switch" id="f_tp_publicado" ${!tp || tp.publicado ? 'checked':''}>
-    </label>
 
     <div class="sheet-footer">
       ${tp ? `<button type="button" class="btn danger" onclick="eliminarTp('${tp.id}')" aria-label="Eliminar">${ic('trash')}</button>` : ''}
-      <button type="button" class="btn primary" onclick="guardarTp(${tp ? `'${tp.id}'` : 'null'})">Guardar</button>
+      <button type="button" class="btn primary" onclick="guardarTp()">${tp ? 'Guardar' : 'Mandar tarea'}</button>
     </div>
   `);
-  actualizarTpForm(true);
-  previewPreguntas();
+  pintarPreguntasTp();
+  if(!tp && !consigna) enfocarSiLibre('f_tp_consigna');
 }
 
-function temaOptionsSimple(alumnoId, selectedId){
-  return `<option value="">Ninguna</option>` + temasDeAlumno(alumnoId)
-    .map(t=>`<option value="${t.id}" ${t.id===selectedId?'selected':''}>${escapeHtml(t.nombre)}</option>`).join('');
+function actualizarTpForm(){ /* el alumno solo cambia el destino de la tarea */ }
+
+const TIPOS_PREG = [['texto','Escrita'], ['opcion','Opciones'], ['vf','V o F'], ['numero','Número']];
+
+function pintarPreguntasTp(){
+  const box = document.getElementById('tpPreguntas');
+  if(!box || !formTp) return;
+  box.innerHTML = formTp.preguntas.map((p, i)=>{
+    let extra = '';
+    if(p.tipo === 'opcion'){
+      extra = `<div class="preg-opciones">${(p.opciones||[]).map((o, k)=>`
+        <div class="preg-op ${p.correcta===k?'ok':''}">
+          <button type="button" class="preg-marca" onclick="marcarCorrectaTp(${i}, ${k})" aria-label="Es la correcta">${ic('check')}</button>
+          <input type="text" value="${escapeAttr(o)}" placeholder="Opción ${k+1}" oninput="formTp.preguntas[${i}].opciones[${k}] = this.value">
+          <button type="button" class="icon-btn sm" style="color:var(--text-mute);" onclick="quitarOpcionTp(${i}, ${k})" aria-label="Quitar opción">${ic('x')}</button>
+        </div>`).join('')}
+        <button type="button" class="link-btn" onclick="agregarOpcionTp(${i})">${ic('plus')}Otra opción</button>
+        <div class="hint" style="margin-top:2px;">Tocá el ✓ de la correcta.</div>
+      </div>`;
+    }else if(p.tipo === 'vf'){
+      extra = `<div class="segmented" style="margin:10px 0 0;">
+        <button type="button" class="${p.correcta===true?'active':''}" onclick="formTp.preguntas[${i}].correcta = true; pintarPreguntasTp();">Es verdadero</button>
+        <button type="button" class="${p.correcta===false?'active':''}" onclick="formTp.preguntas[${i}].correcta = false; pintarPreguntasTp();">Es falso</button>
+      </div>`;
+    }else if(p.tipo === 'numero'){
+      extra = `<div class="field-row">
+        <div><label>Respuesta</label><input type="text" inputmode="decimal" value="${p.correcta ?? ''}" placeholder="Ej: 42" oninput="formTp.preguntas[${i}].correcta = this.value"></div>
+        <div style="flex:0 0 120px;"><label>Margen</label><input type="text" inputmode="decimal" value="${p.tolerancia || ''}" placeholder="0" oninput="formTp.preguntas[${i}].tolerancia = this.value"></div>
+      </div>`;
+    }else{
+      extra = '<div class="hint">La corregís vos cuando la entregue.</div>';
+    }
+    return `<div class="preg-card">
+      <div class="preg-head"><b>Pregunta ${i+1}</b><button type="button" class="icon-btn sm" style="color:var(--text-mute);" onclick="quitarPreguntaTp(${i})" aria-label="Quitar pregunta">${ic('trash')}</button></div>
+      <textarea class="preg-enunciado" rows="2" placeholder="Escribí la pregunta" oninput="formTp.preguntas[${i}].enunciado = this.value">${escapeHtml(p.enunciado||'')}</textarea>
+      <div class="segmented preg-tipo">${TIPOS_PREG.map(([t, l])=>`<button type="button" class="${p.tipo===t?'active':''}" onclick="cambiarTipoTp(${i}, '${t}')">${l}</button>`).join('')}</div>
+      ${extra}
+    </div>`;
+  }).join('');
 }
 
-function claseOptionsTodas(alumnoId, selectedId){
-  const clases = db.clases.filter(c=>c.alumnoId===alumnoId).sort((a,b)=>fechaHoraClase(b)-fechaHoraClase(a)).slice(0, 40);
-  return `<option value="">Ninguna</option>` + clases
-    .map(c=>`<option value="${c.id}" ${c.id===selectedId?'selected':''}>${fechaCorta(c.fecha)} · ${c.horaEntrada}</option>`).join('');
+function agregarPreguntaTp(){
+  formTp.preguntas.push({tipo:'opcion', enunciado:'', opciones:['', ''], correcta:null});
+  pintarPreguntasTp();
+  const cards = document.querySelectorAll('#tpPreguntas .preg-enunciado');
+  if(cards.length) setTimeout(()=>cards[cards.length-1].focus(), 50);
 }
-
-function actualizarTpForm(inicial){
-  const alumnoId = document.getElementById('f_tp_alumno').value;
-  const a = getAlumno(alumnoId);
-  if(!inicial){
-    document.getElementById('f_tp_tema').innerHTML = temaOptionsSimple(alumnoId, null);
-    document.getElementById('f_tp_clase').innerHTML = claseOptionsTodas(alumnoId, null);
-  }
-  document.getElementById('tpSinAulaAviso').innerHTML = a && !a.aulaId
-    ? `<div class="hint">${escapeHtml(a.nombre)} todavía no usa la app: invitalo desde su ficha para que la resuelva desde el celular.</div>` : '';
+function quitarPreguntaTp(i){ formTp.preguntas.splice(i, 1); pintarPreguntasTp(); }
+function cambiarTipoTp(i, tipo){
+  const p = formTp.preguntas[i];
+  p.tipo = tipo;
+  if(tipo === 'opcion'){ if(!Array.isArray(p.opciones) || !p.opciones.length) p.opciones = ['', '']; if(typeof p.correcta !== 'number') p.correcta = null; }
+  if(tipo === 'vf' && typeof p.correcta !== 'boolean') p.correcta = null;
+  if(tipo === 'numero' && (typeof p.correcta === 'boolean' || p.correcta === null)) p.correcta = '';
+  pintarPreguntasTp();
 }
-
-function insertarEjemploTp(){
-  const ta = document.getElementById('f_tp_preguntas');
-  ta.value = (ta.value.trim() ? ta.value.trim() + '\n\n' : '') + EJEMPLO_PREGUNTAS;
-  previewPreguntas();
+function agregarOpcionTp(i){ formTp.preguntas[i].opciones.push(''); pintarPreguntasTp(); }
+function quitarOpcionTp(i, k){
+  const p = formTp.preguntas[i];
+  p.opciones.splice(k, 1);
+  if(p.correcta === k) p.correcta = null; else if(p.correcta > k) p.correcta--;
+  pintarPreguntasTp();
 }
+function marcarCorrectaTp(i, k){ formTp.preguntas[i].correcta = k; pintarPreguntasTp(); }
 
-function previewPreguntas(){
-  const ta = document.getElementById('f_tp_preguntas');
-  const box = document.getElementById('tpPreview');
-  if(!ta || !box) return;
-  if(!ta.value.trim()){ box.innerHTML = ''; return; }
+function pegarPreguntasTp(){
+  const ta = document.getElementById('f_tp_pegar');
   const {preguntas, errores} = Comun.parsearPreguntas(ta.value);
-  const cuenta = {opcion:0, vf:0, numero:0, texto:0};
-  preguntas.forEach(p=>cuenta[p.tipo]++);
-  const partes = [];
-  if(cuenta.opcion) partes.push(`${cuenta.opcion} de opción`);
-  if(cuenta.vf) partes.push(`${cuenta.vf} V/F`);
-  if(cuenta.numero) partes.push(`${cuenta.numero} numérica${cuenta.numero!==1?'s':''}`);
-  if(cuenta.texto) partes.push(`${cuenta.texto} abierta${cuenta.texto!==1?'s':''}`);
-  box.innerHTML = (preguntas.length ? `<div class="ok">${ic('check')}${preguntas.length} pregunta${preguntas.length!==1?'s':''}: ${partes.join(', ')}</div>` : '')
-    + errores.map(e=>`<div class="err">${ic('info')}${escapeHtml(e)}</div>`).join('');
+  if(errores.length){ showToast(errores[0]); return; }
+  if(!preguntas.length){ showToast('No encontré preguntas'); return; }
+  formTp.preguntas.push(...preguntas);
+  ta.value = '';
+  ta.closest('details').open = false;
+  pintarPreguntasTp();
+  showToast(`Agregaste ${preguntas.length} pregunta${preguntas.length!==1?'s':''}`);
 }
 
-function guardarTp(id){
+/** Las preguntas del formulario, listas para guardar; o un error para mostrar. */
+function leerPreguntasTp(){
+  const out = [];
+  for(const [i, p] of formTp.preguntas.entries()){
+    const n = i + 1;
+    const enunciado = String(p.enunciado || '').trim();
+    if(!enunciado) return {error: `A la pregunta ${n} le falta el texto`};
+    if(p.tipo === 'opcion'){
+      const opciones = (p.opciones || []).map(o=>String(o).trim());
+      const llenas = opciones.filter(Boolean);
+      if(llenas.length < 2) return {error: `La pregunta ${n} necesita al menos dos opciones`};
+      if(typeof p.correcta !== 'number' || !opciones[p.correcta]) return {error: `Marcá con ✓ la opción correcta de la pregunta ${n}`};
+      const correctaTexto = opciones[p.correcta];
+      out.push({tipo:'opcion', enunciado, opciones: llenas, correcta: llenas.indexOf(correctaTexto)});
+    }else if(p.tipo === 'vf'){
+      if(typeof p.correcta !== 'boolean') return {error: `Elegí si la pregunta ${n} es verdadera o falsa`};
+      out.push({tipo:'vf', enunciado, correcta: p.correcta});
+    }else if(p.tipo === 'numero'){
+      const v = parseFloat(String(p.correcta ?? '').replace(',', '.'));
+      if(isNaN(v)) return {error: `Poné la respuesta (un número) de la pregunta ${n}`};
+      const tol = parseFloat(String(p.tolerancia || '0').replace(',', '.')) || 0;
+      out.push({tipo:'numero', enunciado, correcta: v, tolerancia: Math.abs(tol)});
+    }else{
+      out.push({tipo:'texto', enunciado});
+    }
+  }
+  out.forEach((p, i)=>{ p.id = 'p' + (i + 1); });
+  return {preguntas: out};
+}
+
+function guardarTp(){
   const alumnoId = document.getElementById('f_tp_alumno').value;
-  const titulo = document.getElementById('f_tp_titulo').value.trim();
-  const temaId = document.getElementById('f_tp_tema').value || null;
-  const fechaEntrega = document.getElementById('f_tp_fecha').value || null;
-  const claseId = document.getElementById('f_tp_clase').value || null;
   const consigna = document.getElementById('f_tp_consigna').value.trim();
-  const publicado = document.getElementById('f_tp_publicado').checked;
-  const {preguntas, errores} = Comun.parsearPreguntas(document.getElementById('f_tp_preguntas').value);
-
+  const fechaEntrega = document.getElementById('f_tp_fecha').value || null;
+  const r = leerPreguntasTp();
   if(!alumnoId){ showToast('Elegí un alumno'); return; }
-  if(!titulo){ showToast('Poné un título'); return; }
-  if(errores.length){ showToast('Revisá las preguntas marcadas'); return; }
-  if(!preguntas.length && !consigna){ showToast('Agregá al menos una pregunta'); return; }
+  if(r.error){ showToast(r.error); return; }
+  if(!consigna && !r.preguntas.length){ showToast('Escribí qué tiene que hacer'); return; }
+  const a = getAlumno(alumnoId);
+  const temaId = formTp.temaId || ((a && a.temasIds && a.temasIds.length === 1) ? a.temasIds[0] : null);
+  const titulo = Comun.tituloDeTexto(consigna) || Comun.tituloDeTexto(r.preguntas[0].enunciado);
 
-  let tp = id ? db.tps.find(t=>t.id===id) : null;
-  const eraPublicado = tp ? tp.publicado : false;
+  let tp = formTp.id ? db.tps.find(t=>t.id===formTp.id) : null;
+  const nueva = !tp;
   if(tp){
-    Object.assign(tp, {alumnoId, titulo, temaId, fechaEntrega, claseId, consigna, preguntas, publicado});
+    Object.assign(tp, {alumnoId, titulo, consigna, fechaEntrega, temaId, preguntas: r.preguntas, publicado: true});
   }else{
-    tp = {id: uid(), alumnoId, titulo, temaId, fechaEntrega, claseId, consigna, preguntas, publicado, publicadoEn: null, creado: new Date().toISOString()};
+    tp = {id: uid(), alumnoId, titulo, consigna, temaId, claseId: formTp.claseId, fechaEntrega, preguntas: r.preguntas,
+      publicado: true, publicadoEn: new Date().toISOString(), creado: new Date().toISOString()};
     db.tps.push(tp);
   }
-  if(publicado && !eraPublicado){
-    tp.publicadoEn = new Date().toISOString();
-    notificarAlumno(alumnoId, '📝 Nueva actividad', titulo + (fechaEntrega ? ` · para el ${fmtFecha(fechaEntrega)}` : ''), {tipo:'tp', tpId: tp.id});
+  // si venía de un pendiente, ese pendiente queda resuelto
+  if(formTp.pendienteId){
+    const p = db.tareas.find(t=>t.id===formTp.pendienteId);
+    if(p){ p.hecha = true; p.tpId = tp.id; }
   }
+  if(nueva) notificarAlumno(alumnoId, '📝 Nueva tarea', titulo + (fechaEntrega ? ` · para el ${fmtFecha(fechaEntrega)}` : ''), {tipo:'tp', tpId: tp.id});
   saveDB();
   closeSheet();
   renderAll();
-  showToast(publicado ? 'Actividad enviada' : 'Guardada como borrador');
+  if(nueva && a && !a.aulaId){
+    // no usa la app: se la mandamos por WhatsApp
+    confirmar({titulo:'¿Se la mandás por WhatsApp?', mensaje:`${a.nombre} no usa la app, así que no le va a llegar sola.`, ok:'Mandar por WhatsApp'})
+      .then(ok=>{ if(ok) mandarTpPorWhatsapp(tp.id); });
+  }else{
+    showToast(nueva ? (a && a.aulaId ? 'Tarea enviada: le llega a su app' : 'Tarea guardada') : 'Tarea guardada');
+  }
+}
+
+function mandarTpPorWhatsapp(tpId){
+  const tp = db.tps.find(t=>t.id===tpId);
+  const a = tp && getAlumno(tp.alumnoId);
+  if(!a) return;
+  const quien = a.tipo === 'adulto' ? a.nombre : (a.contacto || '');
+  const preguntas = (tp.preguntas||[]).map((p, i)=>{
+    const ops = p.tipo === 'opcion' ? '\n' + p.opciones.map((o, k)=>`   ${String.fromCharCode(97+k)}) ${o}`).join('\n') : p.tipo === 'vf' ? ' (¿verdadero o falso?)' : '';
+    return `${i+1}. ${p.enunciado}${ops}`;
+  }).join('\n');
+  const link = a.aulaId && window.nube ? `\n\nTambién la tenés en la app: ${nube.linkInvitacion(a.aulaId)}` : '';
+  const msg = `¡Hola${quien ? ' ' + quien : ''}! Tarea${a.tipo === 'adulto' ? '' : ' para ' + a.nombre}${tp.fechaEntrega ? ` (para el ${fmtFecha(tp.fechaEntrega)})` : ''}:\n${tp.consigna || ''}${preguntas ? '\n\n' + preguntas : ''}${link}`;
+  window.open(waUrl(a.telefono, msg), '_blank');
 }
 
 async function eliminarTp(id){
-  const ok = await confirmar({titulo:'¿Eliminar esta actividad?', ok:'Eliminar', peligro:true});
+  const ok = await confirmar({titulo:'¿Eliminar esta tarea?', ok:'Eliminar', peligro:true});
   if(!ok) return;
   db.tps = db.tps.filter(t=>t.id!==id);
   saveDB();
   closeSheet();
   renderAll();
-  showToast('Actividad eliminada');
+  showToast('Tarea eliminada');
 }
 
 function duplicarTp(id){
   const tp = db.tps.find(t=>t.id===id);
   const destino = document.getElementById('f_tp_dup').value;
   if(!tp || !destino) return;
-  const a = getAlumno(destino);
-  const copia = JSON.parse(JSON.stringify(tp));
-  Object.assign(copia, {id: uid(), alumnoId: destino, claseId: null, publicado: false, publicadoEn: null, creado: new Date().toISOString()});
-  if(copia.temaId && !(a.temasIds||[]).includes(copia.temaId)) a.temasIds.push(copia.temaId);
-  db.tps.push(copia);
-  saveDB();
-  renderAll();
-  showToast(`Copiada para ${a.nombre} (como borrador)`);
-  openTpForm(copia.id);
+  openTpForm(null, destino, {consigna: tp.consigna || tp.titulo, temaId: null});
+  formTp.preguntas = JSON.parse(JSON.stringify(tp.preguntas || []));
+  pintarPreguntasTp();
 }
 
 function textoRespuesta(p, r){
@@ -544,19 +615,20 @@ function verTp(id){
   const e = entregaDe(tp);
   const est = estadoTp(tp);
   let entregaHtml, footer = '';
-  if(!tp.publicado){
-    entregaHtml = '<p class="sheet-sub">Es un borrador: el alumno todavía no la ve.</p>';
-  }else if(!a || !a.aulaId){
-    entregaHtml = '<p class="sheet-sub">El alumno todavía no usa la app, así que no hay entrega.</p>';
+  if(!a || !a.aulaId){
+    entregaHtml = `<div class="note">${ic('info')}<div>${escapeHtml(a ? a.nombre : 'El alumno')} no usa la app: mandásela por WhatsApp. Si lo invitás desde su ficha, le llega sola y ves acá lo que hizo.</div></div>`;
   }else if(!e){
-    entregaHtml = '<p class="sheet-sub">Todavía no la entregó.</p>';
+    entregaHtml = '<p class="sheet-sub">Todavía no la hizo.</p>';
+  }else if(!tienePreguntas(tp)){
+    const env = nube.fechaDe(e.enviadaEn);
+    entregaHtml = `<div class="note">${ic('check')}<div>La marcó como hecha ${env ? hace(env) : ''}${e.porNombre ? ' (' + escapeHtml(e.porNombre) + ')' : ''}.${e.comentario ? `<br><b>Te dejó:</b> ${escapeHtml(e.comentario)}` : ''}</div></div>`;
   }else{
     const r = e.respuestas || {};
     const pt = Comun.puntaje(tp.preguntas, r);
     const env = nube.fechaDe(e.enviadaEn);
     entregaHtml = `
-      <div class="section-label">Entrega</div>
-      <div class="note">${ic('check')}<div>Entregada ${env ? hace(env) : ''}${e.porNombre ? ' por ' + escapeHtml(e.porNombre) : ''}${pt.total ? ` · <b>${pt.ok}/${pt.total}</b> bien` : ''}${pt.abiertas ? ` · ${pt.abiertas} abierta${pt.abiertas!==1?'s':''} para corregir` : ''}</div></div>
+      <div class="section-label">Lo que respondió</div>
+      <div class="note">${ic('check')}<div>Entregada ${env ? hace(env) : ''}${e.porNombre ? ' por ' + escapeHtml(e.porNombre) : ''}${pt.total ? ` · <b>${pt.ok}/${pt.total}</b> bien` : ''}${pt.abiertas ? ` · ${pt.abiertas} para que corrijas vos` : ''}</div></div>
       ${(tp.preguntas||[]).map((p, i)=>{
         const ok = Comun.corregir(p, r[p.id]);
         const marca = p.tipo === 'texto' ? ic('edit') : ok === true ? ic('check') : ic('x');
@@ -567,28 +639,30 @@ function verTp(id){
         </div>`;
       }).join('')}
       ${e.comentario ? `<div class="note">${ic('message')}<div><b>Comentario:</b> ${escapeHtml(e.comentario)}</div></div>` : ''}
-      <label for="f_devolucion">Devolución</label>
-      <textarea id="f_devolucion" placeholder="¡Muy bien! Repasá la 3...">${escapeHtml(e.devolucion||'')}</textarea>
-      <label for="f_nota">Nota (opcional)</label>
-      <input type="text" id="f_nota" value="${escapeAttr(e.nota||'')}" placeholder="Ej: 9, Muy bien, Aprobado">`;
+      <label for="f_devolucion">Tu devolución</label>
+      <textarea id="f_devolucion" placeholder="¡Muy bien! Repasá la 3…">${escapeHtml(e.devolucion||'')}</textarea>
+      <label for="f_nota">Nota <span style="font-weight:400;">(opcional)</span></label>
+      <input type="text" id="f_nota" value="${escapeAttr(e.nota||'')}" placeholder="Ej: 9, Muy bien">`;
     footer = `<button type="button" class="btn primary" onclick="enviarDevolucion('${tp.id}')">${e.estado==='corregida' ? 'Actualizar devolución' : 'Enviar devolución'}</button>`;
   }
   const otros = db.alumnos.filter(x=>x.id!==tp.alumnoId).sort((x,y)=>x.nombre.localeCompare(y.nombre,'es'));
   openSheet(`
-    <h3>${escapeHtml(tp.titulo)}</h3>
+    <h3>${escapeHtml(tituloTp(tp))}</h3>
     <p class="sheet-sub">${escapeHtml(alumnoNombre(tp.alumnoId))} · <span class="badge ${est.clase}">${est.texto}</span>${tp.fechaEntrega ? ' · para el ' + fmtFecha(tp.fechaEntrega) : ''}</p>
-    ${tp.consigna ? `<div class="tp-consigna">${escapeHtml(tp.consigna)}</div>` : ''}
+    ${tp.consigna && tp.consigna !== tituloTp(tp) ? `<div class="tp-consigna">${escapeHtml(tp.consigna)}</div>` : ''}
     ${entregaHtml}
     <div class="btn-row">
       <button type="button" class="btn outline" onclick="openTpForm('${tp.id}')">${ic('edit')}Editar</button>
-      ${a && a.aulaId && tp.publicado ? `<button type="button" class="btn outline" onclick="avisarTpWhatsapp('${tp.id}')">${ic('message')}Avisar</button>` : ''}
+      <button type="button" class="btn outline" onclick="mandarTpPorWhatsapp('${tp.id}')">${ic('message')}WhatsApp</button>
     </div>
     ${otros.length ? `
-      <label for="f_tp_dup">Usarla también con otro alumno</label>
-      <div class="row2">
-        <select id="f_tp_dup">${otros.map(o=>`<option value="${o.id}">${escapeHtml(o.nombre)}</option>`).join('')}</select>
-        <button type="button" class="btn secondary" onclick="duplicarTp('${tp.id}')">${ic('copy')}Copiar</button>
-      </div>` : ''}
+      <details class="more">
+        <summary>${ic('chevron-right')}Mandársela también a otro alumno</summary>
+        <div class="row2" style="margin-top:8px;">
+          <select id="f_tp_dup">${otros.map(o=>`<option value="${o.id}">${escapeHtml(o.nombre)}</option>`).join('')}</select>
+          <button type="button" class="btn secondary" onclick="duplicarTp('${tp.id}')">${ic('send')}Seguir</button>
+        </div>
+      </details>` : ''}
     ${footer ? `<div class="sheet-footer">${footer}</div>` : ''}
   `);
   renderMate(document.getElementById('sheetContent'));
@@ -601,20 +675,10 @@ function enviarDevolucion(tpId){
   const dev = document.getElementById('f_devolucion').value.trim();
   const nota = document.getElementById('f_nota').value.trim();
   nube.guardarDevolucion(a.aulaId, tpId, dev, nota).then(()=>{
-    nube.notificarAula(a.aulaId, '✅ Corrección lista', `Tu profe corrigió "${tp.titulo}"${nota ? ' · ' + nota : ''}.`, {tipo:'correccion', tpId});
+    nube.notificarAula(a.aulaId, '✅ Corrección lista', `Tu profe corrigió "${tituloTp(tp)}"${nota ? ' · ' + nota : ''}.`, {tipo:'correccion', tpId});
     showToast('Devolución enviada');
     closeSheet();
   }, e=>{ console.error(e); showToast('No se pudo enviar'); });
-}
-
-function avisarTpWhatsapp(tpId){
-  const tp = db.tps.find(t=>t.id===tpId);
-  const a = tp && getAlumno(tp.alumnoId);
-  if(!a || !window.nube) return;
-  const link = nube.linkInvitacion(a.aulaId);
-  const quien = a.tipo === 'adulto' ? a.nombre : (a.contacto || '');
-  const msg = `¡Hola${quien ? ' ' + quien : ''}! Te dejé una actividad nueva en Estudiemos: "${tp.titulo}"${tp.fechaEntrega ? `, para el ${fmtFecha(tp.fechaEntrega)}` : ''}. La encontrás acá: ${link}`;
-  window.open(waUrl(a.telefono, msg), '_blank');
 }
 
 /* =========================================================
@@ -670,7 +734,7 @@ function renderListaNotifs(lista){
     </div>`).join('') : `<div class="empty" style="padding:16px 4px;">
       <div class="em-ic">${ic('bell')}</div>
       <h3>Sin novedades</h3>
-      <p>Te avisamos acá cuando un alumno entrega una actividad, te deja una reseña o se suma a la app.</p>
+      <p>Te avisamos acá cuando un alumno hace una tarea, te deja una reseña o se suma a la app.</p>
     </div>`;
 }
 

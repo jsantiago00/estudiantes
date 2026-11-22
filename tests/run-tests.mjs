@@ -120,7 +120,8 @@ igual(C.instanteArg('2026-11-22', '18:30').toISOString(), '2026-11-22T21:30:00.0
   ok(!('monto' in aula.clases[0]) && aula.tarifa === null, 'sin "mostrar montos" no van los montos');
   igual(aula.clases[0].pizarra, {codigo:'ABCDEF'}, 'la pizarra va solo con el código');
   igual(aula.clases[0].resumen, 'Fracciones', 'el resumen sí se publica');
-  igual(aula.tareas[0].tema, 'Matemática', 'la tarea lleva el nombre del tema');
+  ok(!('tareas' in aula) && !json.includes('Ej. 3'), 'los pendientes del profe (db.tareas) no se publican');
+  igual(aula.tps[0].tema, 'Matemática', 'la tarea lleva el nombre de la materia');
   igual(aula.temas, ['Matemática'], 'temas del alumno');
   igual(aula.profeNombre, 'Profe Ana', 'nombre del profe');
   db.alumnos[0].mostrarMontos = true;
@@ -147,6 +148,22 @@ igual(C.instanteArg('2026-11-22', '18:30').toISOString(), '2026-11-22T21:30:00.0
   igual(C.clasesRecienTerminadas(clases, ahora, 30).map(c=>c.id), ['3'], 'terminadas hace menos de 30 min');
 }
 
+/* ---------- Carga rápida de alumnos y títulos ---------- */
+igual(C.parsearListaAlumnos(`Sofi 2611234567
+Juli Pérez, 261 555-0000
+
+- Ana María
+• Lu +54 9 261 4445566
+2. Pedro
+sofi
+María José 15`), [
+  {nombre:'Sofi', telefono:'2611234567'}, {nombre:'Juli Pérez', telefono:'2615550000'}, {nombre:'Ana María', telefono:''},
+  {nombre:'Lu', telefono:'+5492614445566'}, {nombre:'Pedro', telefono:''}, {nombre:'María José 15', telefono:''}
+], 'la lista de alumnos: nombres, WhatsApp, viñetas y repetidos');
+igual(C.parsearListaAlumnos(''), [], 'lista vacía');
+igual(C.tituloDeTexto('\n  Hacer los ejercicios 1 al 5\nde la página 30'), 'Hacer los ejercicios 1 al 5', 'el título es el primer renglón');
+ok(C.tituloDeTexto('x'.repeat(100)).length === 68, 'el título se corta');
+
 /* ---------- Códigos ---------- */
 {
   const code = C.nuevoCodigoSala();
@@ -168,7 +185,7 @@ for(const pagina of ['index.html', 'estudiante.html', 'resenas.html']){
 {
   // Las funciones que se llaman desde onclick="..." en index.html tienen que existir
   const html = readFileSync(join(raiz, 'index.html'), 'utf8');
-  const todo = html + readFileSync(join(raiz, 'js/profe-aula.js'), 'utf8');
+  const todo = html + readFileSync(join(raiz, 'js/profe-aula.js'), 'utf8') + readFileSync(join(raiz, 'js/primeros-pasos.js'), 'utf8');
   const llamadas = new Set([...todo.matchAll(/on(?:click|change|input)="(?:event\.stopPropagation\(\); )?([a-zA-Z_]\w*)\(/g)].map(m=>m[1]));
   const definidas = new Set([...todo.matchAll(/function\s+([a-zA-Z_]\w*)\s*\(/g)].map(m=>m[1]));
   for(const f of llamadas){

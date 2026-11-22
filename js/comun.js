@@ -166,7 +166,8 @@
 
      El profe sigue teniendo todos sus datos en un solo documento privado (users/{uid}).
      Para cada estudiante invitado se publica aparte, en aulas/{aulaId}, solo lo suyo:
-     sus clases (sin las notas privadas), tareas, TPs publicados, avisos y temas. */
+     sus clases (sin las notas privadas), sus tareas (db.tps), avisos y materias.
+     Los pendientes del profe (db.tareas) no se publican. */
 
   const MAX_CLASES_PASADAS = 60;
   const MAX_CLASES_FUTURAS = 60;
@@ -190,11 +191,9 @@
       if(mostrarMontos) o.monto = Number(c.monto || 0) + Number(c.viatico || 0);
       return o;
     });
-    const tareas = (db.tareas || []).filter(t => t.alumnoId === alumno.id).map(t=>({
-      id: t.id, texto: t.texto, hecha: !!t.hecha, tema: t.temaId ? temaNombre(t.temaId) : '', claseId: t.claseId || null
-    }));
+    // Las tareas del alumno son db.tps. db.tareas son los pendientes del profe: no se publican.
     const tps = (db.tps || []).filter(tp => tp.alumnoId === alumno.id && tp.publicado).map(tp=>({
-      id: tp.id, titulo: tp.titulo, consigna: tp.consigna || '', tema: tp.temaId ? temaNombre(tp.temaId) : '',
+      id: tp.id, titulo: tp.titulo || tituloDeTexto(tp.consigna), consigna: tp.consigna || '', tema: tp.temaId ? temaNombre(tp.temaId) : '',
       fechaEntrega: tp.fechaEntrega || null, claseId: tp.claseId || null,
       preguntas: tp.preguntas || [], publicadoEn: tp.publicadoEn || null
     }));
@@ -209,7 +208,7 @@
       mostrarMontos,
       tarifa: mostrarMontos ? Number(alumno.tarifa || 0) : null,
       telefonoProfe: cfg.telefonoProfe || perfil.telefono || '',
-      clases, tareas, tps,
+      clases, tps,
       avisos: (alumno.avisos || []).slice(-MAX_AVISOS)
     };
   }
@@ -240,11 +239,41 @@
 
   function horaLinda(hora){ return hora ? hora.replace(/^0/, '') : ''; }
 
+  /* ---------- Carga rápida de alumnos ----------
+     Un alumno por renglón; si después del nombre hay un número, es su WhatsApp:
+       Sofi 2611234567
+       Juli Pérez, 261 555-0000
+       Tomi                                                     */
+  function parsearListaAlumnos(texto){
+    const vistos = new Set();
+    const out = [];
+    String(texto || '').split(/\r?\n/).forEach(linea=>{
+      const l = linea.trim().replace(/^(?:[-•*]\s*|\d+[.)]\s+)/, '');   // viñetas o "1. "
+      if(!l) return;
+      const m = /^(.*?)[\s,;:–-]*(\+?\d[\d\s().-]{5,}\d)?\s*$/.exec(l);
+      const nombre = (m ? m[1] : l).trim().replace(/[\s,;:–-]+$/, '');
+      const telefono = m && m[2] ? m[2].replace(/[^\d+]/g, '') : '';
+      if(!nombre) return;
+      const clave = nombre.toLowerCase();
+      if(vistos.has(clave)) return;
+      vistos.add(clave);
+      out.push({nombre: nombre.slice(0, 80), telefono});
+    });
+    return out;
+  }
+
+  /** Un título corto a partir del texto de la tarea (su primer renglón). */
+  function tituloDeTexto(texto){
+    const primera = String(texto || '').split(/\r?\n/).map(s=>s.trim()).find(Boolean) || '';
+    return primera.length > 70 ? primera.slice(0, 67).trimEnd() + '…' : primera;
+  }
+
   return {
     ALFABETO_SALA, nuevoCodigoSala, nuevoIdLargo, formatoCodigoSala,
     instanteArg, isoLocal,
     parsearPreguntas, preguntasATexto, corregir, puntaje,
     claseTerminada, estadoCuenta, construirAula,
-    clasesPorEmpezar, clasesRecienTerminadas, horaLinda
+    clasesPorEmpezar, clasesRecienTerminadas, horaLinda,
+    parsearListaAlumnos, tituloDeTexto
   };
 });

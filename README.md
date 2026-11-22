@@ -8,7 +8,7 @@ Plataforma para dar clases particulares, estilo «aula virtual» pero simple. An
   se habilita lo de los alumnos.
 - **Estudiante o familia** (`estudiante.html`), opcional: el profe lo invita desde la ficha del
   alumno con un link. Ve sus clases, si debe alguna (o el monto, si el profe lo permite), los
-  resúmenes y las pizarras de cada clase, las tareas, y resuelve las actividades estilo juego (corrección
+  resúmenes y las pizarras de cada clase, las tareas, y hace sus tareas: las marca como hechas o resuelve las preguntas estilo juego (corrección
   al toque, como efecen). Puede contar qué le interesa estudiar y dejar una reseña.
 - **Reseñas** (`resenas.html?p=…`): página pública del profe con las reseñas que elige mostrar,
   para la bio de Instagram (se eligen en Reseñas → «A tu página»). Cada reseña se puede exportar
@@ -22,6 +22,7 @@ proyecto que la [Pizarra](https://github.com/jsantiago00/pizarra).
 | | |
 |---|---|
 | `index.html` | App del profe (el script principal sigue adentro) |
+| `js/primeros-pasos.js` | Configuración inicial, alumno rápido, carga de varios y «Completá la ficha» |
 | `js/profe-aula.js` | Profe: alumnos en la app, actividades, pizarra, notificaciones y reseñas de la app |
 | `review.html` | Formulario de reseña sin cuenta (vuelve por WhatsApp) |
 | `js/nube-profe.js` | Profe: puente con Firebase (respaldo, publicar aulas, escuchas, salas) |

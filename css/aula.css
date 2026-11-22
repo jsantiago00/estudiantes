@@ -37,3 +37,46 @@ textarea.tp-preguntas{min-height:190px;font-family:ui-monospace,SFMono-Regular,M
 .entrega-preg.bien .resp svg{color:var(--ok);}
 .entrega-preg.mal .resp svg{color:var(--danger);}
 .entrega-preg.abierta .resp svg{color:var(--accent);}
+
+/* ---------- Configuración inicial (primera vez) ---------- */
+.pp{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center;
+  padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + var(--safe-bottom));overflow-y:auto;}
+.pp[hidden]{display:none !important;}
+.pp-card{width:100%;max-width:460px;display:flex;flex-direction:column;min-height:min(640px, 100%);}
+.pp-dots{display:flex;gap:6px;justify-content:center;margin:4px 0 22px;}
+.pp-dots span{width:7px;height:7px;border-radius:50%;background:var(--border-strong);transition:width .15s;}
+.pp-dots span.on{width:22px;border-radius:4px;background:var(--primary);}
+.pp-body{flex:1;}
+.pp-ic{width:60px;height:60px;border-radius:18px;background:var(--soft-tint-bg);color:var(--accent);display:flex;align-items:center;justify-content:center;margin-bottom:16px;}
+.pp-ic svg{width:28px;height:28px;}
+.pp h2{font-size:24px;font-weight:700;letter-spacing:-.025em;margin:0 0 6px;line-height:1.2;}
+.pp-body > p{color:var(--text-dim);font-size:15px;line-height:1.5;margin:0 0 8px;}
+.pp .pp-grande{font-size:24px;font-weight:700;text-align:center;min-height:60px;margin-top:10px;}
+.pp-chips{margin-top:14px;}
+.pp-chips .dia-chip{padding:9px 14px;font-size:14px;}
+.pp-chips .dia-chip svg{width:15px;height:15px;}
+textarea.pp-lista{min-height:190px;font-size:16px;line-height:1.6;margin-top:10px;}
+.pp-pie{display:flex;gap:10px;margin-top:24px;}
+.pp-pie .btn{margin:0;flex:1;width:auto;min-width:0;min-height:50px;}
+.pp-pie .btn.secondary{flex:0 0 auto;padding-left:18px;padding-right:18px;}
+
+/* ---------- "Completá la ficha" ---------- */
+.card.completar{border-color:color-mix(in srgb, var(--primary) 35%, var(--border));background:color-mix(in srgb, var(--soft-tint-bg) 45%, var(--card));}
+.completar-q{font-size:16px;font-weight:600;margin:2px 0 10px;line-height:1.35;}
+.card.completar .pill-select button{background:var(--card);}
+
+/* ---------- Armar preguntas de una tarea ---------- */
+.preg-card{border:1px solid var(--border);border-radius:14px;padding:10px 12px 12px;margin-bottom:10px;background:var(--card);}
+.preg-head{display:flex;align-items:center;justify-content:space-between;font-size:13px;color:var(--text-dim);margin-bottom:6px;}
+.preg-head b{font-weight:600;}
+textarea.preg-enunciado{min-height:52px;}
+.segmented.preg-tipo{margin:10px 0 0;}
+.segmented.preg-tipo button{font-size:12.5px;padding:7px 2px;}
+.preg-opciones{margin-top:10px;display:flex;flex-direction:column;gap:6px;}
+.preg-op{display:flex;align-items:center;gap:6px;}
+.preg-op input{min-height:42px;}
+.preg-marca{width:36px;height:36px;flex-shrink:0;border-radius:50%;border:1.5px solid var(--border-strong);background:var(--card);color:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
+.preg-marca svg{width:18px;height:18px;stroke-width:2.6;}
+.preg-op.ok .preg-marca{background:var(--ok);border-color:var(--ok);color:#fff;}
+.preg-op.ok input{border-color:var(--ok);}
+.list-item .btn.sm{flex-shrink:0;}

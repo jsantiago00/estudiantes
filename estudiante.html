@@ -41,31 +41,22 @@
       <p id="headerSub" style="display:none;"></p>
     </div>
     <button class="icon-btn filled notif-bell" id="notifToggle" type="button" aria-label="Notificaciones" hidden><span class="notif-count" id="notifCount" hidden></span></button>
-    <button class="icon-btn filled" id="modeToggle" type="button" aria-label="Modo claro u oscuro"></button>
+    <button class="icon-btn filled" id="yoToggle" type="button" aria-label="Tu cuenta" hidden></button>
   </div>
 </header>
 
+<!-- Una sola pantalla: lo que viene, lo que hay que hacer, la semana y lo que vimos -->
 <main>
   <div id="selectorAulas" class="filter-row" hidden></div>
   <section class="view active" id="view-entrada"></section>
   <section class="view" id="view-inicio"></section>
-  <section class="view" id="view-clases"></section>
-  <section class="view" id="view-tps"></section>
-  <section class="view" id="view-yo"></section>
 </main>
-
-<nav class="bottom-nav" id="tabs" data-nav hidden>
-  <button type="button" data-view="inicio" class="active"><span class="ico" data-ic="home"></span>Inicio</button>
-  <button type="button" data-view="clases"><span class="ico" data-ic="calendar"></span>Clases</button>
-  <button type="button" data-view="tps"><span class="ico" data-ic="list"></span>Actividades</button>
-  <button type="button" data-view="yo"><span class="ico" data-ic="user"></span>Yo</button>
-</nav>
 
 <div class="overlay" id="overlay">
   <div class="sheet" id="sheetContent" role="dialog" aria-modal="true"></div>
 </div>
 
-<!-- Resolver una actividad (pantalla completa, estilo juego) -->
+<!-- Resolver una tarea con preguntas (pantalla completa, estilo juego) -->
 <div class="jugar" id="jugar" hidden></div>
 
 <div class="toast" id="toast" role="status"></div>
