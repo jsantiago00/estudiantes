@@ -1483,10 +1483,12 @@ async function openClaseForm(id, fechaPreset, horaPreset, alumnoPreset){
       <input type="number" id="f_semanas" min="1" max="52" value="8" inputmode="numeric">
     </div>` : ''}
 
-    <details class="more" ${editing && editing.resumen ? 'open' : ''}>
+    <details class="more" ${editing && (editing.resumen || (editing.links||[]).length) ? 'open' : ''}>
       <summary>${ic('chevron-right')}Resumen, temas y notas</summary>
       <label for="f_resumen">Resumen para el alumno</label>
       <textarea id="f_resumen" placeholder="Qué vimos y qué repasar. Lo ve en su app, si la usa">${editing ? escapeHtml(editing.resumen||'') : ''}</textarea>
+      <label>Material de la clase</label>
+      ${editorLinksHtml('clase')}
       <label>Temas de esta clase</label>
       <div class="dias-chips" id="temarioClaseBox"></div>
       <div class="row2" style="margin-top:8px;">
@@ -1510,6 +1512,8 @@ async function openClaseForm(id, fechaPreset, horaPreset, alumnoPreset){
   const montoInicial = editing ? editing.monto : null;
   recalcularMontoForm(montoInicial);
   renderTemarioClaseForm();
+  editorLinks.clase = editing ? JSON.parse(JSON.stringify(editing.links || [])) : [];
+  pintarLinks('clase');
 }
 
 function viaticoFormActual(){
@@ -1646,6 +1650,7 @@ function guardarClase(id){
   const monto = parseFloat(document.getElementById('f_monto').value)||0;
   const notas = document.getElementById('f_notas').value.trim();
   const resumen = document.getElementById('f_resumen').value.trim();
+  const links = leerLinks('clase');
   const pagada = document.getElementById('f_pagada').checked;
   const duracionMin = leerDuracionPreset();
   const modalidad = formClaseModalidad;
@@ -1668,7 +1673,7 @@ function guardarClase(id){
     const c = db.clases.find(c=>c.id===id);
     const estabaPagada = c.pagada;
     if(resumen && resumen !== (c.resumen||'')) notificarAlumno(alumnoId, '📒 Resumen de la clase', `Ya está el resumen de la clase del ${nombreDiaFecha(fecha)}.`, {tipo:'resumen'});
-    Object.assign(c, {alumnoId, fecha, horaEntrada, horaSalida: sumarMinutos(horaEntrada, duracionMin), duracionMin, monto, viatico, pasajePrecio, pasajeCant, modalidad, temarioIds, notas, resumen});
+    Object.assign(c, {alumnoId, fecha, horaEntrada, horaSalida: sumarMinutos(horaEntrada, duracionMin), duracionMin, monto, viatico, pasajePrecio, pasajeCant, modalidad, temarioIds, notas, resumen, links});
     const aviso = aplicarPasaje();
     if(pagada && !estabaPagada) registrarPago({alumnoId, claseIds:[c.id], fecha: hoyIso()});
     else if(!pagada && estabaPagada) quitarClaseDePago(c);
@@ -1688,7 +1693,7 @@ function guardarClase(id){
     const ocurrencias = generarOcurrenciasRecurrentes(fecha, repeatDiasHoras, semanas);
     const serieId = uid();
     ocurrencias.forEach(o=>{
-      db.clases.push({id: uid(), serieId, alumnoId, fecha:o.fecha, horaEntrada:o.horaEntrada, horaSalida: sumarMinutos(o.horaEntrada, duracionMin), duracionMin, monto, viatico, pasajePrecio, pasajeCant, modalidad, temarioIds:[], notas, resumen:'', pizarra:null, pagada:false, pagoId:null});
+      db.clases.push({id: uid(), serieId, alumnoId, fecha:o.fecha, horaEntrada:o.horaEntrada, horaSalida: sumarMinutos(o.horaEntrada, duracionMin), duracionMin, monto, viatico, pasajePrecio, pasajeCant, modalidad, temarioIds:[], notas, resumen:'', links: links.slice(), pizarra:null, pagada:false, pagoId:null});
     });
     const aviso = aplicarPasaje();
     saveDB();
@@ -1698,7 +1703,7 @@ function guardarClase(id){
     return;
   }
 
-  const nueva = {id: uid(), serieId:null, alumnoId, fecha, horaEntrada, horaSalida: sumarMinutos(horaEntrada, duracionMin), duracionMin, monto, viatico, pasajePrecio, pasajeCant, modalidad, temarioIds, notas, resumen, pizarra:null, pagada:false, pagoId:null};
+  const nueva = {id: uid(), serieId:null, alumnoId, fecha, horaEntrada, horaSalida: sumarMinutos(horaEntrada, duracionMin), duracionMin, monto, viatico, pasajePrecio, pasajeCant, modalidad, temarioIds, notas, resumen, links, pizarra:null, pagada:false, pagoId:null};
   db.clases.push(nueva);
   const aviso = aplicarPasaje();
   if(pagada) registrarPago({alumnoId, claseIds:[nueva.id], fecha: hoyIso()});

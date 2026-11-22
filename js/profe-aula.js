@@ -383,6 +383,8 @@ function openTpForm(id, alumnoIdPreset, prefill){
     claseId: tp ? tp.claseId : (pre.claseId || null),
     preguntas: tp ? JSON.parse(JSON.stringify(tp.preguntas || [])) : []
   };
+  editorLinks.tp = tp ? JSON.parse(JSON.stringify(tp.links || [])) : (pre.links || []).slice();
+  formIa = {cant: 10, tipos: ['opcion', 'vf']};
   const consigna = tp ? (tp.consigna || tp.titulo || '') : (pre.consigna || '');
   const hayEntrega = tp && entregaDe(tp);
   openSheet(`
@@ -396,9 +398,16 @@ function openTpForm(id, alumnoIdPreset, prefill){
     <label for="f_tp_fecha">Para cuándo <span style="font-weight:400;">(opcional)</span></label>
     <input type="date" id="f_tp_fecha" value="${tp && tp.fechaEntrega ? tp.fechaEntrega : ''}">
 
+    <div class="section-label" style="margin-top:22px;">Material <span style="text-transform:none;letter-spacing:0;font-weight:500;">(opcional)</span></div>
+    ${editorLinksHtml('tp')}
+
     <div class="section-label" style="margin-top:22px;">Preguntas <span style="text-transform:none;letter-spacing:0;font-weight:500;">(opcional)</span></div>
     <div id="tpPreguntas"></div>
-    <button type="button" class="btn outline" onclick="agregarPreguntaTp()">${ic('plus')}Agregar una pregunta</button>
+    <div class="btn-row" style="margin-top:-4px;">
+      <button type="button" class="btn outline" onclick="agregarPreguntaTp()">${ic('plus')}Agregar una pregunta</button>
+      <button type="button" class="btn outline" onclick="toggleIaTp()">${ic('sparkles')}Armarlas con IA</button>
+    </div>
+    <div id="iaBox" class="ia-box" hidden></div>
     ${hayEntrega ? `<div class="note">${ic('info')}<div>Ya hay una entrega: si cambiás o reordenás las preguntas, sus respuestas pueden dejar de coincidir.</div></div>` : ''}
     <details class="more">
       <summary>${ic('chevron-right')}Pegar varias preguntas de una vez</summary>
@@ -413,6 +422,7 @@ function openTpForm(id, alumnoIdPreset, prefill){
     </div>
   `);
   pintarPreguntasTp();
+  pintarLinks('tp');
   if(!tp && !consigna) enfocarSiLibre('f_tp_consigna');
 }
 
@@ -481,16 +491,140 @@ function quitarOpcionTp(i, k){
 }
 function marcarCorrectaTp(i, k){ formTp.preguntas[i].correcta = k; pintarPreguntasTp(); }
 
-function pegarPreguntasTp(){
-  const ta = document.getElementById('f_tp_pegar');
+function pegarPreguntasTp(textareaId){
+  const ta = document.getElementById(textareaId || 'f_tp_pegar');
   const {preguntas, errores} = Comun.parsearPreguntas(ta.value);
-  if(errores.length){ showToast(errores[0]); return; }
-  if(!preguntas.length){ showToast('No encontré preguntas'); return; }
+  if(!preguntas.length){ showToast(errores[0] || 'No encontré preguntas: fijate que cada una empiece con "?"'); return; }
   formTp.preguntas.push(...preguntas);
   ta.value = '';
-  ta.closest('details').open = false;
+  const det = ta.closest('details'); if(det) det.open = false;
+  if(textareaId === 'f_ia_respuesta') document.getElementById('iaBox').hidden = true;
   pintarPreguntasTp();
-  showToast(`Agregaste ${preguntas.length} pregunta${preguntas.length!==1?'s':''}`);
+  showToast(`Agregaste ${preguntas.length} pregunta${preguntas.length!==1?'s':''}${errores.length ? ` (${errores.length} no se entendieron)` : ''}. Revisalas antes de mandar.`);
+}
+
+/* ---------- Armar preguntas con una IA (gratis: con la cuenta de Claude o ChatGPT del profe) ----------
+   La app arma el pedido en el formato que entiende "Pegar preguntas", abre el chat con el pedido
+   ya escrito (y además lo copia, por si el chat no lo toma del link), el profe adjunta ahí su PDF
+   de modelo si quiere, y pega la respuesta de vuelta acá. */
+
+let formIa = {cant: 10, tipos: ['opcion', 'vf']};
+const TIPOS_IA = [['opcion','Con opciones'], ['vf','Verdadero o falso'], ['numero','Con resultado numérico'], ['texto','Para responder por escrito']];
+
+function toggleIaTp(){
+  const box = document.getElementById('iaBox');
+  box.hidden = !box.hidden;
+  if(box.hidden) return;
+  const consigna = document.getElementById('f_tp_consigna').value.trim();
+  box.innerHTML = `
+    <div class="ia-head">${ic('sparkles')}<b>Armar preguntas con IA</b></div>
+    <label for="f_ia_tema">¿Sobre qué?</label>
+    <textarea id="f_ia_tema" rows="2" placeholder="Ej: ecuaciones de primer grado, como las de la página 30">${escapeHtml(consigna)}</textarea>
+    <label>¿Cuántas?</label>
+    <div class="segmented" id="iaCant" style="margin:0;">${[5,10,15].map(n=>`<button type="button" class="${formIa.cant===n?'active':''}" onclick="formIa.cant=${n}; document.querySelectorAll('#iaCant button').forEach(b=>b.classList.toggle('active', b.textContent==='${n}'))">${n}</button>`).join('')}</div>
+    <label>¿De qué tipo?</label>
+    <div class="dias-chips" id="iaTipos">${TIPOS_IA.map(([t, l])=>`<button type="button" class="dia-chip ${formIa.tipos.includes(t)?'sel':''}" onclick="toggleTipoIa(this, '${t}')">${formIa.tipos.includes(t) ? ic('check') : ''}${l}</button>`).join('')}</div>
+    <div class="note">${ic('info')}<div>Si tenés un PDF o una foto con ejercicios de ese estilo, <b>adjuntalo en el chat</b> que se abre: lo va a usar de modelo.</div></div>
+    <div class="btn-row">
+      <button type="button" class="btn primary" onclick="abrirIa('claude')">Abrir Claude</button>
+      <button type="button" class="btn secondary" onclick="abrirIa('chatgpt')">Abrir ChatGPT</button>
+    </div>
+    <button type="button" class="link-btn" style="margin-top:8px;" onclick="copiarTexto(pedidoIa())">${ic('copy')}Solo copiar el pedido</button>
+    <label for="f_ia_respuesta">Cuando te responda, copiá todo y pegalo acá</label>
+    <textarea id="f_ia_respuesta" class="tp-preguntas" placeholder="? ¿Cuánto es 7 × 8?&#10;- 54&#10;* 56&#10;- 58"></textarea>
+    <button type="button" class="btn outline" onclick="pegarPreguntasTp('f_ia_respuesta')">${ic('plus')}Agregar estas preguntas</button>`;
+}
+
+function toggleTipoIa(btn, tipo){
+  const i = formIa.tipos.indexOf(tipo);
+  if(i >= 0){ if(formIa.tipos.length === 1) return; formIa.tipos.splice(i, 1); } else formIa.tipos.push(tipo);
+  btn.classList.toggle('sel', i < 0);
+  btn.innerHTML = (i < 0 ? ic('check') : '') + TIPOS_IA.find(x=>x[0]===tipo)[1];
+}
+
+/** El pedido para la IA, con el formato exacto que entiende Comun.parsearPreguntas. */
+function pedidoIa(){
+  const a = getAlumno(document.getElementById('f_tp_alumno').value);
+  const tema = (document.getElementById('f_ia_tema').value || document.getElementById('f_tp_consigna').value || '').trim();
+  const materias = a ? temasDeAlumno(a.id).map(t=>t.nombre) : [];
+  const nivel = a && a.nivel ? (NIVELES.find(n=>n.id===a.nivel) || {}).label : '';
+  const ejemplos = {
+    opcion: '? Enunciado de una pregunta con opciones\n- opción incorrecta\n* opción correcta\n- opción incorrecta',
+    vf: '? Enunciado de verdadero o falso\n= V\n(o "= F" si es falsa)',
+    numero: '? Enunciado con resultado numérico\n= 42\n(si hace falta un margen: = 3.14 ± 0.01)',
+    texto: '? Enunciado de una pregunta para responder por escrito\n(sin nada abajo)'
+  };
+  const tipos = TIPOS_IA.filter(([t])=>formIa.tipos.includes(t)).map(([t, l])=>l.toLowerCase());
+  return [
+    `Soy profe particular${materias.length ? ' de ' + materias.join(' y ') : ''} y necesito ${formIa.cant} preguntas para un alumno${nivel ? ' de nivel ' + nivel.toLowerCase() : ''}.`,
+    tema ? `Tema: ${tema}` : '',
+    'Si te adjunto un archivo, usalo de modelo: el mismo estilo y la misma dificultad, pero con ejercicios nuevos.',
+    `Tipos de pregunta: ${tipos.join(', ')}.`,
+    '',
+    'Respondé SOLO con las preguntas, sin introducción ni comentarios, en este formato exacto:',
+    '',
+    formIa.tipos.map(t=>ejemplos[t]).join('\n\n'),
+    '',
+    'Reglas: cada pregunta empieza con "?" al principio del renglón. En las de opciones va exactamente una con "*". Dejá un renglón vacío entre preguntas. Para fórmulas usá $...$ (LaTeX).'
+  ].filter(l=>l !== null).join('\n').replace(/\n{3,}/g, '\n\n');
+}
+
+function abrirIa(cual){
+  const pedido = pedidoIa();
+  const url = (cual === 'claude' ? 'https://claude.ai/new?q=' : 'https://chatgpt.com/?q=') + encodeURIComponent(pedido);
+  window.open(url, '_blank');
+  // por si el chat no toma el pedido del link: queda copiado para pegarlo
+  if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(pedido).catch(()=>{});
+  showToast('Pedido copiado. Si no aparece escrito en el chat, pegalo ahí.');
+}
+
+/* ---------- Material: links (un PDF en Drive, un video, una página) ----------
+   Se usa en las tareas (editorLinks.tp) y en las clases (editorLinks.clase, desde index.html). */
+
+const editorLinks = {tp: [], clase: []};
+
+function editorLinksHtml(clave){
+  return `<div class="links-lista" id="links_${clave}"></div>
+    <div class="row2">
+      <input type="text" inputmode="url" id="f_link_${clave}" placeholder="Pegá un link: Drive, YouTube, una página…" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarLink('${clave}');}">
+      <button type="button" class="btn secondary" onclick="agregarLink('${clave}')" aria-label="Agregar link">${ic('plus')}</button>
+    </div>
+    <details class="hint-det"><summary>¿Cómo comparto un PDF?</summary>
+      <p class="hint">Subilo a tu Google Drive, tocá <b>Compartir</b> → <b>«Cualquier persona con el enlace»</b> → <b>Copiar enlace</b>, y pegalo acá. También sirven fotos, videos de YouTube o cualquier página.</p>
+    </details>`;
+}
+
+function pintarLinks(clave){
+  const box = document.getElementById('links_' + clave);
+  if(!box) return;
+  box.innerHTML = editorLinks[clave].map((l, i)=>`
+    <div class="link-fila">
+      <span class="row-ic" style="width:32px;height:32px;">${ic('file')}</span>
+      <input type="text" value="${escapeAttr(l.nombre || '')}" placeholder="${escapeAttr(Comun.nombreDeLink(l.url))}" oninput="editorLinks['${clave}'][${i}].nombre = this.value" aria-label="Nombre del link">
+      <button type="button" class="icon-btn sm" style="color:var(--text-mute);" onclick="editorLinks['${clave}'].splice(${i}, 1); pintarLinks('${clave}')" aria-label="Quitar link">${ic('x')}</button>
+    </div>`).join('');
+}
+
+function agregarLink(clave){
+  const input = document.getElementById('f_link_' + clave);
+  const url = Comun.normalizarLink(input.value);
+  if(!url){ if(input.value.trim()) showToast('Eso no parece un link'); return false; }
+  if(editorLinks[clave].length >= 10){ showToast('Hasta 10 links'); return false; }
+  editorLinks[clave].push({url, nombre: Comun.nombreDeLink(url)});
+  input.value = '';
+  pintarLinks(clave);
+  return true;
+}
+
+/** Los links del editor, incluido uno que quedó escrito sin tocar "+". */
+function leerLinks(clave){
+  const input = document.getElementById('f_link_' + clave);
+  if(input && input.value.trim()) agregarLink(clave);
+  return Comun.limpiarLinks(editorLinks[clave]);
+}
+
+function linksVerHtml(links){
+  return (links || []).map(l=>`<a class="btn sm outline" href="${escapeAttr(l.url)}" target="_blank" rel="noopener">${ic('file')}${escapeHtml(l.nombre)}</a>`).join('');
 }
 
 /** Las preguntas del formulario, listas para guardar; o un error para mostrar. */
@@ -528,19 +662,20 @@ function guardarTp(){
   const consigna = document.getElementById('f_tp_consigna').value.trim();
   const fechaEntrega = document.getElementById('f_tp_fecha').value || null;
   const r = leerPreguntasTp();
+  const links = leerLinks('tp');
   if(!alumnoId){ showToast('Elegí un alumno'); return; }
   if(r.error){ showToast(r.error); return; }
-  if(!consigna && !r.preguntas.length){ showToast('Escribí qué tiene que hacer'); return; }
+  if(!consigna && !r.preguntas.length && !links.length){ showToast('Escribí qué tiene que hacer'); return; }
   const a = getAlumno(alumnoId);
   const temaId = formTp.temaId || ((a && a.temasIds && a.temasIds.length === 1) ? a.temasIds[0] : null);
-  const titulo = Comun.tituloDeTexto(consigna) || Comun.tituloDeTexto(r.preguntas[0].enunciado);
+  const titulo = Comun.tituloDeTexto(consigna) || (r.preguntas[0] ? Comun.tituloDeTexto(r.preguntas[0].enunciado) : links[0].nombre);
 
   let tp = formTp.id ? db.tps.find(t=>t.id===formTp.id) : null;
   const nueva = !tp;
   if(tp){
-    Object.assign(tp, {alumnoId, titulo, consigna, fechaEntrega, temaId, preguntas: r.preguntas, publicado: true});
+    Object.assign(tp, {alumnoId, titulo, consigna, fechaEntrega, temaId, preguntas: r.preguntas, links, publicado: true});
   }else{
-    tp = {id: uid(), alumnoId, titulo, consigna, temaId, claseId: formTp.claseId, fechaEntrega, preguntas: r.preguntas,
+    tp = {id: uid(), alumnoId, titulo, consigna, temaId, claseId: formTp.claseId, fechaEntrega, preguntas: r.preguntas, links,
       publicado: true, publicadoEn: new Date().toISOString(), creado: new Date().toISOString()};
     db.tps.push(tp);
   }
@@ -571,8 +706,9 @@ function mandarTpPorWhatsapp(tpId){
     const ops = p.tipo === 'opcion' ? '\n' + p.opciones.map((o, k)=>`   ${String.fromCharCode(97+k)}) ${o}`).join('\n') : p.tipo === 'vf' ? ' (¿verdadero o falso?)' : '';
     return `${i+1}. ${p.enunciado}${ops}`;
   }).join('\n');
+  const material = (tp.links||[]).length ? '\n\nMaterial:\n' + tp.links.map(l=>`• ${l.nombre}: ${l.url}`).join('\n') : '';
   const link = a.aulaId && window.nube ? `\n\nTambién la tenés en la app: ${nube.linkInvitacion(a.aulaId)}` : '';
-  const msg = `¡Hola${quien ? ' ' + quien : ''}! Tarea${a.tipo === 'adulto' ? '' : ' para ' + a.nombre}${tp.fechaEntrega ? ` (para el ${fmtFecha(tp.fechaEntrega)})` : ''}:\n${tp.consigna || ''}${preguntas ? '\n\n' + preguntas : ''}${link}`;
+  const msg = `¡Hola${quien ? ' ' + quien : ''}! Tarea${a.tipo === 'adulto' ? '' : ' para ' + a.nombre}${tp.fechaEntrega ? ` (para el ${fmtFecha(tp.fechaEntrega)})` : ''}:\n${tp.consigna || ''}${preguntas ? '\n\n' + preguntas : ''}${material}${link}`;
   window.open(waUrl(a.telefono, msg), '_blank');
 }
 
@@ -650,6 +786,7 @@ function verTp(id){
     <h3>${escapeHtml(tituloTp(tp))}</h3>
     <p class="sheet-sub">${escapeHtml(alumnoNombre(tp.alumnoId))} · <span class="badge ${est.clase}">${est.texto}</span>${tp.fechaEntrega ? ' · para el ' + fmtFecha(tp.fechaEntrega) : ''}</p>
     ${tp.consigna && tp.consigna !== tituloTp(tp) ? `<div class="tp-consigna">${escapeHtml(tp.consigna)}</div>` : ''}
+    ${(tp.links||[]).length ? `<div class="clase-extras" style="margin:4px 0 10px;">${linksVerHtml(tp.links)}</div>` : ''}
     ${entregaHtml}
     <div class="btn-row">
       <button type="button" class="btn outline" onclick="openTpForm('${tp.id}')">${ic('edit')}Editar</button>

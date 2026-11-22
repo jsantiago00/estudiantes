@@ -120,6 +120,7 @@ igual(C.instanteArg('2026-11-22', '18:30').toISOString(), '2026-11-22T21:30:00.0
   ok(!('monto' in aula.clases[0]) && aula.tarifa === null, 'sin "mostrar montos" no van los montos');
   igual(aula.clases[0].pizarra, {codigo:'ABCDEF'}, 'la pizarra va solo con el código');
   igual(aula.clases[0].resumen, 'Fracciones', 'el resumen sí se publica');
+  igual(aula.clases[0].links, [], 'una clase sin material publica una lista vacía');
   ok(!('tareas' in aula) && !json.includes('Ej. 3'), 'los pendientes del profe (db.tareas) no se publican');
   igual(aula.tps[0].tema, 'Matemática', 'la tarea lleva el nombre de la materia');
   igual(aula.temas, ['Matemática'], 'temas del alumno');
@@ -163,6 +164,20 @@ María José 15`), [
 igual(C.parsearListaAlumnos(''), [], 'lista vacía');
 igual(C.tituloDeTexto('\n  Hacer los ejercicios 1 al 5\nde la página 30'), 'Hacer los ejercicios 1 al 5', 'el título es el primer renglón');
 ok(C.tituloDeTexto('x'.repeat(100)).length === 68, 'el título se corta');
+
+/* ---------- Material (links) ---------- */
+igual(C.normalizarLink('drive.google.com/file/d/abc/view'), 'https://drive.google.com/file/d/abc/view', 'al link sin https se lo agrega');
+igual([C.normalizarLink('hola'), C.normalizarLink('javascript:alert(1)'), C.normalizarLink(''), C.normalizarLink('ftp://x.com/a')], [null, null, null, null], 'lo que no es un link web no pasa');
+igual([C.nombreDeLink('https://docs.google.com/x'), C.nombreDeLink('https://youtu.be/x'), C.nombreDeLink('https://www.khanacademy.org/a')], ['Archivo de Drive', 'Video', 'khanacademy.org'], 'nombres automáticos');
+igual(C.limpiarLinks([{url:'youtube.com/watch?v=1', nombre:''}, {url:'nada'}, {url:'https://ej.com', nombre:'  Guía  '}]),
+  [{url:'https://youtube.com/watch?v=1', nombre:'Video'}, {url:'https://ej.com/', nombre:'Guía'}], 'limpia los links');
+
+/* ---------- Lo que suelen responder las IA ---------- */
+{
+  const {preguntas, errores} = C.parsearPreguntas('¡Claro! Acá tenés las preguntas:\n\n```\n**? ¿Cuánto es 2+2?**\n- 3\n* 4\n- 5\n\n? 3 es par.\n= F\n```\n\n¡Espero que te sirvan!');
+  igual(errores, [], 'la introducción, los bloques de código y la despedida no son errores');
+  igual(preguntas.map(p=>[p.tipo, p.enunciado]), [['opcion', '¿Cuánto es 2+2?'], ['vf', '3 es par.']], 'se toman solo las preguntas');
+}
 
 /* ---------- Códigos ---------- */
 {

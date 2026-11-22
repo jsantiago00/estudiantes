@@ -88,8 +88,9 @@
       actual = null;
     };
     String(texto || '').split(/\r?\n/).forEach((linea, i)=>{
-      const l = linea.trim();
-      if(!l || l.startsWith('#')) return;
+      // Lo que suelen agregar las IA: bloques de código (```) y negritas alrededor de la marca
+      const l = linea.trim().replace(/^\*\*(?=[?*=-])/, '').replace(/\*\*$/, '');
+      if(!l || l.startsWith('#') || l.startsWith('```')) return;
       const marca = l[0];
       const resto = l.slice(1).trim();
       if(marca === '?'){
@@ -97,15 +98,21 @@
         actual = {id: 'p' + (preguntas.length + 1), enunciado: resto, opciones: [], igual: null};
         return;
       }
-      if(!actual){ errores.push(`Línea ${i+1}: antes de las opciones va la pregunta, empezando con "?"`); return; }
+      if(!actual){
+        // Un texto suelto antes de la primera pregunta ("¡Claro! Acá tenés...") se ignora;
+        // una opción o una respuesta sin pregunta es un error de verdad
+        if(marca === '*' || marca === '-' || marca === '=') errores.push(`Línea ${i+1}: antes de las opciones va la pregunta, empezando con "?"`);
+        return;
+      }
       if(marca === '*' || marca === '-'){
         if(resto) actual.opciones.push({texto: resto, ok: marca === '*'});
       }else if(marca === '='){
         actual.igual = resto;
-      }else{
+      }else if(!actual.opciones.length && actual.igual === null){
         // Continuación del enunciado (preguntas de varias líneas)
         actual.enunciado += '\n' + l;
       }
+      // Texto suelto después de las opciones ("¡Espero que te sirva!"): se ignora
     });
     cerrar();
     preguntas.forEach((p, i)=>{ p.id = 'p' + (i+1); });
@@ -185,7 +192,8 @@
         id: c.id, fecha: c.fecha, horaEntrada: c.horaEntrada, horaSalida: c.horaSalida || null,
         duracionMin: c.duracionMin || 0, pagada: !!c.pagada,
         resumen: c.resumen || '',
-        pizarra: c.pizarra && c.pizarra.codigo ? {codigo: c.pizarra.codigo} : null
+        pizarra: c.pizarra && c.pizarra.codigo ? {codigo: c.pizarra.codigo} : null,
+        links: limpiarLinks(c.links)
       };
       // total de la clase: precio + pasajes (si el profe va a su casa)
       if(mostrarMontos) o.monto = Number(c.monto || 0) + Number(c.viatico || 0);
@@ -195,7 +203,7 @@
     const tps = (db.tps || []).filter(tp => tp.alumnoId === alumno.id && tp.publicado).map(tp=>({
       id: tp.id, titulo: tp.titulo || tituloDeTexto(tp.consigna), consigna: tp.consigna || '', tema: tp.temaId ? temaNombre(tp.temaId) : '',
       fechaEntrega: tp.fechaEntrega || null, claseId: tp.claseId || null,
-      preguntas: tp.preguntas || [], publicadoEn: tp.publicadoEn || null
+      preguntas: tp.preguntas || [], links: limpiarLinks(tp.links), publicadoEn: tp.publicadoEn || null
     }));
     const cfg = db.config || {};
     const perfil = cfg.perfil || {};
@@ -263,6 +271,42 @@
     return out;
   }
 
+  /* ---------- Material: links a un PDF en Drive, un video, una página ---------- */
+
+  /** Devuelve el link listo para abrir (con https://), o null si no parece un link. */
+  function normalizarLink(texto){
+    let s = String(texto || '').trim();
+    if(!s) return null;
+    if(!/^https?:\/\//i.test(s)) s = 'https://' + s;
+    try{
+      const u = new URL(s);
+      if(!/^https?:$/.test(u.protocol) || !/\.[a-z]{2,}$/i.test(u.hostname)) return null;
+      return u.href;
+    }catch(e){ return null; }
+  }
+
+  /** Un nombre para mostrar si el profe no le puso uno. */
+  function nombreDeLink(url){
+    try{
+      const h = new URL(url).hostname.replace(/^www\./, '');
+      if(/(^|\.)(drive|docs)\.google\.com$/.test(h)) return 'Archivo de Drive';
+      if(/(^|\.)(youtube\.com|youtu\.be)$/.test(h)) return 'Video';
+      if(/(^|\.)dropbox\.com$/.test(h)) return 'Archivo de Dropbox';
+      if(/(^|\.)(onedrive\.live\.com|1drv\.ms|sharepoint\.com)$/.test(h)) return 'Archivo de OneDrive';
+      return h;
+    }catch(e){ return 'Link'; }
+  }
+
+  /** Solo los links válidos, con nombre, y no más de 10. */
+  function limpiarLinks(links){
+    return (Array.isArray(links) ? links : []).map(l=>{
+      const url = normalizarLink(l && l.url);
+      if(!url) return null;
+      const nombre = String((l && l.nombre) || '').trim().slice(0, 80) || nombreDeLink(url);
+      return {url, nombre};
+    }).filter(Boolean).slice(0, 10);
+  }
+
   /** Un título corto a partir del texto de la tarea (su primer renglón). */
   function tituloDeTexto(texto){
     const primera = String(texto || '').split(/\r?\n/).map(s=>s.trim()).find(Boolean) || '';
@@ -275,6 +319,6 @@
     parsearPreguntas, preguntasATexto, corregir, puntaje,
     claseTerminada, estadoCuenta, construirAula,
     clasesPorEmpezar, clasesRecienTerminadas, horaLinda,
-    parsearListaAlumnos, tituloDeTexto
+    parsearListaAlumnos, tituloDeTexto, normalizarLink, nombreDeLink, limpiarLinks
   };
 });

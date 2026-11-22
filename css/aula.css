@@ -80,3 +80,19 @@ textarea.preg-enunciado{min-height:52px;}
 .preg-op.ok .preg-marca{background:var(--ok);border-color:var(--ok);color:#fff;}
 .preg-op.ok input{border-color:var(--ok);}
 .list-item .btn.sm{flex-shrink:0;}
+
+/* ---------- Material (links) ---------- */
+.links-lista{display:flex;flex-direction:column;gap:6px;margin-bottom:8px;}
+.link-fila{display:flex;align-items:center;gap:8px;}
+.link-fila input{min-height:40px;}
+details.hint-det summary{cursor:pointer;font-size:12.5px;color:var(--accent);font-weight:600;margin-top:6px;list-style:none;}
+details.hint-det summary::-webkit-details-marker{display:none;}
+details.hint-det .hint{margin-top:4px;}
+
+/* ---------- Armar preguntas con IA ---------- */
+.ia-box{border:1px solid color-mix(in srgb, var(--primary) 35%, var(--border));background:color-mix(in srgb, var(--soft-tint-bg) 50%, var(--card));border-radius:14px;padding:12px 14px 14px;margin-top:12px;}
+.ia-box[hidden]{display:none !important;}
+.ia-head{display:flex;align-items:center;gap:8px;color:var(--accent);font-size:15px;}
+.ia-head svg{width:18px;height:18px;}
+.ia-box label:first-of-type{margin-top:10px;}
+.ia-box .dia-chip svg{width:14px;height:14px;}

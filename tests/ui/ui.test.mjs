@@ -260,14 +260,42 @@ const datosProfe = {
   await clickTexto(page, 'Abrir una pizarra para esta clase');
   await esperar(500);
   await page.evaluate(()=>{ document.querySelector('details.more').open = true; document.getElementById('f_resumen').value = 'Vimos fracciones equivalentes'; });
+  // material de la clase: un link que queda escrito sin tocar "+" también se guarda
+  await page.type('#f_link_clase', 'youtube.com/watch?v=fracciones');
   await clickTexto(page, 'Guardar cambios', '#sheetContent button');
   await esperar(2500);
   const c1pub = (await page.evaluate(id=>window.__docs.get('aulas/' + id), aulaId)).clases.find(c=>c.id==='c1');
   ok(c1pub.resumen === 'Vimos fracciones equivalentes' && c1pub.pizarra && !c1pub.pizarra.clave, 'el alumno recibe el resumen y la pizarra');
+  ok(c1pub.links.length === 1 && c1pub.links[0].nombre === 'Video' && c1pub.links[0].url.startsWith('https://youtube.com'), 'la clase lleva su material');
 
-  // Una tarea sin preguntas, para que el alumno la marque como hecha
+  // Una tarea sin preguntas, para que el alumno la marque como hecha, con un PDF de Drive
   await page.evaluate(()=>openTpForm(null, 'a1'));
   await page.type('#f_tp_consigna', 'Leer el capítulo 3 del libro');
+  await page.type('#f_link_tp', 'drive.google.com/file/d/capitulo3/view');
+  await page.keyboard.press('Enter');
+  await page.$eval('#links_tp input', i=>{ i.value = 'Capítulo 3 (PDF)'; i.dispatchEvent(new Event('input')); });
+  await clickTexto(page, 'Mandar tarea');
+  await esperar(2500);
+
+  // Armar preguntas con IA: se abre el chat con el pedido, se pega la respuesta y quedan editables
+  await page.evaluate(()=>openTpForm(null, 'a1'));
+  await page.type('#f_tp_consigna', 'Ecuaciones de primer grado');
+  await clickTexto(page, 'Armarlas con IA');
+  await esperar(100);
+  ok(await page.$eval('#iaBox', b=>!b.hidden) && (await page.$eval('#f_ia_tema', t=>t.value)) === 'Ecuaciones de primer grado', 'se abre el armado con IA con el tema de la tarea');
+  await clickTexto(page, 'Con resultado numérico', '#iaTipos button');
+  await clickTexto(page, '5', '#iaCant button');
+  await page.screenshot({path: join(capturas, 'profe-2-ia.png'), fullPage: true});
+  await clickTexto(page, 'Abrir Claude');
+  const urlIa = (await page.evaluate(()=>window.__abiertas)).find(u=>u.startsWith('https://claude.ai/new?q='));
+  const pedido = urlIa ? decodeURIComponent(urlIa.split('?q=')[1]) : '';
+  ok(pedido.includes('5 preguntas') && pedido.includes('Ecuaciones de primer grado') && pedido.includes('Matemática') && pedido.includes('= 42') && pedido.includes('* opción correcta'), 'el pedido a Claude lleva el tema, la cantidad, la materia y el formato');
+  await clickTexto(page, 'Abrir ChatGPT');
+  ok((await page.evaluate(()=>window.__abiertas)).some(u=>u.startsWith('https://chatgpt.com/?q=')), 'también se puede abrir en ChatGPT');
+  await page.$eval('#f_ia_respuesta', t=>{ t.value = '¡Claro! Acá tenés:\n\n```\n? Si 2x = 10, ¿cuánto vale x?\n= 5\n\n? x + 1 = 3 tiene solución x = 2.\n= V\n\n? ¿Cuál es la solución de x - 4 = 0?\n- 0\n* 4\n- -4\n```\n\n¡Éxitos!'; });
+  await clickTexto(page, 'Agregar estas preguntas');
+  ok((await page.$$('#tpPreguntas .preg-card')).length === 3 && await page.$eval('#iaBox', b=>b.hidden), 'la respuesta de la IA queda como preguntas editables');
+  await page.screenshot({path: join(capturas, 'profe-3-ia-preguntas.png'), fullPage: true});
   await clickTexto(page, 'Mandar tarea');
   await esperar(2500);
 
@@ -312,12 +340,16 @@ const datosProfe = {
   ok(inicio.includes('El jueves no hay clase'), 'se ve el aviso');
   ok(inicio.includes('Lo que vimos') && inicio.includes('Vimos fracciones equivalentes'), 'en "Lo que vimos" está el resumen');
   ok((await page.$$('.tira-dia')).length === 7, 'la semana en una tira de días');
+  ok(await page.$$eval('#view-inicio a', as=>as.some(a=>a.textContent.includes('Video') && a.href.includes('youtube.com'))), 'en "Lo que vimos" está el material de la clase');
+  const tpsAula = (await page.evaluate(id=>window.__docs.get('aulas/' + id), aulaId)).tps;
+  ok(tpsAula.some(t=>t.links.length === 1 && t.links[0].nombre === 'Capítulo 3 (PDF)') && tpsAula.some(t=>t.preguntas.length === 3 && t.titulo === 'Ecuaciones de primer grado'), 'llegan la tarea con el PDF y la armada con IA');
   ok(!(await page.$('.bottom-nav')), 'no hay pestañas');
   await page.screenshot({path: join(capturas, 'est-1-inicio.png'), fullPage: true});
 
   // Tarea sin preguntas: marcarla como hecha
   await clickTexto(page, 'Leer el capítulo 3', '#view-inicio .list-item');
   await esperar(200);
+  ok(await page.$$eval('#sheetContent a', as=>as.some(a=>a.textContent.includes('Capítulo 3 (PDF)') && a.href.includes('drive.google.com'))), 'en la tarea está el PDF para abrir');
   await page.screenshot({path: join(capturas, 'est-2-tarea-simple.png')});
   await page.type('#f_hecha_coment', 'Me gustó');
   await clickTexto(page, 'la hice');

@@ -133,6 +133,11 @@ function hace(f){
 const inicioClase = c => Comun.instanteArg(c.fecha, c.horaEntrada);
 const finClase = c => Comun.instanteArg(c.fecha, c.horaSalida || c.horaEntrada);
 
+/* Material que adjuntó el profe (links a Drive, videos, páginas): botones que abren aparte */
+function linksHtml(links){
+  return Comun.limpiarLinks(links).map(l=>`<a class="btn sm outline" href="${esc(l.url)}" target="_blank" rel="noopener">${ic('file')}${esc(l.nombre)}</a>`).join('');
+}
+
 /* ---------- Tema claro / oscuro (se elige en "Tu cuenta") ---------- */
 
 function temaActual(){ try{ return localStorage.getItem('estudiantes_theme_v1') || 'auto'; }catch(e){ return 'auto'; } }
@@ -444,6 +449,7 @@ function semanaHtml(a){
         const pasada = finClase(c) <= ahora;
         const extras = [];
         if(c.pizarra) extras.push(`<a class="btn sm outline" href="${linkSala(c.pizarra.codigo)}" target="_blank" rel="noopener">${ic('pen')}Pizarra</a>`);
+        if((c.links||[]).length) extras.push(linksHtml(c.links));
         (a.tps||[]).filter(tp=>tp.claseId===c.id).forEach(tp=>extras.push(`<button type="button" class="btn sm outline" data-tp="${tp.id}">${ic('list')}${esc(tp.titulo || 'Tarea')}</button>`));
         return `<div class="clase-dia">
           <div class="clase-cab">
@@ -470,7 +476,7 @@ function loVistoHtml(a){
       <div class="visto">
         <div class="item-sub">${fechaLarga(c.fecha)}</div>
         ${c.resumen ? `<div class="visto-txt">${esc(c.resumen)}</div>` : ''}
-        ${c.pizarra ? `<a class="btn sm outline" href="${linkSala(c.pizarra.codigo)}" target="_blank" rel="noopener" style="margin-top:6px;">${ic('pen')}Ver la pizarra</a>` : ''}
+        ${c.pizarra || (c.links||[]).length ? `<div class="clase-extras">${c.pizarra ? `<a class="btn sm outline" href="${linkSala(c.pizarra.codigo)}" target="_blank" rel="noopener">${ic('pen')}Ver la pizarra</a>` : ''}${linksHtml(c.links)}</div>` : ''}
       </div>`).join('')}
     ${vistas.length > 3 ? `<button type="button" class="link-btn ver-mas" id="btnVisto">${estado.verTodoLoVisto ? 'Ver menos' : `Ver todo (${vistas.length})`}</button>` : ''}
   </div>`;
@@ -673,6 +679,7 @@ function portadaTp(tp){
     <h3>${esc(titulo)}</h3>
     <p class="sheet-sub">${tp.fechaEntrega ? 'Para el ' + fechaLarga(tp.fechaEntrega).toLowerCase() : 'Sin fecha'}${tp.tema ? ' · ' + esc(tp.tema) : ''}</p>
     ${tp.consigna && tp.consigna !== titulo ? `<div class="tp-consigna">${esc(tp.consigna)}</div>` : ''}
+    ${(tp.links||[]).length ? `<div class="section-label" style="margin-top:14px;">Material</div><div class="clase-extras">${linksHtml(tp.links)}</div>` : ''}
     ${n ? `<p class="hint">Son ${n} pregunta${n!==1?'s':''}. Te decimos al toque si está bien.</p>
            ${b ? '<button type="button" class="btn ghost" id="btnReiniciar">' + ic('repeat') + 'Empezar de cero</button>' : ''}`
         : `<label for="f_hecha_coment">¿Querés contarle algo a tu profe? <span style="font-weight:400;">(opcional)</span></label>
@@ -886,6 +893,7 @@ function verEntrega(tp, e){
       ${e.devolucion ? esc(e.devolucion) : ''}
     </div>` : ''}
     ${!conPreg && tp.consigna ? `<div class="tp-consigna">${esc(tp.consigna)}</div>` : ''}
+    ${(tp.links||[]).length ? `<div class="clase-extras" style="margin-bottom:10px;">${linksHtml(tp.links)}</div>` : ''}
     ${(tp.preguntas||[]).map((p, i)=>{
       const ok = Comun.corregir(p, r[p.id]);
       const resp = r[p.id] === undefined ? '<i class="hint">Sin responder</i>'
