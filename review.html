@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="es" data-palette="terracota">
+<html lang="es" data-palette="lila">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#faf3ea">
+<meta name="theme-color" content="#f7f5fb">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg?v=2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,22 +12,32 @@
 <title>Dejá tu reseña</title>
 <style>
   :root{--font-agenda:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
-  :root,:root[data-palette="terracota"]{
-    --bg:#f8f6f3; --card:#ffffff; --text:#221b16; --text-dim:#6e645c; --border:#e8e2da;
-    --primary:#bd5d34; --primary-dark:#9d4823; --input-bg:#ffffff;
+  :root,:root[data-palette="lila"]{
+    --bg:#f7f5fb; --card:#ffffff; --text:#1d1828; --text-dim:#665e75; --border:#e6e1ef;
+    --primary:#7356bd; --primary-dark:#5c40a3; --input-bg:#ffffff;
   }
-  :root[data-palette="salvia"]{
-    --bg:#f5f7f4; --card:#ffffff; --text:#1a221a; --text-dim:#5f6b5e; --border:#dfe5dc;
-    --primary:#4d7e42; --primary-dark:#3b6432; --input-bg:#ffffff;
+  :root[data-palette="azul"]{
+    --bg:#f6f7fb; --card:#ffffff; --text:#121a2c; --text-dim:#596479; --border:#e1e6f0;
+    --primary:#1f4fa3; --primary-dark:#173e82; --input-bg:#ffffff;
   }
-  :root[data-palette="lavanda"]{
-    --bg:#f6f5f9; --card:#ffffff; --text:#1c1924; --text-dim:#676172; --border:#e5e2eb;
-    --primary:#7254b0; --primary-dark:#5b3f97; --input-bg:#ffffff;
+  :root[data-palette="rojo"]{
+    --bg:#fbf8f8; --card:#ffffff; --text:#231617; --text-dim:#6e5b5d; --border:#ede3e4;
+    --primary:#c8283b; --primary-dark:#a31e2f; --input-bg:#ffffff;
+  }
+  :root[data-palette="verde"]{
+    --bg:#f6f8f4; --card:#ffffff; --text:#18221a; --text-dim:#5a6a5c; --border:#dee6db;
+    --primary:#357a4a; --primary-dark:#28613a; --input-bg:#ffffff;
+  }
+  :root[data-palette="celeste"]{
+    --bg:#f6f9fc; --card:#ffffff; --text:#13202d; --text-dim:#566c80; --border:#dfe8f1;
+    --primary:#2a7fbf; --primary-dark:#1f6499; --input-bg:#ffffff;
   }
   @media (prefers-color-scheme: dark){
-    :root[data-palette="terracota"]{--bg:#211a15;--card:#2c2119;--text:#f1e4d6;--text-dim:#b6a08a;--border:#4a392c;--primary:#e08a5b;--primary-dark:#e08a5b;--input-bg:#382a1f;}
-    :root[data-palette="salvia"]{--bg:#171c15;--card:#212820;--text:#e6ede1;--text-dim:#a2b099;--border:#3a4535;--primary:#93b97e;--primary-dark:#93b97e;--input-bg:#2a3327;}
-    :root[data-palette="lavanda"]{--bg:#1c1721;--card:#26202c;--text:#ece6f0;--text-dim:#ab9fb8;--border:#453a4f;--primary:#ab8ed4;--primary-dark:#ab8ed4;--input-bg:#322a3a;}
+    :root[data-palette="lila"]{--bg:#131019;--card:#1c1824;--text:#efecf4;--text-dim:#aaa2b8;--border:#453d51;--primary:#8466cf;--primary-dark:#cbb8f5;--input-bg:#201b28;}
+    :root[data-palette="azul"]{--bg:#0e121c;--card:#161b28;--text:#eef1f8;--text-dim:#a2abc0;--border:#38425c;--primary:#3a6ccc;--primary-dark:#f4c842;--input-bg:#1a2030;}
+    :root[data-palette="rojo"]{--bg:#151011;--card:#1f1718;--text:#f7eeee;--text-dim:#b9a4a6;--border:#4c393b;--primary:#d23a4c;--primary-dark:#ff9ea8;--input-bg:#231a1b;}
+    :root[data-palette="verde"]{--bg:#0f1410;--card:#171d18;--text:#eaf0e8;--text-dim:#a0ad9f;--border:#3a463a;--primary:#3f8f58;--primary-dark:#9fd9ac;--input-bg:#1a211b;}
+    :root[data-palette="celeste"]{--bg:#0d1319;--card:#141c24;--text:#edf4fa;--text-dim:#9eb2c4;--border:#354656;--primary:#2f87c7;--primary-dark:#9fd4f6;--input-bg:#17212b;}
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html{background:var(--bg);}
@@ -108,7 +118,9 @@
   const alumno = (q.get('a')||'').trim();
   const nivel = (q.get('n')||'').trim();
   const paleta = q.get('c');
-  if(['terracota','salvia','lavanda'].includes(paleta)) document.documentElement.setAttribute('data-palette', paleta);
+  const viejas = {terracota:'lila', lavanda:'lila', salvia:'verde'};
+  const pal = viejas[paleta] || paleta;
+  if(['lila','azul','rojo','verde','celeste'].includes(pal)) document.documentElement.setAttribute('data-palette', pal);
   const meta = document.querySelector('meta[name="theme-color"]');
   meta.setAttribute('content', getComputedStyle(document.documentElement).getPropertyValue('--bg').trim());
 

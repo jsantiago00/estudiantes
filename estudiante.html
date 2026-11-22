@@ -1,11 +1,13 @@
 <!DOCTYPE html>
-<html lang="es" data-palette="terracota">
+<html lang="es" data-palette="lila">
 <head>
 <meta charset="UTF-8">
 <script>
 (function(){
   try {
     var p = localStorage.getItem('estudiantes_palette_v1');
+    var viejas = {terracota:'lila', lavanda:'lila', salvia:'verde'};
+    if (viejas[p]) p = viejas[p];
     if (p) document.documentElement.setAttribute('data-palette', p);
     var t = localStorage.getItem('estudiantes_theme_v1');
     if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
@@ -16,7 +18,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#f8f6f3">
+<meta name="theme-color" content="#f7f5fb">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg?v=2">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">

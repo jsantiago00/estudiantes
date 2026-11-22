@@ -80,7 +80,7 @@ const datosProfe = {
   ],
   tareas: [{id:'k1', alumnoId:'a1', temaId:'t1', claseId:null, texto:'Preparar ejercicios de fracciones', hecha:false}],
   resenas: [{id:'r0', alumnoId:null, alumnoNombre:'Tomi', autor:'Carla', relacion:'mamá', estrellas:5, texto:'Muy buena profe', fecha:'2026-10-01', publicar:true}],
-  config: {tarifaMin:7000, tarifaMax:15000, paleta:'terracota', tema:'light', tutorialVisto:true, nombreProfe:'Ana Pérez', telefonoProfe:'5492615550000'}
+  config: {tarifaMin:7000, tarifaMax:15000, paleta:'azul', tema:'light', tutorialVisto:true, nombreProfe:'Ana Pérez', telefonoProfe:'5492615550000'}
 };
 
 /* =========================================================

@@ -5,8 +5,8 @@
   "start_url": "./estudiante.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f8f1e6",
-  "theme_color": "#c1683d",
+  "background_color": "#f7f5fb",
+  "theme_color": "#7356bd",
   "lang": "es",
   "icons": [
     { "src": "icons/favicon-32.png", "sizes": "32x32", "type": "image/png" },

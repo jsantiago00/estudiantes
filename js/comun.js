@@ -202,7 +202,8 @@
     return {
       alumnoNombre: alumno.nombre,
       alumnoTipo: alumno.tipo || 'nino',
-      color: alumno.color || '#c1673b',
+      color: alumno.color || '#7356bd',
+      paleta: cfg.paleta || 'lila',
       profeNombre: cfg.nombreProfe || perfil.nombre || '',
       temas: (alumno.temasIds || []).map(temaNombre).filter(Boolean),
       mostrarMontos,

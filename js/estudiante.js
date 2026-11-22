@@ -146,6 +146,14 @@ function setTema(t){
 }
 aplicarTema(temaActual());
 
+/* La app del alumno usa la paleta que eligió su profe */
+const PALETAS = ['lila', 'azul', 'rojo', 'verde', 'celeste'];
+function aplicarPaletaDelProfe(p){
+  if(!PALETAS.includes(p) || document.documentElement.getAttribute('data-palette') === p) return;
+  document.documentElement.setAttribute('data-palette', p);
+  try{ localStorage.setItem('estudiantes_palette_v1', p); }catch(e){}
+}
+
 /* ---------- Sesión ---------- */
 
 let soltar = [];
@@ -263,6 +271,7 @@ function render(){
     renderEntrada();
     return;
   }
+  aplicarPaletaDelProfe(a.paleta);
   $('headerSub').textContent = a.profeNombre ? `Tus clases con ${a.profeNombre}` : 'Tus clases';
   $('headerSub').style.display = '';
   renderSelector();

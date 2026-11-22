@@ -98,6 +98,7 @@ async function publicarPerfil(data){
   const pub = {
     nombre: cfg.nombreProfe || u.displayName || '',
     bio: cfg.bioProfe || '',
+    paleta: cfg.paleta || 'lila',
     materias: (data.temas || []).map(t=>t.nombre).slice(0, 30),
     resenas: (data.resenas || []).filter(r=>r.enPagina && !r.privada).slice(0, 60).map(r=>({
       estrellas: Number(r.estrellas) || 5, texto: String(r.texto || '').slice(0, 1200), autor: firma(r), fecha: r.fecha || ''

@@ -1,11 +1,13 @@
 <!DOCTYPE html>
-<html lang="es" data-palette="terracota">
+<html lang="es" data-palette="lila">
 <head>
 <meta charset="UTF-8">
 <script>
 (function(){
   try {
     var p = localStorage.getItem('estudiantes_palette_v1');
+    var viejas = {terracota:'lila', lavanda:'lila', salvia:'verde'};
+    if (viejas[p]) p = viejas[p];
     if (p) document.documentElement.setAttribute('data-palette', p);
     var t = localStorage.getItem('estudiantes_theme_v1');
     if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
@@ -311,7 +313,7 @@
 const STORAGE_KEY = 'estudiantes_app_data_v1';
 
 const CONFIG_DEFAULT = {
-  tarifaMin:7000, tarifaMax:15000, paleta:'terracota', tema:'auto', tutorialVisto:false,
+  tarifaMin:7000, tarifaMax:15000, paleta:'lila', tema:'auto', tutorialVisto:false,
   precioPasaje:1680,          // bondi: "voy a su casa" suma pasajes (2 por defecto: ida y vuelta)
   tarifaTP:10000,             // tarifa por hora sugerida para trabajos prácticos
   nombreProfe:'', telefonoProfe:'', bioProfe:'',
@@ -372,8 +374,9 @@ function aplicarDatosCargados(parsed){
     db.config.disponibilidad = JSON.parse(JSON.stringify(CONFIG_DEFAULT.disponibilidad));
   }
   // migración de paletas viejas (6 opciones) a las 3 nuevas, y de modoOscuro booleano a tema auto/light/dark
-  if(!['terracota','salvia','lavanda'].includes(db.config.paleta)){
-    db.config.paleta = (db.config.paleta==='verde') ? 'salvia' : (db.config.paleta==='lila') ? 'lavanda' : 'terracota';
+  // paletas viejas → nuevas (terracota, lavanda y las de antes → lila; salvia → verde)
+  if(!['lila','azul','rojo','verde','celeste'].includes(db.config.paleta)){
+    db.config.paleta = (db.config.paleta==='salvia') ? 'verde' : 'lila';
   }
   if(db.config.tema===undefined){
     db.config.tema = db.config.modoOscuro ? 'dark' : 'auto';
@@ -3152,19 +3155,21 @@ function renderAll(){
    AJUSTES: EXPORTAR / IMPORTAR
    ========================================================= */
 const PALETTES = [
-  {id:'terracota', label:'Terracota', swatch:'#c1673b'},
-  {id:'salvia', label:'Salvia', swatch:'#6f8f5c'},
-  {id:'lavanda', label:'Lavanda', swatch:'#8067a8'}
+  {id:'lila', label:'Lila', swatch:'#7a5bc4'},
+  {id:'azul', label:'Azul y oro', swatch:'#1f4fa3'},
+  {id:'rojo', label:'Rojo y blanco', swatch:'#cf2a3d'},
+  {id:'verde', label:'Verde', swatch:'#3a8150'},
+  {id:'celeste', label:'Celeste y blanco', swatch:'#4a9fd8'}
 ];
 
 function aplicarPaleta(){
-  const paleta = db.config.paleta || 'terracota';
+  const paleta = db.config.paleta || 'lila';
   document.documentElement.setAttribute('data-palette', paleta);
   try{ localStorage.setItem('estudiantes_palette_v1', paleta); }catch(e){}
   actualizarColorBarras();
 }
 // Las barras del sistema del celular (arriba y abajo) toman el color de theme-color.
-// Antes quedaba fijo en el naranja de la paleta terracota: ahora sigue la paleta y el modo claro/oscuro.
+// Sigue la paleta y el modo claro/oscuro.
 function actualizarColorBarras(){
   const metaTheme = document.querySelector('meta[name="theme-color"]');
   if(!metaTheme) return;
@@ -3187,7 +3192,7 @@ function elegirPaleta(key){
 function renderThemeSwitch(){
   const cont = document.getElementById('themeSwitchAjustes');
   if(cont){
-    const current = db.config.paleta || 'terracota';
+    const current = db.config.paleta || 'lila';
     cont.innerHTML = PALETTES.map(p=>
       `<button type="button" class="${p.id===current?'active':''}" onclick="elegirPaleta('${p.id}')"><i style="background:${p.swatch}"></i>${p.label}</button>`
     ).join('');
@@ -3507,7 +3512,7 @@ function linkResena(alumno){
     url.searchParams.set('a', alumno.nombre);
     if(alumno.nivel) url.searchParams.set('n', alumno.nivel);
   }
-  url.searchParams.set('c', db.config.paleta || 'terracota');
+  url.searchParams.set('c', db.config.paleta || 'lila');
   return url.toString();
 }
 function pedirResena(alumnoId){

@@ -105,7 +105,7 @@ await caso('no les cambia el texto', ()=>assertFails(updateDoc(doc(alumno, 'noti
 await caso('las borra', ()=>assertSucceeds(deleteDoc(doc(alumno, 'notifs', 'n1'))));
 
 /* ---------- Perfil público, datos del profe, tokens ---------- */
-const perfil = {nombre: 'Profe Ana', bio: '', materias: ['Mate'], resenas: [], actualizado: serverTimestamp()};
+const perfil = {nombre: 'Profe Ana', bio: '', paleta: 'azul', materias: ['Mate'], resenas: [], actualizado: serverTimestamp()};
 await caso('el profe publica su perfil', ()=>assertSucceeds(setDoc(doc(profe, 'perfiles', 'profe'), perfil)));
 await caso('cualquiera (sin sesión) lee el perfil', ()=>assertSucceeds(getDoc(doc(nadie, 'perfiles', 'profe'))));
 await caso('nadie escribe el perfil de otro', ()=>assertFails(setDoc(doc(extrano, 'perfiles', 'profe'), perfil)));

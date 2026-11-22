@@ -289,7 +289,7 @@ service cloud.firestore {
     match /perfiles/{uid} {
       allow read: if true;
       allow write: if conCuenta() && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['nombre', 'bio', 'materias', 'resenas', 'actualizado'])
+        && request.resource.data.keys().hasOnly(['nombre', 'bio', 'paleta', 'materias', 'resenas', 'actualizado'])
         && request.resource.data.resenas is list && request.resource.data.resenas.size() <= 60
         && request.resource.data.materias is list && request.resource.data.materias.size() <= 30;
     }
