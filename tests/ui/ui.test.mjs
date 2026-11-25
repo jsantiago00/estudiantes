@@ -236,6 +236,7 @@ const datosProfe = {
   await esperar(1500);
   ok((await texto(page, '#detalleAula')).includes('Quiere preparar el ingreso'), 'la ficha muestra lo que le interesa');
 
+  await page.evaluate(()=>{ document.getElementById('aulaOpciones').open = true; });
   await page.type('#f_aviso', 'El jueves no hay clase');
   await page.keyboard.press('Enter');
   await esperar(2200);

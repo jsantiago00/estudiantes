@@ -100,7 +100,7 @@ function renderDetalleAula(alumno){
   if(!alumno.aulaId){
     cont.innerHTML = `
       <div class="card-head"><h2>En la app</h2></div>
-      <p class="ajustes-desc">Si quiere, ${escapeHtml(alumno.nombre)}${alumno.tipo==='adulto' ? '' : ' (o su familia)'} puede entrar a Estudiemos y ver sus clases, si debe alguna, los resúmenes, las pizarras, las tareas que le mandes. No es obligatorio.</p>
+      <p class="ajustes-desc">Para que ${escapeHtml(alumno.nombre)}${alumno.tipo==='adulto' ? '' : ' (o su familia)'} vea sus clases y haga las tareas desde el celu. Es opcional.</p>
       <button type="button" class="btn outline" onclick="invitarAlumnoApp('${alumno.id}')">${ic('send')}Invitar a la app</button>`;
     return;
   }
@@ -123,6 +123,8 @@ function renderDetalleAula(alumno){
 
   const perfil = v && v.perfil;
   const avisos = (alumno.avisos || []).slice(-3).reverse();
+  const prevOpc = document.getElementById('aulaOpciones');
+  const opcAbiertas = !!(prevOpc && prevOpc.open && prevOpc.dataset.alumno === alumno.id);
   cont.innerHTML = `
     <div class="card-head"><h2>En la app</h2><span class="badge pagada">${ic('check')}Invitado</span></div>
     ${miembrosHtml}
@@ -131,6 +133,8 @@ function renderDetalleAula(alumno){
       <button type="button" class="btn whatsapp" onclick="compartirInvitacion('${alumno.id}')">${ic('message')}Mandar link</button>
       <button type="button" class="btn secondary" onclick="copiarTexto(nube.linkInvitacion('${alumno.aulaId}'))">${ic('copy')}Copiar</button>
     </div>
+    <details class="mas-detalle" id="aulaOpciones" data-alumno="${alumno.id}" ${opcAbiertas ? 'open' : ''}>
+    <summary>Avisos y opciones</summary>
     <label class="switch-row">
       <span>Se puede entrar con el link<small>Apagalo cuando ya entraron todos</small></span>
       <input type="checkbox" class="switch" ${!aula || aula.invitacionAbierta!==false ? 'checked':''} ${aula?'':'disabled'} onchange="toggleInvitacion('${alumno.id}', this.checked)">
@@ -148,6 +152,7 @@ function renderDetalleAula(alumno){
     ${avisos.length ? avisos.map(av=>`<div class="checkbox-line compact"><span class="item-main">${escapeHtml(av.texto)} <span class="hint">· ${new Date(av.fecha).toLocaleDateString('es-AR')}</span></span><button type="button" class="icon-btn sm" style="color:var(--text-mute);" onclick="borrarAviso('${alumno.id}','${av.id}')" aria-label="Borrar aviso">${ic('x')}</button></div>`).join('') : ''}
 
     <button type="button" class="link-btn danger" style="margin-top:10px;" onclick="desvincularAula('${alumno.id}')">${ic('log-out')}Dejar de compartir con la app</button>
+    </details>
   `;
 }
 
@@ -350,7 +355,7 @@ function renderTps(){
   if(typeof filtroTareasAlumno !== 'undefined' && filtroTareasAlumno !== 'todos') lista = lista.filter(t=>t.alumnoId===filtroTareasAlumno);
   lista.sort(ordenTps);
   cont.innerHTML = lista.length ? lista.slice(0, 30).map(tp=>tpItemHtml(tp, true)).join('')
-    : '<div class="empty-msg" style="padding-bottom:14px;">Los ejercicios, tareas, trabajos prácticos y evaluaciones que les mandes aparecen acá, con lo que hicieron. Si un alumno usa la app, le llegan al celular.</div>';
+    : '<div class="empty-msg" style="padding-bottom:14px;">Todavía no mandaste tareas. Tocá «Mandar»: le llega por WhatsApp o, si usa la app, al celu.</div>';
 }
 
 function renderDetalleTps(alumno){
@@ -360,7 +365,7 @@ function renderDetalleTps(alumno){
   // historial: el promedio de las notas numéricas que le pusiste
   const notas = lista.map(tp=>{ const e = entregaDe(tp); return e && e.estado === 'corregida' ? parseFloat(String(e.nota || '').replace(',', '.')) : NaN; }).filter(n=>!isNaN(n));
   const prom = notas.length ? `<div class="note" style="margin:0 0 6px;">${ic('star')}<div>Promedio de sus notas: <b>${fmt1(notas.reduce((a, b)=>a + b, 0) / notas.length)}</b> (${notas.length} corregida${notas.length!==1?'s':''})</div></div>` : '';
-  cont.innerHTML = lista.length ? prom + lista.map(tp=>tpItemHtml(tp, false)).join('') : '<div class="empty-msg" style="padding-bottom:12px;">Todavía no le mandaste actividades.</div>';
+  cont.innerHTML = lista.length ? prom + lista.map(tp=>tpItemHtml(tp, false)).join('') : '<div class="empty-msg" style="padding-bottom:12px;">Todavía no le mandaste tareas. Tocá «Mandar» para la primera.</div>';
 }
 
 /* ---------- "Mandar" un pendiente: se convierte en tarea ---------- */
@@ -399,13 +404,15 @@ function openTpForm(id, alumnoIdPreset, prefill){
   const consigna = tp ? (tp.consigna || tp.titulo || '') : (pre.consigna || '');
   const hayEntrega = tp && entregaDe(tp);
   openSheet(`
-    <h3>${tp ? 'Editar actividad' : 'Mandar una actividad'}</h3>
-    <div class="tipo-act" id="tpTipos">${tiposActividadHtml(formTp.tipo)}</div>
+    <h3>${tp ? 'Editar tarea' : 'Mandar una tarea'}</h3>
     <label for="f_tp_alumno">Para</label>
     <select id="f_tp_alumno" onchange="actualizarTpForm()">${ordenados.map(a=>`<option value="${a.id}" ${a.id===alumnoId?'selected':''}>${escapeHtml(a.nombre)}</option>`).join('')}</select>
 
     <label for="f_tp_consigna">¿Qué tiene que hacer?</label>
     <textarea id="f_tp_consigna" placeholder="Ej: Hacer los ejercicios 1 al 5 de la página 30">${escapeHtml(consigna)}</textarea>
+
+    <label>Tipo</label>
+    <div class="tipo-act" id="tpTipos" role="group" aria-label="Tipo">${tiposActividadHtml(formTp.tipo)}</div>
 
     <div class="field-row">
       <div>

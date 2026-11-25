@@ -26,7 +26,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 <title>Estudiemos</title>
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/aula.css">
@@ -42,7 +42,7 @@
   <div class="sb-brand"><img src="icons/icon.svg?v=2" alt="" width="34" height="34"><span>Estudiemos</span></div>
   <button type="button" data-view="clases" class="active"><span class="ico" data-ic="calendar"></span>Agenda</button>
   <button type="button" data-view="alumnos"><span class="ico" data-ic="users"></span>Alumnos</button>
-  <button type="button" data-view="tareas"><span class="ico" data-ic="list"></span>Actividades</button>
+  <button type="button" data-view="tareas"><span class="ico" data-ic="list"></span>Tareas</button>
   <button type="button" data-view="mensajes"><span class="ico" data-ic="message"></span>Mensajes</button>
   <button type="button" data-view="stats"><span class="ico" data-ic="wallet"></span>Billetera</button>
   <div class="sb-spacer"></div>
@@ -86,12 +86,8 @@
         <div class="k-label">Te deben</div>
         <div class="k-val" id="statPendienteMonto">$0</div>
       </button>
-      <button type="button" class="kpi" onclick="goTo('stats')">
-        <div class="k-label" id="statRestoMesLabel">Resto del mes</div>
-        <div class="k-val" id="statRestoMes">$0</div>
-      </button>
       <button type="button" class="kpi" onclick="goTo('tareas')">
-        <div class="k-label">Pendientes</div>
+        <div class="k-label">Tus pendientes</div>
         <div class="k-val" id="statTareas">0</div>
       </button>
     </div>
@@ -104,7 +100,8 @@
       <button type="button" class="icon-btn sm" id="calNextBtn" onclick="cambiarPeriodoCalendario(1)" aria-label="Siguiente"></button>
     </div>
     <div class="segmented" id="calendarioModoToggle">
-      <button type="button" class="active" data-modo="semana" onclick="setCalendarioModo('semana')">Semana</button>
+      <button type="button" data-modo="dia" onclick="setCalendarioModo('dia')">Día</button>
+      <button type="button" data-modo="semana" onclick="setCalendarioModo('semana')">Semana</button>
       <button type="button" data-modo="mes" onclick="setCalendarioModo('mes')">Mes</button>
     </div>
     <div id="calendarioGrid"></div>
@@ -127,16 +124,17 @@
 
   <!-- TAREAS -->
   <section class="view narrow" id="view-tareas">
-    <div class="segmented" id="tareasEstadoToggle"></div>
     <div class="filter-row" id="filtroAlumnoTareas"></div>
-    <div id="listaTareas"></div>
     <div class="card list">
       <div class="card-head">
-        <h2>Actividades para tus alumnos</h2>
+        <h2>Tareas que mandaste</h2>
         <button type="button" class="link-btn" onclick="openTpForm()">Mandar</button>
       </div>
       <div id="listaTps"></div>
     </div>
+    <!-- tus pendientes: lo que tenés que preparar (privado) -->
+    <div class="segmented chico" id="tareasEstadoToggle"></div>
+    <div id="listaTareas"></div>
     <div class="card list" id="materiasRow"></div>
   </section>
 
@@ -149,20 +147,12 @@
   <section class="view two-col" id="view-stats">
    <div class="col">
     <div class="saldo-card">
-      <div class="saldo-cols">
-        <div>
-          <div class="lbl">Te deben</div>
-          <div class="big" id="billeteraPorCobrar">$0</div>
-          <div class="sub" id="billeteraPorCobrarSub"></div>
-        </div>
-        <div>
-          <div class="lbl" id="billeteraProximoLbl">Resto del mes</div>
-          <div class="big" id="billeteraProximo">$0</div>
-          <div class="sub" id="billeteraProximoSub"></div>
-        </div>
-      </div>
-      <div class="saldo-total"><span id="billeteraTotalLbl">Total por cobrar</span><b id="billeteraTotal">$0</b></div>
+      <div class="lbl">Te deben</div>
+      <div class="big" id="billeteraPorCobrar">$0</div>
+      <div class="sub" id="billeteraPorCobrarSub"></div>
+      <div class="saldo-total"><span id="billeteraCobradoLbl">Cobraste este mes</span><b id="billeteraCobrado">$0</b></div>
     </div>
+    <div class="note por-venir" id="billeteraPorVenir" hidden></div>
 
     <div class="card list" id="billeteraDeudoresCard">
       <div class="card-head"><h2>Quién te debe</h2></div>
@@ -175,14 +165,15 @@
         <h2 id="statsMesLabel"></h2>
         <button type="button" class="icon-btn sm filled" id="statsNextBtn" onclick="cambiarMesStats(1)" aria-label="Mes siguiente"></button>
       </div>
-      <div class="stat-grid">
-        <div class="stat"><div class="s-label">Generado</div><div class="s-val" id="statsMonto">$0</div></div>
-        <div class="stat"><div class="s-label">Horas trabajadas</div><div class="s-val" id="statsHoras">0</div></div>
-        <div class="stat ok"><div class="s-label">Cobrado en el mes</div><div class="s-val" id="statsCobrado">$0</div></div>
-        <div class="stat warn"><div class="s-label">Pendiente del mes</div><div class="s-val" id="statsPendiente">$0</div></div>
+      <div class="stat-grid tres">
+        <div class="stat"><div class="s-label">Ganaste</div><div class="s-val" id="statsMonto">$0</div></div>
+        <div class="stat ok"><div class="s-label">Cobraste</div><div class="s-val" id="statsCobrado">$0</div></div>
+        <div class="stat"><div class="s-label">Horas</div><div class="s-val" id="statsHoras">0</div></div>
       </div>
-      <div class="breakdown" id="statsDesglose"></div>
-      <div class="note" id="statsEsperado"></div>
+      <details class="mas-detalle" id="statsDesgloseBox">
+        <summary>Ver de dónde sale</summary>
+        <div class="breakdown" id="statsDesglose"></div>
+      </details>
     </div>
 
    </div>
@@ -200,10 +191,10 @@
       <div id="listaTrabajos"></div>
     </div>
 
-    <div class="card list">
-      <div class="card-head"><h2>Por alumno este mes</h2></div>
+    <details class="card list plegable">
+      <summary class="card-head"><h2>Por alumno este mes</h2></summary>
       <div id="statsPorAlumno"></div>
-    </div>
+    </details>
    </div>
   </section>
 
@@ -216,8 +207,6 @@
 
     <div class="card completar" id="detalleCompletar" hidden></div>
 
-    <div class="card" id="detalleAula"></div>
-
     <div class="card list">
       <div class="card-head">
         <h2>Próximas clases</h2>
@@ -226,42 +215,44 @@
       <div id="detalleProximasClases"></div>
     </div>
 
-    <div class="card">
-      <div class="card-head"><h2>Temario</h2></div>
-      <div id="detalleTemario"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-head">
-        <h2>Mis pendientes</h2>
-        <button type="button" class="link-btn" onclick="openTareaForm(null, currentAlumnoDetalleId)">Agregar</button>
-      </div>
-      <div id="detalleTareasPorTema"></div>
-    </div>
-
     <div class="card list">
       <div class="card-head">
-        <h2>Sus actividades</h2>
+        <h2>Tareas</h2>
         <button type="button" class="link-btn" onclick="openTpForm(null, currentAlumnoDetalleId)">Mandar</button>
       </div>
       <div id="detalleTps"></div>
     </div>
 
-    <div class="card list">
+    <div class="card" id="detallePendientesCard">
       <div class="card-head">
-        <h2>Mensajes guardados</h2>
-        <button type="button" class="link-btn" onclick="abrirGestionMensajes(currentAlumnoDetalleId)">Editar</button>
+        <h2>Tus pendientes con este alumno</h2>
+        <button type="button" class="link-btn" onclick="openTareaForm(null, currentAlumnoDetalleId)">Anotar</button>
       </div>
-      <div id="detalleMensajes"></div>
+      <div id="detalleTareasPorTema"></div>
     </div>
 
-    <div class="card">
-      <div class="card-head">
-        <h2>Materias</h2>
-        <button type="button" class="link-btn" onclick="abrirGestionTemas()">Editar</button>
+    <div class="card" id="detalleAula"></div>
+
+    <!-- lo que se usa de vez en cuando: plegado -->
+    <details class="card plegable" id="detalleMas">
+      <summary class="card-head"><h2>Temario, mensajes y materias</h2></summary>
+      <div class="sub-bloque">
+        <div class="sub-head"><h3>Temario</h3></div>
+        <div id="detalleTemario"></div>
       </div>
-      <div id="detalleTemas"></div>
-    </div>
+      <div class="sub-bloque">
+        <div class="sub-head"><h3>Mensajes guardados</h3><button type="button" class="link-btn" onclick="abrirGestionMensajes(currentAlumnoDetalleId)">Editar</button></div>
+        <div id="detalleMensajes"></div>
+      </div>
+      <div class="sub-bloque">
+        <div class="sub-head"><h3>Materias</h3><button type="button" class="link-btn" onclick="abrirGestionTemas()">Editar</button></div>
+        <div id="detalleTemas"></div>
+      </div>
+      <div class="sub-bloque">
+        <button type="button" class="link-btn" onclick="openTareaForm(null, currentAlumnoDetalleId)">Anotar un pendiente</button>
+        <button type="button" class="link-btn" id="detallePedirResena">Pedirle una reseña</button>
+      </div>
+    </details>
    </div>
   </section>
 
@@ -272,7 +263,7 @@
 <nav class="bottom-nav" id="bottomNav" data-nav>
   <button data-view="clases" class="active"><span class="ico" data-ic="calendar"></span>Agenda</button>
   <button data-view="alumnos"><span class="ico" data-ic="users"></span>Alumnos</button>
-  <button data-view="tareas"><span class="ico" data-ic="list"></span>Actividades</button>
+  <button data-view="tareas"><span class="ico" data-ic="list"></span>Tareas</button>
   <button data-view="mensajes"><span class="ico" data-ic="message"></span>Mensajes</button>
   <button data-view="stats"><span class="ico" data-ic="wallet"></span>Billetera</button>
 </nav>
@@ -621,7 +612,7 @@ function confirmar(opts){
 }
 
 /* ---------- header, navegación y botón flotante ---------- */
-const TITULOS = {clases:'Agenda', alumnos:'Alumnos', tareas:'Actividades', mensajes:'Mensajes', stats:'Billetera'};
+const TITULOS = {clases:'Agenda', alumnos:'Alumnos', tareas:'Tareas', mensajes:'Mensajes', stats:'Billetera'};
 let vistaAntesDeDetalle = 'alumnos';
 function setHeader(title, sub){
   document.getElementById('headerTitle').textContent = title;
@@ -635,7 +626,7 @@ function actualizarHeader(){
   let sub = '';
   if(v==='clases') sub = formatoFechaLarga(hoyIso());
   if(v==='alumnos') sub = db.alumnos.length ? `${db.alumnos.length} alumno${db.alumnos.length!==1?'s':''}` : '';
-  if(v==='tareas'){ const n = db.tareas.filter(t=>!t.hecha).length; sub = db.tareas.length ? (n ? `${n} pendiente${n!==1?'s':''} tuyo${n!==1?'s':''}` : 'Todo listo') : 'Lo que preparás y lo que mandás'; }
+  if(v==='tareas') sub = 'Lo que les mandás a tus alumnos';
   if(v==='stats') sub = 'Quién te pagó, quién te debe y cuánto viene';
   if(v==='mensajes') sub = 'Los estudiantes que te escriben desde el buscador';
   setHeader(TITULOS[v], sub);
@@ -643,7 +634,7 @@ function actualizarHeader(){
 const FAB_CFG = {
   clases:{label:'Clase', fn:()=>openClaseForm(null, calendarioSelectedDate < hoyIso() ? hoyIso() : calendarioSelectedDate)},
   alumnos:{label:'Alumno', fn:()=>openAlumnoForm()},
-  tareas:{label:'Pendiente', fn:()=>openTareaForm()},
+  tareas:{label:'Tarea', fn:()=>openTpForm()},
   stats:{label:'Otro cobro', fn:()=>openTrabajoForm()},
   mensajes:{label:'Mi perfil', fn:()=>{ abrirAjustes(); abrirPerfilPublico(); }},
   detalle:{label:'Agendar clase', fn:()=>openClaseForm(null, null, null, currentAlumnoDetalleId)}
@@ -1680,7 +1671,8 @@ function togglePagada(id, ev){
 }
 
 let calendarioFecha = new Date();
-let calendarioModo = 'semana'; // 'mes' | 'semana'
+// 'dia' (tira de la semana + el día) | 'semana' (grilla por hora) | 'mes'. En el celular arranca en el día.
+let calendarioModo = (window.innerWidth || 1000) < 700 ? 'dia' : 'semana';
 let calendarioSemanaInicio = getMonday(new Date());
 let calendarioSelectedDate = hoyIso();
 
@@ -1743,9 +1735,9 @@ function renderCalendario(){
     b.classList.toggle('active', b.dataset.modo===calendarioModo);
   });
   const label = document.getElementById('calendarioMesLabel');
-  if(calendarioModo==='semana'){
+  if(calendarioModo==='semana' || calendarioModo==='dia'){
     label.textContent = labelSemana(calendarioSemanaInicio);
-    renderCalendarioSemana();
+    if(calendarioModo==='dia') renderCalendarioDia(); else renderCalendarioSemana();
   }else{
     label.textContent = capitalizar(calendarioFecha.toLocaleDateString('es-AR', {month:'long'})) + ' ' + calendarioFecha.getFullYear();
     renderCalendarioMes();
@@ -1823,6 +1815,23 @@ function renderCalendarioMes(){
   for(let i=0;i<sobrantes;i++) celdas += `<div class="month-cell other-month"></div>`;
   celdas += '</div></div>';
   document.getElementById('calendarioGrid').innerHTML = celdas;
+}
+
+// Tira de 7 días con un punto por clase: elegís el día y abajo ves sus clases
+function renderCalendarioDia(){
+  document.getElementById('calendarioLeyenda').innerHTML = '';
+  const hoyStr = hoyIso();
+  const dows = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+  let html = '<div class="dia-tira">';
+  for(let i=0;i<7;i++){
+    const f = toIsoCalendario(addDiasCalendario(calendarioSemanaInicio, i));
+    const clases = db.clases.filter(c=>c.fecha===f && !c.cancelada);
+    const puntos = clases.slice(0,3).map(c=>`<i style="background:${alumnoColor(c.alumnoId)}"></i>`).join('');
+    html += `<button type="button" class="dt-dia ${f===hoyStr?'today':''} ${f===calendarioSelectedDate?'selected':''} ${f<hoyStr?'past':''}" data-dia="${f}" onclick="abrirDiaCalendario('${f}')" aria-label="${formatoFechaLarga(f)}${clases.length ? ', ' + clases.length + (clases.length===1?' clase':' clases') : ''}">
+      <span class="dt-dow">${dows[i]}</span><span class="dt-num">${Number(f.slice(8))}</span><span class="dt-dots">${puntos}</span>
+    </button>`;
+  }
+  document.getElementById('calendarioGrid').innerHTML = html + '</div>';
 }
 
 function renderCalendarioSemana(){
@@ -2230,7 +2239,8 @@ function renderTareas(){
 
   if(db.tareas.length===0){
     toggle.hidden = true;
-    cont.innerHTML = emptyState('list', 'Sin pendientes', 'Anotá lo que tenés que prepararle a cada alumno. Cuando esté listo, lo tachás o se lo mandás como tarea.', 'Agregar pendiente', 'openTareaForm()');
+    cont.innerHTML = `<div class="card"><div class="card-head"><h2>Tus pendientes</h2><button type="button" class="link-btn" onclick="openTareaForm()">Anotar</button></div>
+      <div class="empty-msg" style="padding-bottom:12px;">Anotá lo que tenés que prepararle a un alumno. Cuando esté listo, se lo mandás como tarea.</div></div>`;
     return;
   }
   toggle.hidden = false;
@@ -2247,7 +2257,7 @@ function renderTareas(){
     return;
   }
 
-  cont.innerHTML = '<div class="card list"><div class="card-head"><h2>Mis pendientes</h2></div>' + lista.map(t=>{
+  cont.innerHTML = '<div class="card list"><div class="card-head"><h2>Tus pendientes</h2><button type="button" class="link-btn" onclick="openTareaForm()">Anotar</button></div>' + lista.map(t=>{
     const claseInfo = t.claseId ? db.clases.find(c=>c.id===t.claseId) : null;
     const partesSub = [];
     if(t.alumnoId) partesSub.push(escapeHtml(alumnoNombre(t.alumnoId)));
@@ -2404,20 +2414,23 @@ function renderDetalleAlumno(){
   const id = alumno.id;
   const deuda = sumaPendiente(id);
 
+  // Lo de todos los días: escribirle, agendar y mandarle una tarea
   const acciones = [
     {ic:'message', label:'WhatsApp', cls:'wa', fn:`abrirWhatsappAlumno('${id}')`},
     {ic:'calendar-plus', label:'Agendar', fn:`openClaseForm(null, null, null, '${id}')`},
-    alumno.direccion ? {ic:'map-pin', label:'Cómo llego', fn:`abrirComoLlego('${id}')`} : {ic:'star', label:'Reseña', fn:`pedirResena('${id}')`},
+    {ic:'list', label:'Tarea', fn:`openTpForm(null, '${id}')`},
     {ic:'edit', label:'Editar', fn:`openAlumnoForm('${id}')`}
   ];
   const contactoTxt = alumno.tipo==='adulto' ? '' : (alumno.contacto ? alumno.contacto : '');
   document.getElementById('detalleAlumnoHeader').innerHTML = `
     ${avatarHtml(alumno, 'lg')}
     <div class="p-name">${escapeHtml(alumno.nombre)}</div>
-    <div class="p-badges">${nivelBadge(alumno.nivel)}<span class="badge neutral">${alumno.tipo==='adulto'?'Adulto':'Niño/a'}</span></div>
+    ${alumno.nivel ? `<div class="p-badges">${nivelBadge(alumno.nivel)}</div>` : ''}
     <div class="p-info">
       <span>${ic('cash')}${money(alumno.tarifa)}/h</span>
-      <span>${ic(ICONO_LUGAR[alumno.modalidad]||'home')}${textoLugar(alumno.modalidad)}</span>
+      ${alumno.direccion
+        ? `<button type="button" class="p-link" onclick="abrirComoLlego('${id}')">${ic('map-pin')}Cómo llego</button>`
+        : `<span>${ic(ICONO_LUGAR[alumno.modalidad]||'home')}${textoLugar(alumno.modalidad)}</span>`}
       ${contactoTxt ? `<span>${ic('user')}${escapeHtml(contactoTxt)}</span>` : ''}
     </div>
     <div class="quick-actions">
@@ -2463,7 +2476,9 @@ function renderDetalleAlumno(){
   if(tareasSinTema.length){
     html += `<div class="tema-grupo">${html ? '<div class="tema-grupo-titulo">General</div>' : ''}${tareasSinTema.map(tareaLineHtml).join('')}</div>`;
   }
-  document.getElementById('detalleTareasPorTema').innerHTML = html || '<div class="empty-msg">No hay tareas para este alumno.</div>';
+  document.getElementById('detalleTareasPorTema').innerHTML = html;
+  document.getElementById('detallePendientesCard').hidden = !tareasAlumno.length;
+  document.getElementById('detallePedirResena').onclick = ()=>pedirResena(id);
 
   renderCompletarFicha(alumno);
   renderDetalleAula(alumno);
@@ -2536,15 +2551,17 @@ function renderProximaClaseCountdown(c, ahora, enCurso){
     ? `Hasta las ${c.horaSalida} · ${money(totalClase(c))}`
     : `${fechaCorta(c.fecha)} · ${formatDuracion(c.duracionMin)}${c.modalidad && c.modalidad!=='casa_mia' ? ' · ' + textoLugar(c.modalidad).toLowerCase() : ''}`;
 
+  // Pocas acciones, las de ese momento: durante la clase, pizarra y tiempo; antes, avisar y llegar. Lo demás, en «Abrir clase».
   const alumno = getAlumno(c.alumnoId);
   const acciones = [];
-  if(alumno){
+  if(enCurso){
+    acciones.push(`<button type="button" onclick="abrirPizarraClase('${c.id}')">${ic('pen')}Pizarra</button>`);
+    acciones.push(`<button type="button" onclick="abrirAgregarTiempo('${c.id}')">${ic('plus')}Tiempo</button>`);
+  }else if(alumno){
     acciones.push(`<button type="button" onclick="abrirWhatsappAlumno('${alumno.id}','${c.id}')">${ic('message')}WhatsApp</button>`);
-    if(alumno.direccion) acciones.push(`<button type="button" onclick="abrirComoLlego('${alumno.id}')">${ic('map-pin')}Cómo llego</button>`);
+    if(alumno.direccion && c.modalidad==='casa_alumno') acciones.push(`<button type="button" onclick="abrirComoLlego('${alumno.id}')">${ic('map-pin')}Cómo llego</button>`);
   }
-  if(enCurso) acciones.push(`<button type="button" onclick="abrirAgregarTiempo('${c.id}')">${ic('plus')}Tiempo</button>`);
-  acciones.push(`<button type="button" onclick="abrirPizarraClase('${c.id}')">${ic('pen')}Pizarra</button>`);
-  acciones.push(`<button type="button" onclick="openClaseForm('${c.id}')">${ic('file')}Ver</button>`);
+  acciones.push(`<button type="button" class="principal" onclick="openClaseForm('${c.id}')">Abrir clase${ic('chevron-right')}</button>`);
   document.getElementById('nextClassActions').innerHTML = acciones.join('');
 }
 
@@ -2563,10 +2580,6 @@ function renderBannerYStats(){
       .sort((a,b)=> fechaHoraClase(a) - fechaHoraClase(b))[0];
     renderProximaClaseCountdown(proxima, ahora, false);
   }
-
-  // Lo que falta cobrar este mes según las clases agendadas
-  const resto = agendadoRestoMes();
-  document.getElementById('statRestoMes').textContent = money(resto.total);
 
   // Total por cobrar (clases dadas sin pagar + TPs sin cobrar)
   document.getElementById('statPendienteMonto').textContent = money(totalPorCobrar());
@@ -2927,15 +2940,14 @@ function renderStats(){
   document.getElementById('billeteraPorCobrarSub').textContent = total>0
     ? [nClases?`${nClases} clase${nClases!==1?'s':''}`:'', nTPs?`${nTPs} cobro${nTPs!==1?"s":""} más`:''].filter(Boolean).join(' y ') + ' sin cobrar'
     : 'Estás al día';
+  // Lo cobrado y lo que viene van aparte: lo agendado todavía no te lo deben
+  const hoyD = new Date();
+  const esteMes = f => { const [fy,fm] = f.split('-').map(Number); return fy===hoyD.getFullYear() && (fm-1)===hoyD.getMonth(); };
+  document.getElementById('billeteraCobrado').textContent = money(db.pagos.filter(p=>esteMes(p.fecha)).reduce((s,p)=>s+Number(p.monto||0),0));
   const resto = agendadoRestoMes();
-  const mesActual = new Date().toLocaleDateString('es-AR',{month:'long'});
-  document.getElementById('billeteraProximoLbl').textContent = 'Resto de ' + mesActual;
-  document.getElementById('billeteraProximo').textContent = money(resto.total);
-  document.getElementById('billeteraProximoSub').textContent = resto.clases.length
-    ? `${resto.clases.length} clase${resto.clases.length!==1?'s':''} agendada${resto.clases.length!==1?'s':''}`
-    : 'Sin clases agendadas';
-  document.getElementById('billeteraTotalLbl').textContent = `Total por cobrar en ${mesActual}`;
-  document.getElementById('billeteraTotal').textContent = money(total + resto.total);
+  const porVenir = document.getElementById('billeteraPorVenir');
+  porVenir.hidden = !resto.clases.length;
+  porVenir.innerHTML = `${ic('calendar')}<span><b>Por venir: ${money(resto.total)}</b> de ${resto.clases.length} clase${resto.clases.length!==1?'s':''} que faltan dar este mes. Se suman a lo que te deben cuando las des.</span>`;
   document.getElementById('billeteraDeudoresCard').hidden = !ds.length;
   document.getElementById('billeteraDeudores').innerHTML = ds.map(d=>{
     const a = d.key.startsWith('a:') ? getAlumno(d.key.slice(2)) : null;
@@ -2968,21 +2980,15 @@ function renderStats(){
   const generado = montoClases + montoPasajes + montoTPs;
   const cobradoMes = db.pagos.filter(p=>enMes(p.fecha)).reduce((s,p)=>s+Number(p.monto||0),0);
   const pendienteMes = clasesDadas.filter(c=>!c.pagada).reduce((s,c)=>s+totalClase(c),0) + tpsMes.filter(t=>!t.cobrado).reduce((s,t)=>s+totalTrabajo(t),0);
-  const esperado = clasesMes.reduce((s,c)=>s+totalClase(c),0) + montoTPs;
-  const faltanDar = clasesMes.filter(c=>!claseYaOcurrida(c, ahora));
-  const montoFaltan = faltanDar.reduce((s,c)=>s+totalClase(c),0);
 
   document.getElementById('statsHoras').textContent = fmt1(minutos/60) + ' h';
   document.getElementById('statsMonto').textContent = money(generado);
   document.getElementById('statsCobrado').textContent = money(cobradoMes);
-  document.getElementById('statsPendiente').textContent = money(pendienteMes);
   const filaBd = (label, val) => `<div class="bd-row"><span>${label}</span><b>${money(val)}</b></div>`;
+  document.getElementById('statsDesgloseBox').hidden = !(generado>0 || pendienteMes>0);
   document.getElementById('statsDesglose').innerHTML =
     (generado>0 ? filaBd(`Clases dadas (${clasesDadas.length})`, montoClases) + (montoPasajes ? filaBd('Extra a domicilio', montoPasajes) : '') + (tpsMes.length ? filaBd(`Otros cobros (${tpsMes.length})`, montoTPs) : '') : '')
-    + (faltanDar.length ? `<div class="bd-row" style="color:var(--accent);"><span>Agendadas que faltan dar (${faltanDar.length})</span><b style="color:var(--accent);">${money(montoFaltan)}</b></div>` : '');
-  const esperadoEl = document.getElementById('statsEsperado');
-  esperadoEl.hidden = !faltanDar.length;
-  esperadoEl.innerHTML = `${ic('info')}<span>Si das todas las clases agendadas, este mes generás <b>${money(esperado)}</b> en total.</span>`;
+    + (pendienteMes>0 ? `<div class="bd-row" style="color:var(--warn);"><span>De esto, sin cobrar</span><b>${money(pendienteMes)}</b></div>` : '');
 
   renderHistorialPagos();
 
@@ -3038,7 +3044,7 @@ function renderAll(){
    AJUSTES: EXPORTAR / IMPORTAR
    ========================================================= */
 const PALETTES = [
-  {id:'lila', label:'Lila', swatch:'#7a5bc4'},
+  {id:'lila', label:'Violeta', swatch:'#5046c7'},
   {id:'azul', label:'Azul y oro', swatch:'#1f4fa3'},
   {id:'rojo', label:'Rojo y blanco', swatch:'#cf2a3d'},
   {id:'verde', label:'Verde', swatch:'#3a8150'},
@@ -3598,13 +3604,10 @@ function revisarResenaEnLink(){
    TUTORIAL DE BIENVENIDA
    ========================================================= */
 const TUTORIAL_PASOS = [
-  {icon:'sparkles', titulo:'Bienvenido/a a Estudiemos', desc:'Tus clases particulares en un solo lugar: agenda, alumnos, actividades, mensajes y cobros. Movete con la barra de abajo.'},
-  {icon:'globe', titulo:'Te encuentran en el buscador', desc:'Con tu cuenta de Google, tu perfil (materias, zona, precio y reseñas) aparece en el buscador de Estudiemos. Lo armás en Ajustes → Tu perfil.'},
-  {icon:'message', titulo:'Te escriben por acá', desc:'Los estudiantes te escriben en Mensajes y te piden un horario libre. Si lo aceptás, queda agendado y se suman como alumnos.'},
-  {icon:'calendar', titulo:'Tu semana de un vistazo', desc:'Lo verde es tiempo libre: tocalo para agendar una clase ahí. Desde cada clase podés cancelarla o pasarla a otro horario.'},
-  {icon:'list', titulo:'Actividades', desc:'Mandá ejercicios, tareas, trabajos prácticos o evaluaciones, y devolvé cada uno con nota y comentarios.'},
-  {icon:'wallet', titulo:'Cobrá sin olvidarte', desc:'En Billetera ves quién te pagó, quién te debe y cuánto podés llegar a cobrar este mes.'},
-  {icon:'bell', titulo:'Te avisamos', desc:'Con las notificaciones activadas, te avisamos antes de cada clase, cuando te escriben y cuando un alumno entrega algo.'}
+  {icon:'sparkles', titulo:'Bienvenido/a a Estudiemos', desc:'Tus clases, tus alumnos, las tareas y los cobros en un solo lugar. Te movés con la barra de abajo.'},
+  {icon:'calendar', titulo:'Tu agenda', desc:'Arriba ves la clase que viene. Tocá un día para ver sus clases, o el botón «Clase» para agendar una.'},
+  {icon:'list', titulo:'Tareas', desc:'Mandale una tarea a tu alumno (con preguntas si querés). Le llega por WhatsApp o a la app, y después se la devolvés corregida.'},
+  {icon:'wallet', titulo:'Cobrá sin olvidarte', desc:'En Billetera ves quién te debe y lo cobrás con un toque.'}
 ];
 let tutorialPasoActual = 0;
 

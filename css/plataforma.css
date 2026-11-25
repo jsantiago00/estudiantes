@@ -19,10 +19,10 @@ button.dia-chip{font-family:inherit;}
 .regla-opt.sel b{color:var(--accent);}
 
 /* ---------- Actividades: tipo, entregas con fotos, devolución por pregunta ---------- */
-.tipo-act{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:6px 0 4px;}
-.tipo-act button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border-radius:var(--radius);
-  border:1px solid var(--border);background:var(--card);color:var(--text-dim);font:inherit;font-size:12px;font-weight:600;cursor:pointer;text-align:center;line-height:1.2;}
-.tipo-act button svg{width:20px;height:20px;}
+.tipo-act{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 4px;}
+.tipo-act button{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:999px;
+  border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13.5px;font-weight:600;cursor:pointer;min-height:38px;}
+.tipo-act button svg{width:16px;height:16px;}
 .tipo-act button.sel{border-color:var(--primary);background:var(--soft-tint-bg);color:var(--accent);}
 .entrega-fotos{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;}
 .entrega-fotos img{width:96px;height:96px;object-fit:cover;border-radius:10px;border:1px solid var(--border);display:block;}

@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#f7f5fb">
+<meta name="theme-color" content="#f5f6fa">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg?v=2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 <title>Dejá tu reseña</title>
 <style>
   :root{--font-agenda:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
   :root,:root[data-palette="lila"]{
-    --bg:#f7f5fb; --card:#ffffff; --text:#1d1828; --text-dim:#665e75; --border:#e6e1ef;
-    --primary:#7356bd; --primary-dark:#5c40a3; --input-bg:#ffffff;
+    --bg:#f5f6fa; --card:#ffffff; --text:#202437; --text-dim:#5d6178; --border:#e4e5ef;
+    --primary:#5046c7; --primary-dark:#3f36a8; --input-bg:#ffffff;
   }
   :root[data-palette="azul"]{
     --bg:#f6f7fb; --card:#ffffff; --text:#121a2c; --text-dim:#596479; --border:#e1e6f0;
@@ -33,7 +33,7 @@
     --primary:#2a7fbf; --primary-dark:#1f6499; --input-bg:#ffffff;
   }
   @media (prefers-color-scheme: dark){
-    :root[data-palette="lila"]{--bg:#131019;--card:#1c1824;--text:#efecf4;--text-dim:#aaa2b8;--border:#453d51;--primary:#8466cf;--primary-dark:#cbb8f5;--input-bg:#201b28;}
+    :root[data-palette="lila"]{--bg:#12131c;--card:#1a1b27;--text:#eef0f8;--text-dim:#a6a9bf;--border:#3e4157;--primary:#6a60dc;--primary-dark:#f5c96a;--input-bg:#1e1f2c;}
     :root[data-palette="azul"]{--bg:#0e121c;--card:#161b28;--text:#eef1f8;--text-dim:#a2abc0;--border:#38425c;--primary:#3a6ccc;--primary-dark:#f4c842;--input-bg:#1a2030;}
     :root[data-palette="rojo"]{--bg:#151011;--card:#1f1718;--text:#f7eeee;--text-dim:#b9a4a6;--border:#4c393b;--primary:#d23a4c;--primary-dark:#ff9ea8;--input-bg:#231a1b;}
     :root[data-palette="verde"]{--bg:#0f1410;--card:#171d18;--text:#eaf0e8;--text-dim:#a0ad9f;--border:#3a463a;--primary:#3f8f58;--primary-dark:#9fd9ac;--input-bg:#1a211b;}
@@ -47,7 +47,7 @@
   .card{background:var(--card);border:1px solid var(--border);border-radius:22px;padding:22px 18px;box-shadow:0 6px 24px rgba(0,0,0,.06);}
   .hello{text-align:center;margin-bottom:18px;}
   .hello .emoji{font-size:44px;line-height:1;}
-  h1{font-size:22px;color:var(--text);margin:10px 0 6px;font-weight:700;letter-spacing:-.02em;}
+  h1{font-family:'Plus Jakarta Sans',var(--font-agenda);font-size:22px;color:var(--text);margin:10px 0 6px;font-weight:700;letter-spacing:-.02em;}
   .hello p{margin:0;color:var(--text-dim);font-size:14.5px;line-height:1.5;}
   label{display:block;font-size:13px;font-weight:700;color:var(--text-dim);margin:16px 0 6px;}
   input[type=text],textarea,select{width:100%;padding:12px;border:1px solid var(--border);border-radius:12px;font-size:16px;background:var(--input-bg);color:var(--text);font-family:inherit;}
