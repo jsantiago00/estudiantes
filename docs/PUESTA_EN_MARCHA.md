@@ -18,6 +18,25 @@ Antes, por las dudas, exportá un respaldo desde ⚙️ → Datos.
 
 > Ojo: si entrás primero desde otro dispositivo que tenga datos viejos, esos son los que se suben.
 
+## Falta para la plataforma (buscador, chat y moderación)
+
+1. **Publicar las reglas nuevas** (chats, pedidos de horario, denuncias, moderación y el perfil del
+   buscador). Desde esta carpeta, con la sesión de Firebase iniciada:
+   ```sh
+   firebase deploy --only firestore:rules
+   ```
+   Antes copiá `firestore.rules` al repo de la Pizarra (es el mismo archivo en los dos).
+   Hasta que no las publiques, el chat y el buscador nuevo no van a poder guardar nada.
+2. **Hacerte administrador** (para ver las denuncias y ocultar profes): en la consola de Firebase →
+   Firestore → crear la colección `plataforma`, documento `config`, con un campo `admins` de tipo
+   *array* que tenga tu uid (lo ves en Authentication → Users). Después, en la app: Ajustes →
+   **Moderación**. Nadie puede hacerse administrador desde la app.
+3. Los avisos de mensajes nuevos llegan como push con el mismo notificador de abajo (cada ~10
+   minutos). Dentro de la app se ven al instante.
+4. El mapa del buscador usa Stadia Maps con el dominio `santiagososa.com.ar` (ya anotado para el
+   mapa de talleres). Si cambiás de dominio, anotalo en stadiamaps.com; mientras tanto el mapa
+   pasa solo a OpenStreetMap.
+
 ## Falta: notificaciones push y recordatorios (5 minutos)
 
 El notificador (`scripts/notificador.mjs`) corre cada 10 minutos en GitHub Actions. Sin una
@@ -61,5 +80,6 @@ Después, en la app: 👤 → Notificaciones → **Activar notificaciones en est
 npm install
 npm test               # lógica
 npm run test:reglas    # reglas en el emulador (necesita Java)
-npm run test:ui        # recorre las dos apps en Chrome con un Firebase falso
+npm run test:ui        # recorre el buscador, el perfil, la app del profe, la del estudiante y el chat
+                       # en Chrome con un Firebase falso (CHROME=ruta si no está en el lugar de siempre)
 ```

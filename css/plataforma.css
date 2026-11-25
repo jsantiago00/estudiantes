@@ -200,3 +200,12 @@ nav.bottom-nav .ico{width:50px;}
 .link-btn.peligro{color:var(--danger);}
 .note.recupero{background:var(--soft-tint-bg);}
 #buscarLink{display:inline-flex;align-items:center;justify-content:center;color:inherit;}
+/* las páginas públicas no tienen menú lateral */
+@media (min-width: 900px){
+  body.publica{padding-left:0;}
+  body.publica .toast{left:50%;}
+  .buscador-hero,.pub-header{padding-left:16px;padding-right:16px;}
+}
+.search.grande input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--soft-tint-bg);}
+input[type=search],input[type=url]{width:100%;min-height:46px;-webkit-appearance:none;appearance:none;border:1px solid var(--border);border-radius:var(--radius);background:var(--input-bg);color:var(--text);font-family:inherit;font-size:16px;outline:none;padding:10px 12px;}
+@media (min-width: 900px){ main.buscador{padding-left:16px;padding-right:16px;} }

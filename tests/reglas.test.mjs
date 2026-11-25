@@ -140,6 +140,74 @@ await caso('«Mis pizarras» sigue siendo privado', async ()=>{
   await assertFails(getDoc(doc(alumno, 'users', 'anon', 'boards', 'XYZ789')));
 });
 
+/* ---------- Estudiemos plataforma: perfil del buscador ---------- */
+const P = (await import('../js/plataforma.js')).default;
+const perfilNuevo = {...P.perfilPublico({config: {nombreProfe: 'Ana', tarifaHabitual: 12000, perfil: {zonas: ['capital'], lugares: ['casa_mia']}}, temas: [{nombre: 'Matemática'}], clases: []}, {}), actualizado: serverTimestamp()};
+await caso('el profe publica el perfil del buscador', ()=>assertSucceeds(setDoc(doc(profe, 'perfiles', 'profe'), perfilNuevo)));
+await caso('el perfil no lleva campos inventados', ()=>assertFails(setDoc(doc(profe, 'perfiles', 'profe'), {...perfilNuevo, alumnos: ['Sofi']})));
+await caso('cualquiera lista los perfiles visibles (el buscador)', ()=>assertSucceeds(getDocs(query(collection(nadie, 'perfiles'), where('visible', '==', true)))));
+
+/* ---------- Actividades: entregas con fotos y devolución "para rehacer" ---------- */
+await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(), 'aulas', 'aula2DePrueba12345'), {...aulaBase, miembros: ['alumno'], miembrosInfo: {alumno: info('Sofi', 'alumno')}}));
+const refE = db => doc(db, 'aulas', 'aula2DePrueba12345', 'entregas', 'tpX');
+await caso('el estudiante entrega un TP con texto, fotos y link', ()=>assertSucceeds(setDoc(refE(alumno), {...entrega, texto: 'Mi TP', fotos: ['data:image/jpeg;base64,AAAA'], link: 'https://drive.google.com/x', intentos: 1})));
+await caso('no más de 3 fotos', ()=>assertFails(setDoc(refE(alumno), {...entrega, fotos: ['a', 'b', 'c', 'd']}, {merge: true})));
+await caso('el profe la devuelve para rehacer, con comentarios por pregunta', ()=>assertSucceeds(updateDoc(refE(profe), {devolucion: 'Faltan fechas', nota: '', estado: 'rehacer', comentarios: {p1: 'Revisá'}, corregidaEn: serverTimestamp()})));
+await caso('el estudiante no se corrige solo', ()=>assertFails(updateDoc(refE(alumno), {estado: 'corregida'})));
+await caso('el estudiante la vuelve a entregar', ()=>assertSucceeds(setDoc(refE(alumno), {...entrega, intentos: 2}, {merge: true})));
+
+/* ---------- Pedidos del estudiante (cancelar una clase) ---------- */
+const sol = {tipo: 'cancelar', claseId: 'c1', por: 'alumno', estado: 'pendiente', creada: serverTimestamp()};
+await caso('el estudiante pide cancelar una clase', ()=>assertSucceeds(setDoc(doc(alumno, 'aulas', 'aula2DePrueba12345', 'solicitudes', 's1'), sol)));
+await caso('no a nombre de otro', ()=>assertFails(setDoc(doc(alumno, 'aulas', 'aula2DePrueba12345', 'solicitudes', 's2'), {...sol, por: 'mama'})));
+await caso('un extraño no pide nada', ()=>assertFails(setDoc(doc(extrano, 'aulas', 'aula2DePrueba12345', 'solicitudes', 's3'), {...sol, por: 'extrano'})));
+await caso('el estudiante ve sus pedidos', ()=>assertSucceeds(getDocs(query(collection(alumno, 'aulas', 'aula2DePrueba12345', 'solicitudes'), where('por', '==', 'alumno')))));
+await caso('el profe ve los pendientes', ()=>assertSucceeds(getDocs(query(collection(profe, 'aulas', 'aula2DePrueba12345', 'solicitudes'), where('estado', '==', 'pendiente')))));
+await caso('el profe lo resuelve', ()=>assertSucceeds(updateDoc(doc(profe, 'aulas', 'aula2DePrueba12345', 'solicitudes', 's1'), {estado: 'hecha', resultado: 'ok', resueltaEn: serverTimestamp()})));
+await caso('el estudiante no lo marca resuelto', ()=>assertFails(updateDoc(doc(alumno, 'aulas', 'aula2DePrueba12345', 'solicitudes', 's1'), {estado: 'hecha'})));
+
+/* ---------- Chat ---------- */
+const CHAT = 'c_profe_extrano';
+const chatBase = {profeUid: 'profe', estUid: 'extrano', miembros: ['profe', 'extrano'], nombres: {profe: 'Ana', extrano: 'Tomi'}, fotos: {}, leido: {}, ultimo: null, bloqueadoPor: null, creado: serverTimestamp()};
+await caso('un estudiante abre un chat con un profe', ()=>assertSucceeds(setDoc(doc(extrano, 'chats', CHAT), chatBase)));
+await caso('no con un id que no corresponde', ()=>assertFails(setDoc(doc(extrano, 'chats', 'c_otro_extrano'), chatBase)));
+await caso('no con alguien que no es profe (sin perfil)', ()=>assertFails(setDoc(doc(extrano, 'chats', 'c_mama_extrano'), {...chatBase, profeUid: 'mama', miembros: ['mama', 'extrano']})));
+await caso('un anónimo no abre chats', ()=>assertFails(setDoc(doc(anonimo, 'chats', 'c_profe_anon'), {...chatBase, estUid: 'anon', miembros: ['profe', 'anon']})));
+await caso('un tercero no lee el chat', ()=>assertFails(getDoc(doc(alumno, 'chats', CHAT))));
+await caso('cada uno lista sus chats', ()=>assertSucceeds(getDocs(query(collection(profe, 'chats'), where('miembros', 'array-contains', 'profe')))));
+const msg = (de, extra)=>({de, tipo: 'texto', texto: 'Hola', en: serverTimestamp(), ...(extra || {})});
+await caso('el estudiante escribe', ()=>assertSucceeds(setDoc(doc(extrano, 'chats', CHAT, 'mensajes', 'm1'), msg('extrano'))));
+await caso('no firma como el profe', ()=>assertFails(setDoc(doc(extrano, 'chats', CHAT, 'mensajes', 'm2'), msg('profe'))));
+await caso('un tercero no escribe', ()=>assertFails(setDoc(doc(alumno, 'chats', CHAT, 'mensajes', 'm3'), msg('alumno'))));
+await caso('el estudiante no manda mensajes "del sistema"', ()=>assertFails(setDoc(doc(extrano, 'chats', CHAT, 'mensajes', 'm4'), msg('extrano', {tipo: 'sistema'}))));
+const reserva = {fecha: '2026-12-10', hora: '18:00', duracion: 60, semanal: false, estado: 'pendiente'};
+await caso('el estudiante pide un horario', ()=>assertSucceeds(setDoc(doc(extrano, 'chats', CHAT, 'mensajes', 'r1'), msg('extrano', {tipo: 'reserva', texto: '', reserva}))));
+await caso('no se pide ya aceptado', ()=>assertFails(setDoc(doc(extrano, 'chats', CHAT, 'mensajes', 'r2'), msg('extrano', {tipo: 'reserva', texto: '', reserva: {...reserva, estado: 'aceptada'}}))));
+await caso('el estudiante no se acepta solo', ()=>assertFails(updateDoc(doc(extrano, 'chats', CHAT, 'mensajes', 'r1'), {reserva: {...reserva, estado: 'aceptada'}})));
+await caso('el profe no cambia el horario pedido', ()=>assertFails(updateDoc(doc(profe, 'chats', CHAT, 'mensajes', 'r1'), {reserva: {...reserva, hora: '19:00', estado: 'aceptada'}})));
+await caso('el profe acepta', ()=>assertSucceeds(updateDoc(doc(profe, 'chats', CHAT, 'mensajes', 'r1'), {reserva: {...reserva, estado: 'aceptada'}})));
+await caso('el profe manda un mensaje del sistema', ()=>assertSucceeds(setDoc(doc(profe, 'chats', CHAT, 'mensajes', 'm5'), msg('profe', {tipo: 'sistema', texto: 'Quedó agendada'}))));
+await caso('cada uno marca lo suyo como leído', ()=>assertSucceeds(updateDoc(doc(profe, 'chats', CHAT), {'leido.profe': serverTimestamp()})));
+await caso('no marca leído por el otro', ()=>assertFails(updateDoc(doc(profe, 'chats', CHAT), {'leido.extrano': serverTimestamp()})));
+await caso('se notifica al otro del chat', ()=>assertSucceeds(addDoc(collection(extrano, 'notifs'), {...notif('extrano', 'profe'), aulaId: '', chatId: CHAT})));
+await caso('pero no a alguien de afuera', ()=>assertFails(addDoc(collection(extrano, 'notifs'), {...notif('extrano', 'mama'), aulaId: '', chatId: CHAT})));
+await caso('el profe bloquea', ()=>assertSucceeds(updateDoc(doc(profe, 'chats', CHAT), {bloqueadoPor: 'profe'})));
+await caso('con el chat bloqueado no se escribe', ()=>assertFails(setDoc(doc(extrano, 'chats', CHAT, 'mensajes', 'm6'), msg('extrano'))));
+await caso('el estudiante no lo desbloquea', ()=>assertFails(updateDoc(doc(extrano, 'chats', CHAT), {bloqueadoPor: null})));
+await caso('el profe lo desbloquea', ()=>assertSucceeds(updateDoc(doc(profe, 'chats', CHAT), {bloqueadoPor: null})));
+
+/* ---------- Moderación ---------- */
+const den = {de: 'extrano', sobre: 'profe', chatId: CHAT, motivo: 'spam', texto: '', estado: 'nueva', creada: serverTimestamp()};
+await caso('cualquiera con cuenta denuncia', ()=>assertSucceeds(setDoc(doc(extrano, 'denuncias', 'd1'), den)));
+await caso('no a nombre de otro', ()=>assertFails(setDoc(doc(extrano, 'denuncias', 'd2'), {...den, de: 'mama'})));
+await caso('las denuncias no las lee cualquiera', ()=>assertFails(getDoc(doc(profe, 'denuncias', 'd1'))));
+await caso('nadie se hace admin solo', ()=>assertFails(setDoc(doc(extrano, 'plataforma', 'config'), {admins: ['extrano']})));
+await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(), 'plataforma', 'config'), {admins: ['mama']}));
+await caso('la administración lee las denuncias', ()=>assertSucceeds(getDoc(doc(mama, 'denuncias', 'd1'))));
+await caso('la administración oculta un profe', ()=>assertSucceeds(setDoc(doc(mama, 'moderacion', 'profe'), {oculto: true, motivo: 'spam', en: serverTimestamp()})));
+await caso('un profe no se des-oculta solo', ()=>assertFails(setDoc(doc(profe, 'moderacion', 'profe'), {oculto: false})));
+await caso('el buscador lee la moderación', ()=>assertSucceeds(getDocs(collection(nadie, 'moderacion'))));
+
 /* ---------- Borrar el aula ---------- */
 await caso('el estudiante no borra el aula', ()=>assertFails(deleteDoc(doc(alumno, 'aulas', AULA))));
 await caso('el profe quita a un miembro', ()=>assertSucceeds(updateDoc(doc(profe, 'aulas', AULA), {miembros: arrayRemove('mama'), 'miembrosInfo.mama': deleteField()})));

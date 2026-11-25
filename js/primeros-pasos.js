@@ -138,7 +138,12 @@ function ppTerminar(){
   cerrarPrimerosPasos();
   goTo('clases');
   if(pp.alumnos) abrirCargaRapida();
-  else showToast('¡Listo! Ya podés empezar');
+  else if(!firebaseUser){
+    // para aparecer en el buscador (y que le escriban) hace falta la cuenta de Google
+    confirmar({titulo: '¿Querés que los estudiantes te encuentren?', mensaje: 'Iniciá sesión con Google y tu perfil aparece en el buscador de Estudiemos. Si no, igual podés usar la app solo para vos.', ok: 'Iniciar sesión'})
+      .then(ok=>{ if(ok) iniciarSesionGoogle(); });
+  }
+  else showToast('¡Listo! Ya aparecés en el buscador');
 }
 
 /* ---------- Alumnos: alta rápida y de a varios ---------- */
