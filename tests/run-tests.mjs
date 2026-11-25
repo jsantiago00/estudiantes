@@ -144,6 +144,27 @@ igual(C.instanteArg('2026-11-22', '18:30').toISOString(), '2026-11-22T21:30:00.0
   db.tps.push({id:'ej', alumnoId:'a1', titulo:'Ej', tipo:'ejercicio', tiempoMin:10, publicado:true, preguntas:[{id:'q', tipo:'vf', enunciado:'x', correcta:false}]});
   const ej = C.construirAula(db, db.alumnos[0], new Date('2026-11-22T12:00:00Z')).tps.find(t=>t.id==='ej');
   ok(ej.preguntas[0].correcta === false && ej.tiempoMin === 0, 'un ejercicio sí lleva las respuestas (se corrige al toque) y no tiene tiempo');
+  // Cancelaciones y recuperos
+  db.clases[0].cancelada = {por: 'alumno', cobro: 0, en: '2026-11-19T10:00:00Z', aTiempo: true};
+  db.clases[0].propuesta = {fecha: '2026-11-30', hora: '10:00'};
+  db.alumnos[0].recuperos = [{id: 'r1', claseId: 'c1', vence: '2026-12-19', fechaOriginal: '2026-11-20'}, {id: 'r2', vence: '2026-11-01'}, {id: 'r3', vence: '2026-12-30', usado: true}];
+  db.config.perfil = {regla: 'estricta'};
+  const conCancel = C.construirAula(db, db.alumnos[0], new Date('2026-11-22T12:00:00Z'));
+  igual(conCancel.clases[0].cancelada, {por: 'alumno', cobro: 0}, 'la clase cancelada lo dice (sin más detalles)');
+  ok(!('propuesta' in conCancel.clases[0]), 'una cancelada no lleva propuesta');
+  igual(conCancel.recuperos.map(r=>r.id), ['r1'], 'solo los recuperos sin usar y sin vencer');
+  igual(conCancel.regla, 'estricta', 'la regla de cancelación del profe');
+}
+{
+  const ahora = new Date('2026-11-22T12:00:00Z');
+  const cl = [
+    {fecha:'2026-11-20', horaEntrada:'10:00', horaSalida:'11:00', pagada:false, monto:0, cancelada:{cobro:0}},
+    {fecha:'2026-11-20', horaEntrada:'12:00', horaSalida:'13:00', pagada:false, monto:4000, cancelada:{cobro:0.5}},
+    {fecha:'2026-11-21', horaEntrada:'12:00', horaSalida:'13:00', pagada:false, monto:8000}
+  ];
+  igual(C.estadoCuenta(cl, ahora), {clasesAdeudadas:2, monto:12000, alDia:false}, 'la cancelada a tiempo no se debe; la tardía sí');
+  const enRato = new Date('2026-11-20T12:40:00Z');   // 9:40 en Argentina
+  igual(C.clasesPorEmpezar([{fecha:'2026-11-20', horaEntrada:'10:00', cancelada:{cobro:0}}], enRato, 30).length, 0, 'no se recuerda una clase cancelada');
 }
 
 /* ---------- Recordatorios ---------- */
@@ -297,12 +318,12 @@ for(const pagina of ['app.html', 'index.html', 'profe.html', 'estudiante.html', 
 }
 {
   const js = readFileSync(join(raiz, 'js/estudiante.js'), 'utf8') + readFileSync(join(raiz, 'js/nube-profe.js'), 'utf8');
-  ok(!/from ['"]\.\/(?!firebase\.js)/.test(js), 'los módulos solo importan ./firebase.js');
+  ok(!/from ['"]\.\/(?!firebase\.js|chat\.js)/.test(js), 'los módulos solo importan ./firebase.js y ./chat.js');
 }
 {
   // Las funciones que se llaman desde onclick="..." en app.html tienen que existir
   const html = readFileSync(join(raiz, 'app.html'), 'utf8');
-  const todo = html + ['js/profe-aula.js', 'js/primeros-pasos.js', 'js/perfil-profe.js'].map(f=>readFileSync(join(raiz, f), 'utf8')).join('\n');
+  const todo = html + ['js/profe-aula.js', 'js/primeros-pasos.js', 'js/perfil-profe.js', 'js/profe-chat.js', 'js/clases-cambios.js'].map(f=>readFileSync(join(raiz, f), 'utf8')).join('\n');
   const llamadas = new Set([...todo.matchAll(/on(?:click|change|input)="(?:event\.stopPropagation\(\); )?([a-zA-Z_]\w*)\(/g)].map(m=>m[1]));
   const definidas = new Set([...todo.matchAll(/function\s+([a-zA-Z_]\w*)\s*\(/g)].map(m=>m[1]));
   for(const f of llamadas){

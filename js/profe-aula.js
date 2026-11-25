@@ -72,6 +72,7 @@ window.onAulaVivoCambio = function(){
   requestAnimationFrame(()=>{
     reRenderAulaPendiente = false;
     if(sincronizarResenasDeLaApp()){ saveDB(); renderAll(); }
+    procesarSolicitudes();
     renderTps();
     if(currentAlumnoDetalleId){
       const a = getAlumno(currentAlumnoDetalleId);

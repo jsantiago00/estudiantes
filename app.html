@@ -43,6 +43,7 @@
   <button type="button" data-view="clases" class="active"><span class="ico" data-ic="calendar"></span>Agenda</button>
   <button type="button" data-view="alumnos"><span class="ico" data-ic="users"></span>Alumnos</button>
   <button type="button" data-view="tareas"><span class="ico" data-ic="list"></span>Actividades</button>
+  <button type="button" data-view="mensajes"><span class="ico" data-ic="message"></span>Mensajes</button>
   <button type="button" data-view="stats"><span class="ico" data-ic="wallet"></span>Billetera</button>
   <div class="sb-spacer"></div>
   <button type="button" class="sb-settings" onclick="abrirAjustes()"><span class="ico" data-ic="settings"></span>Ajustes</button>
@@ -137,6 +138,11 @@
       <div id="listaTps"></div>
     </div>
     <div class="card list" id="materiasRow"></div>
+  </section>
+
+  <!-- MENSAJES (chats con estudiantes: js/profe-chat.js) -->
+  <section class="view narrow" id="view-mensajes">
+    <div id="listaChats"></div>
   </section>
 
   <!-- BILLETERA -->
@@ -267,6 +273,7 @@
   <button data-view="clases" class="active"><span class="ico" data-ic="calendar"></span>Agenda</button>
   <button data-view="alumnos"><span class="ico" data-ic="users"></span>Alumnos</button>
   <button data-view="tareas"><span class="ico" data-ic="list"></span>Actividades</button>
+  <button data-view="mensajes"><span class="ico" data-ic="message"></span>Mensajes</button>
   <button data-view="stats"><span class="ico" data-ic="wallet"></span>Billetera</button>
 </nav>
 
@@ -309,6 +316,8 @@
 <script src="js/perfil-profe.js"></script>
 <script src="js/profe-aula.js"></script>
 <script src="js/primeros-pasos.js"></script>
+<script src="js/profe-chat.js"></script>
+<script src="js/clases-cambios.js"></script>
 <script>
 /* =========================================================
    ESTRUCTURA DE DATOS
@@ -612,7 +621,7 @@ function confirmar(opts){
 }
 
 /* ---------- header, navegación y botón flotante ---------- */
-const TITULOS = {clases:'Agenda', alumnos:'Alumnos', tareas:'Actividades', stats:'Billetera'};
+const TITULOS = {clases:'Agenda', alumnos:'Alumnos', tareas:'Actividades', mensajes:'Mensajes', stats:'Billetera'};
 let vistaAntesDeDetalle = 'alumnos';
 function setHeader(title, sub){
   document.getElementById('headerTitle').textContent = title;
@@ -628,6 +637,7 @@ function actualizarHeader(){
   if(v==='alumnos') sub = db.alumnos.length ? `${db.alumnos.length} alumno${db.alumnos.length!==1?'s':''}` : '';
   if(v==='tareas'){ const n = db.tareas.filter(t=>!t.hecha).length; sub = db.tareas.length ? (n ? `${n} pendiente${n!==1?'s':''} tuyo${n!==1?'s':''}` : 'Todo listo') : 'Lo que preparás y lo que mandás'; }
   if(v==='stats') sub = 'Quién te pagó, quién te debe y cuánto viene';
+  if(v==='mensajes') sub = 'Los estudiantes que te escriben desde el buscador';
   setHeader(TITULOS[v], sub);
 }
 const FAB_CFG = {
@@ -635,6 +645,7 @@ const FAB_CFG = {
   alumnos:{label:'Alumno', fn:()=>openAlumnoForm()},
   tareas:{label:'Pendiente', fn:()=>openTareaForm()},
   stats:{label:'Otro cobro', fn:()=>openTrabajoForm()},
+  mensajes:{label:'Mi perfil', fn:()=>{ abrirAjustes(); abrirPerfilPublico(); }},
   detalle:{label:'Agendar clase', fn:()=>openClaseForm(null, null, null, currentAlumnoDetalleId)}
 };
 function fabKey(){ return currentAlumnoDetalleId ? 'detalle' : vistaActual; }
@@ -670,7 +681,7 @@ document.addEventListener('keydown', e=>{
 /* =========================================================
    NAVEGACIÓN
    ========================================================= */
-const views = ['clases','alumnos','tareas','stats'];
+const views = ['clases','alumnos','tareas','mensajes','stats'];
 const subtitles = {clases:'Tu semana de clases', alumnos:'Tus alumnos', tareas:'Material a preparar', stats:'Tu plata: pagos y saldo'};
 let vistaActual = 'clases';
 
@@ -1403,6 +1414,8 @@ async function openClaseForm(id, fechaPreset, horaPreset, alumnoPreset){
       <textarea id="f_notas" placeholder="Observaciones para vos (el alumno no las ve)">${editing ? escapeHtml(editing.notas||'') : ''}</textarea>
     </details>
 
+    ${editing ? accionesCambioHtml(editing) : ''}
+
     ${editing ? pizarraClaseHtml(editing) : ''}
 
     ${editing ? `<button type="button" class="btn outline" onclick="enviarWhatsappDesdeForm()">${ic('message')}Enviar resumen y cobro por WhatsApp</button>` : ''}
@@ -1594,6 +1607,7 @@ function guardarClase(id){
 
   const nueva = {id: uid(), serieId:null, alumnoId, fecha, horaEntrada, horaSalida: sumarMinutos(horaEntrada, duracionMin), duracionMin, monto, viatico, modalidad, temarioIds, notas, resumen, links, pizarra:null, pagada:false, pagoId:null};
   db.clases.push(nueva);
+  alAgendarClase(nueva);
   if(pagada) registrarPago({alumnoId, claseIds:[nueva.id], fecha: hoyIso()});
   saveDB();
   closeSheet();
@@ -1763,7 +1777,7 @@ function rangosLibresDia(fechaStr){
     desde = Math.max(desde, nowMin);
   }else if(fechaStr < hoyIso()) return [];
   let rangos = [[desde, disp.hasta]];
-  clasesDelDia(fechaStr).forEach(c=>{
+  clasesDelDia(fechaStr).filter(c=>!c.cancelada).forEach(c=>{
     const ci = horaAMin(c.horaEntrada), cf = finClaseMin(c);
     const nuevos = [];
     rangos.forEach(([a,b])=>{
@@ -1849,7 +1863,7 @@ function renderCalendarioSemana(){
     const clases = clasesDelDia(f);
     let slots = '';
     for(let m=hMin; m<hMax; m+=30){
-      const ocupado = clases.some(c=>horaAMin(c.horaEntrada) < m+30 && finClaseMin(c) > m);
+      const ocupado = clases.some(c=>!c.cancelada && horaAMin(c.horaEntrada) < m+30 && finClaseMin(c) > m);
       const pasado = f<hoyStr || (f===hoyStr && m+30<=ahoraMin);
       const dentro = disp && m>=disp.desde && m+30<=disp.hasta;
       let cls = pasado ? 'pasado' : (dentro ? (ocupado ? '' : 'libre') : 'nodisp');
@@ -1869,7 +1883,7 @@ function renderCalendarioSemana(){
       const top = (ini-hMin)*pxPorMin, h = Math.max(18, (finM-ini)*pxPorMin - 2);
       const w = 100/nLanes;
       const nombre = esDesktop() ? alumnoNombre(c.alumnoId) : alumnoNombre(c.alumnoId).split(' ')[0];
-      return `<div class="wk-ev ${c.pagada?'pagada':''}" style="top:${top}px;height:${h}px;left:calc(${lane*w}% + 1px);width:calc(${w}% - 3px);border-left-color:${color};background:color-mix(in srgb, ${color} 22%, var(--card));"
+      return `<div class="wk-ev ${c.pagada?'pagada':''} ${c.cancelada?'cancelada':''}" style="top:${top}px;height:${h}px;left:calc(${lane*w}% + 1px);width:calc(${w}% - 3px);border-left-color:${color};background:color-mix(in srgb, ${color} 22%, var(--card));"
         onclick="event.stopPropagation();openClaseForm('${c.id}')" title="${escapeAttr(alumnoNombre(c.alumnoId))} · ${c.horaEntrada}–${c.horaSalida||''}">${escapeHtml(nombre)}${h>30?`<div class="h">${c.horaEntrada}${esDesktop() && c.horaSalida ? '–'+c.horaSalida : ''}</div>`:''}</div>`;
     }).join('');
     const nowLine = (f===hoyStr && ahoraMin>=hMin && ahoraMin<hMax) ? `<div class="wk-now" style="top:${(ahoraMin-hMin)*pxPorMin}px"></div>` : '';
@@ -2024,13 +2038,15 @@ function renderDayDetail(){
           <span>${t.temaId ? `<b>${escapeHtml(temaNombre(t.temaId))}:</b> ` : ''}${escapeHtml(t.texto)}</span>
         </label>`).join('');
     const ocurrio = claseYaOcurrida(c, ahora);
-    const estado = c.pagada
+    const estado = c.cancelada
+      ? `<span class="badge cancelada">Cancelada${c.cancelada.cobro ? ' · se cobra' : ''}</span>`
+      : c.pagada
       ? `<button type="button" class="badge pagada" style="border:none;cursor:pointer;" onclick="togglePagada('${c.id}', event)">${ic('check')}Pagada</button>`
       : (ocurrio
           ? `<button type="button" class="badge pendiente" style="border:none;cursor:pointer;" onclick="togglePagada('${c.id}', event)" title="Tocá para marcar como pagada">Sin pagar</button>`
           : `<span class="badge neutral">Agendada</span>`);
     html += `
-    <div class="class-row">
+    <div class="class-row ${c.cancelada?'cancelada':''}">
       <div style="flex:1;min-width:0;">
         <div class="cr-main" onclick="openClaseForm('${c.id}')">
           <div class="t"><b>${c.horaEntrada}</b><span>${c.horaSalida||''}</span></div>
@@ -2413,6 +2429,7 @@ function renderDetalleAlumno(){
       <span class="btn sm">Cobrar</span>
     </button>` : ''}
   `;
+  document.getElementById('detalleAlumnoHeader').insertAdjacentHTML('beforeend', recuperosHtml(alumno));
 
   document.getElementById('detalleMensajes').innerHTML = renderMensajesDetalle(alumno);
 
@@ -2469,7 +2486,7 @@ function formatCuentaRegresiva(ms){
 
 function claseEnCursoAhora(ahora){
   return db.clases.find(c=>{
-    if(!c.horaSalida) return false;
+    if(!c.horaSalida || c.cancelada) return false;
     const inicio = fechaHoraClase(c);
     const fin = new Date(`${c.fecha}T${c.horaSalida}`);
     return ahora>=inicio && ahora<fin;
@@ -2542,7 +2559,7 @@ function renderBannerYStats(){
     renderProximaClaseCountdown(enCurso, ahora, true);
   }else{
     const proxima = db.clases
-      .filter(c => fechaHoraClase(c) >= ahora)
+      .filter(c => fechaHoraClase(c) >= ahora && !c.cancelada)
       .sort((a,b)=> fechaHoraClase(a) - fechaHoraClase(b))[0];
     renderProximaClaseCountdown(proxima, ahora, false);
   }
@@ -2651,7 +2668,7 @@ function itemsPendientes(key){
   if(key.startsWith('a:')){
     const id = key.slice(2);
     return {
-      clases: db.clases.filter(c=>c.alumnoId===id && !c.pagada && claseYaOcurrida(c, ahora)).sort((a,b)=>a.fecha.localeCompare(b.fecha)),
+      clases: db.clases.filter(c=>c.alumnoId===id && !c.pagada && claseYaOcurrida(c, ahora) && totalClase(c)>0).sort((a,b)=>a.fecha.localeCompare(b.fecha)),
       trabajos: db.trabajos.filter(t=>t.alumnoId===id && !t.cobrado)
     };
   }
@@ -2678,7 +2695,7 @@ function agendadoRestoMes(){
   const y = ahora.getFullYear(), m = ahora.getMonth();
   const clases = db.clases.filter(c=>{
     const [cy,cm] = c.fecha.split('-').map(Number);
-    return cy===y && (cm-1)===m && !c.pagada && !claseYaOcurrida(c, ahora);
+    return cy===y && (cm-1)===m && !c.pagada && !c.cancelada && !claseYaOcurrida(c, ahora);
   });
   return {clases, total: clases.reduce((s,c)=>s+totalClase(c),0)};
 }
@@ -2944,7 +2961,7 @@ function renderStats(){
   const clasesDadas = clasesMes.filter(c=>claseYaOcurrida(c, ahora));
   const tpsMes = db.trabajos.filter(t=>enMes(t.fecha));
 
-  const minutos = clasesDadas.reduce((s,c)=>s+(c.duracionMin||0),0) + tpsMes.reduce((s,t)=>s+(t.minutos||0),0);
+  const minutos = clasesDadas.filter(c=>!c.cancelada).reduce((s,c)=>s+(c.duracionMin||0),0) + tpsMes.reduce((s,t)=>s+(t.minutos||0),0);
   const montoClases = clasesDadas.reduce((s,c)=>s+Number(c.monto||0),0);
   const montoPasajes = clasesDadas.reduce((s,c)=>s+Number(c.viatico||0),0);
   const montoTPs = tpsMes.reduce((s,t)=>s+totalTrabajo(t),0);
@@ -3012,6 +3029,7 @@ function renderAll(){
   renderTareas();
   renderTps();
   renderStats();
+  if(vistaActual==='mensajes') renderMensajes();
   if(document.getElementById('view-alumno-detalle').classList.contains('active')) renderDetalleAlumno();
   actualizarHeader();
 }
@@ -3149,6 +3167,12 @@ function abrirAjustes(){
       </button>
     </div>
 
+    <div class="set-group" id="ajustesModeracion" hidden style="margin-top:14px;">
+      <button type="button" class="set-row" onclick="abrirModeracion()">
+        <div class="row-ic">${ic('info')}</div><div class="item-main">Moderación<div class="item-sub">Denuncias y profes ocultos</div></div>${ic('chevron-right','chev')}
+      </button>
+    </div>
+
     <div class="section-label">Datos</div>
     <div class="set-group">
       <button type="button" class="set-row" onclick="exportarDatos()">
@@ -3167,6 +3191,7 @@ function abrirAjustes(){
     <p class="hint" style="text-align:center;margin-top:14px;">${db.alumnos.length} alumnos · ${db.clases.length} clases · ${db.pagos.length} pagos · ${db.trabajos.length} otros cobros · ${db.resenas.length} reseñas</p>
   `);
   renderThemeSwitch();
+  if(window.nube && nube.usuario()) nube.esAdmin().then(si=>{ const el = document.getElementById('ajustesModeracion'); if(el) el.hidden = !si; });
 }
 function abrirAjustesPrecios(){
   const extra = extraDomicilio();

@@ -1,7 +1,10 @@
 /* =========================================================
    Estudiemos (estudiante / familia)
 
-   Se entra con Google. El profe manda un link estudiante.html?aula=ID: al entrar con ese
+   Se entra con Google. Se llega de dos maneras:
+   - Desde el buscador: estudiante.html?profe=UID abre el chat con ese profe
+     (&reservar=1 para elegir un horario libre, &denunciar=1 para denunciar el perfil).
+   - El profe manda un link estudiante.html?aula=ID: al entrar con ese
    link, la persona se suma al aula (aulas/{ID}.miembros). Puede estar en más de un aula
    (más de un profe, o una familia con dos hijos): arriba aparecen para elegir.
 
@@ -15,6 +18,9 @@ import {
   notificar, escucharNotifs, marcarLeidas, borrarNotif,
   activarPush, renovarPushSiCorresponde, pushDisponible, estadoPermisoPush, linkSala, fechaDe
 } from './firebase.js';
+import * as Chat from './chat.js';
+
+const P = window.Plataforma;
 
 const Comun = window.Comun;
 const $ = id => document.getElementById(id);
@@ -44,6 +50,10 @@ const estado = {
 
 const params = new URLSearchParams(location.search);
 let aulaInvitacion = params.get('aula');
+// desde el buscador o el perfil de un profe (profe.html)
+let pedidoProfe = params.get('profe') ? {uid: params.get('profe'), reservar: params.has('reservar'), denunciar: params.has('denunciar')} : null;
+let chatDeLaUrl = params.get('chat');
+estado.chats = [];
 
 /* ---------- Íconos (los mismos trazos que la app del profe) ---------- */
 
@@ -83,6 +93,8 @@ const ICONO_TIPO = {ejercicio:'repeat', tarea:'list', tp:'file', evaluacion:'sta
 const tipoDe = tp => NOMBRE_TIPO[tp.tipo] ? tp.tipo : 'tarea';
 function ic(name, cls){ return `<svg class="ic ${cls||''}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]||''}</svg>`; }
 $('notifToggle').insertAdjacentHTML('afterbegin', ic('bell'));
+$('chatToggle').insertAdjacentHTML('afterbegin', ic('message'));
+$('buscarLink').innerHTML = ic('search');
 $('yoToggle').innerHTML = ic('user');
 
 /* ---------- Utilidades de UI (mismo comportamiento que la app del profe) ---------- */
@@ -196,6 +208,8 @@ alCambiarSesion(async user=>{
   if(aulaInvitacion) await unirseAula(aulaInvitacion);
   escucharMisAulas();
   soltar.push(escucharNotifs(lista=>{ estado.notifs = lista; renderCampanita(); }));
+  soltar.push(Chat.escucharMisChats(lista=>{ estado.chats = lista; renderContadorChats(); if(!aula()) render(); abrirChatDeLaUrl(); }));
+  if(pedidoProfe) atenderPedidoProfe();
   renovarPushSiCorresponde(alRecibirPush);
 });
 
@@ -262,6 +276,11 @@ function escucharAulaElegida(aulaId){
   soltarAula.push(onSnapshot(doc(db, 'aulas', aulaId, 'alumno', 'perfil'), s=>{
     estado.perfilAlumno = s.exists() ? s.data() : null;
   }, e=>console.warn(e)));
+  estado.solicitudes = [];
+  soltarAula.push(onSnapshot(query(collection(db, 'aulas', aulaId, 'solicitudes'), where('por', '==', u.uid)), s=>{
+    estado.solicitudes = s.docs.map(d=>({id: d.id, ...d.data()}));
+    render();
+  }, e=>console.warn(e)));
 }
 
 function elegirAula(id){
@@ -279,6 +298,7 @@ function render(){
   const a = aula();
   const conAula = !!(estado.usuario && a);
   $('notifToggle').hidden = !estado.usuario;
+  $('chatToggle').hidden = !estado.usuario;
   $('yoToggle').hidden = !conAula;
   $('view-entrada').classList.toggle('active', !conAula);
   $('view-inicio').classList.toggle('active', conAula);
@@ -302,26 +322,33 @@ function renderEntrada(){
   const cont = $('view-entrada');
   if(estado.cargando){ cont.innerHTML = '<div class="card entrada"><p>Cargando…</p></div>'; return; }
   if(!estado.usuario){
+    const titulo = aulaInvitacion ? '¡Tu profe te invitó!' : pedidoProfe ? (pedidoProfe.denunciar ? 'Para denunciar, entrá con tu cuenta' : pedidoProfe.reservar ? 'Elegí tu horario' : 'Escribile a tu próximo profe') : 'Tus clases, en un solo lugar';
+    const texto = pedidoProfe && !aulaInvitacion ? 'Entrá con Google: así el profe te puede contestar y te avisamos cuando lo haga.' : 'Acá vas a ver tus clases, lo que tenés que hacer y lo que vieron juntos.';
     cont.innerHTML = `
       <div class="card entrada">
-        <div class="em-ic">${ic(aulaInvitacion ? 'send' : 'book')}</div>
-        <h2>${aulaInvitacion ? '¡Tu profe te invitó!' : 'Tus clases, en un solo lugar'}</h2>
-        <p>Acá vas a ver tus clases, lo que tenés que hacer y lo que vieron juntos.</p>
+        <div class="em-ic">${ic(aulaInvitacion ? 'send' : pedidoProfe ? 'message' : 'book')}</div>
+        <h2>${titulo}</h2>
+        <p>${texto}</p>
         <button type="button" class="btn primary" id="btnEntrar">Entrar con Google</button>
-        ${aulaInvitacion ? '' : '<p class="hint" style="margin-top:14px;">La primera vez, entrá con el link que te mandó tu profe.</p>'}
+        ${aulaInvitacion || pedidoProfe ? '' : '<p class="hint" style="margin-top:14px;">¿Todavía no tenés profe? <a href="./?buscar">Buscá uno</a>.</p>'}
       </div>`;
     $('btnEntrar').addEventListener('click', entrar);
     return;
   }
+  const chats = estado.chats || [];
   cont.innerHTML = `
+    ${estado.errorUnirse ? `<div class="note" style="color:var(--danger);">${esc(estado.errorUnirse)}</div>` : ''}
+    ${chats.length ? `<div class="card list"><div class="card-head"><h2>Tus conversaciones</h2></div>${chats.map(c=>Chat.itemChatHtml(c, estado.usuario.uid)).join('')}</div>` : ''}
     <div class="card entrada">
-      <div class="em-ic">${ic('info')}</div>
-      <h2>Todavía no tenés clases acá</h2>
-      ${estado.errorUnirse ? `<p style="color:var(--danger);margin-bottom:10px;">${esc(estado.errorUnirse)}</p>` : ''}
-      <p>Abrí el link que te mandó tu profe con esta misma cuenta (<b>${esc(estado.usuario.email || '')}</b>).</p>
-      <button type="button" class="btn outline" id="btnSalir">${ic('log-out')}Usar otra cuenta</button>
+      <div class="em-ic">${ic('search')}</div>
+      <h2>${chats.length ? 'Cuando tu profe te sume, acá ves tus clases' : 'Encontrá tu profe'}</h2>
+      <p>${chats.length ? 'Mientras tanto, podés seguir charlando o buscar otros profes.' : 'Mirá los profes de Mendoza, cuánto cobran y dónde dan clases, y escribiles.'}</p>
+      <a class="btn primary" href="./?buscar">${ic('search')}Buscar profes</a>
+      <p class="hint" style="margin-top:14px;">Si tu profe te mandó un link, abrilo con esta cuenta (<b>${esc(estado.usuario.email || '')}</b>).</p>
+      <button type="button" class="btn ghost" id="btnSalir">${ic('log-out')}Usar otra cuenta</button>
     </div>`;
   $('btnSalir').addEventListener('click', ()=>salir());
+  cont.querySelectorAll('[data-chat]').forEach(el=>el.addEventListener('click', ()=>abrirChat(el.dataset.chat)));
 }
 
 function renderSelector(){
@@ -349,7 +376,7 @@ function proximaClaseHtml(a){
   const ahora = new Date();
   const acciones = [];
   if(r.c.pizarra) acciones.push(`<a href="${linkSala(r.c.pizarra.codigo)}" target="_blank" rel="noopener">${ic('pen')}Pizarra</a>`);
-  if(a.telefonoProfe) acciones.push(`<a href="https://wa.me/${a.telefonoProfe.replace(/\D/g,'')}" target="_blank" rel="noopener">${ic('message')}Escribirle</a>`);
+  acciones.push(`<a href="#" data-escribir="1">${ic('message')}Escribirle</a>`);
   return `<div class="next-card">
     <div class="next-top">
       <span class="next-eyebrow">${r.enCurso ? '<span class="live"></span>Clase en curso' : ic('clock') + 'Próxima clase'}</span>
@@ -411,6 +438,9 @@ function renderInicio(){
 
     ${proximaClaseHtml(a)}
 
+    ${(a.recuperos || []).length ? `<div class="note recupero">${ic('repeat')}<div>Tenés ${a.recuperos.length === 1 ? 'una clase' : a.recuperos.length + ' clases'} para recuperar (hasta el ${fechaCorta(a.recuperos[0].vence).toLowerCase()}).
+      <button type="button" class="btn sm primary" style="margin-top:8px;" data-recuperar="${esc(a.recuperos[0].id)}">${ic('calendar')}Elegir un horario</button></div></div>` : ''}
+
     <div class="card list">
       <div class="card-head"><h2>Para hacer</h2>${pendientes.length ? `<span class="badge pendiente">${pendientes.length}</span>` : ''}</div>
       ${pendientes.concat(corregidasNuevas).map(tareaItemHtml).join('') || '<div class="empty-msg" style="padding-bottom:12px;">¡Nada pendiente! 🎉</div>'}
@@ -443,6 +473,7 @@ function semanaHtml(a){
     ? 'Esta semana'
     : `${ini.getDate()} ${MESES[ini.getMonth()].slice(0,3)} – ${fin.getDate()} ${MESES[fin.getMonth()].slice(0,3)}`;
   const clasesDia = (porDia[estado.dia] || []).slice().sort((x,y)=>x.horaEntrada.localeCompare(y.horaEntrada));
+  const pedidas = new Set((estado.solicitudes || []).filter(x=>x.estado === 'pendiente').map(x=>x.claseId));
   const ahora = new Date();
   return `<div class="card semana">
     <div class="card-head">
@@ -467,9 +498,14 @@ function semanaHtml(a){
         (a.tps||[]).filter(tp=>tp.claseId===c.id).forEach(tp=>extras.push(`<button type="button" class="btn sm outline" data-tp="${tp.id}">${ic('list')}${esc(tp.titulo || 'Tarea')}</button>`));
         return `<div class="clase-dia">
           <div class="clase-cab">
-            <div class="item-title">${c.horaEntrada}${c.horaSalida ? ' a ' + c.horaSalida : ''}</div>
-            ${pasada ? `<span class="badge ${c.pagada ? 'pagada' : 'pendiente'}">${c.pagada ? 'Abonada' : 'Por abonar'}</span>` : ''}
+            <div class="item-title" ${c.cancelada ? 'style="text-decoration:line-through;color:var(--text-dim);"' : ''}>${c.horaEntrada}${c.horaSalida ? ' a ' + c.horaSalida : ''}</div>
+            ${c.cancelada ? `<span class="badge cancelada">Cancelada${c.cancelada.cobro ? ' · se cobra' : ''}</span>`
+              : pasada ? `<span class="badge ${c.pagada ? 'pagada' : 'pendiente'}">${c.pagada ? 'Abonada' : 'Por abonar'}</span>` : ''}
           </div>
+          ${c.propuesta && !pasada ? `<div class="propuesta-box">Tu profe propone pasarla al <b>${fechaLarga(c.propuesta.fecha).toLowerCase()} a las ${esc(c.propuesta.hora)}</b>.
+            ${pedidas.has(c.id) ? '<div class="hint">Le mandaste tu respuesta.</div>' : `<div class="btn-row"><button type="button" class="btn sm primary" data-propuesta="aceptar" data-clase="${c.id}">Me sirve</button><button type="button" class="btn sm outline" data-propuesta="rechazar" data-clase="${c.id}">No puedo</button></div>`}</div>` : ''}
+          ${!pasada && !c.cancelada && !c.propuesta ? (pedidas.has(c.id) ? '<div class="hint">Le avisaste a tu profe que la cancelás.</div>'
+            : `<div class="clase-acciones"><button type="button" class="link-btn" data-mover="${c.id}">Cambiar horario</button><button type="button" class="link-btn peligro" data-cancelar="${c.id}">Cancelar</button></div>`) : ''}
           ${c.resumen ? `<div class="clase-resumen"><b>Lo que vimos</b>${esc(c.resumen)}</div>` : ''}
           ${extras.length ? `<div class="clase-extras">${extras.join('')}</div>` : ''}
         </div>`;
@@ -498,6 +534,11 @@ function loVistoHtml(a){
 
 function enganchar(cont){
   cont.querySelectorAll('[data-tp]').forEach(b=>b.addEventListener('click', ()=>abrirTp(b.dataset.tp)));
+  cont.querySelectorAll('[data-escribir]').forEach(b=>b.addEventListener('click', ev=>{ ev.preventDefault(); escribirleAMiProfe(); }));
+  cont.querySelectorAll('[data-cancelar]').forEach(b=>b.addEventListener('click', ()=>cancelarClaseEst(b.dataset.cancelar)));
+  cont.querySelectorAll('[data-mover]').forEach(b=>b.addEventListener('click', ()=>abrirReserva(aula().ownerUid, {mover: b.dataset.mover})));
+  cont.querySelectorAll('[data-recuperar]').forEach(b=>b.addEventListener('click', ()=>abrirReserva(aula().ownerUid, {recupero: b.dataset.recuperar})));
+  cont.querySelectorAll('[data-propuesta]').forEach(b=>b.addEventListener('click', ()=>pedirSolicitud(b.dataset.propuesta, b.dataset.clase)));
   cont.querySelectorAll('[data-dia]').forEach(b=>b.addEventListener('click', ()=>{ estado.dia = b.dataset.dia; render(); }));
   cont.querySelectorAll('[data-semana]').forEach(b=>b.addEventListener('click', ()=>{
     estado.semana = sumarDias(estado.semana, 7 * Number(b.dataset.semana));
@@ -1042,6 +1083,228 @@ function verEntrega(tp, e){
   if($('btnPracticar')) $('btnPracticar').addEventListener('click', ()=>{ cerrarSheet(); jugar(tp, null, false); });
   if($('btnRehacer')) $('btnRehacer').addEventListener('click', ()=>{ cerrarSheet(); jugar(tp, null, true); });
   render();
+}
+
+/* =========================================================
+   MENSAJES con profes (js/chat.js) y pedidos de horario
+   ========================================================= */
+
+function renderContadorChats(){
+  const u = estado.usuario;
+  const n = u ? (estado.chats || []).filter(c=>Chat.sinLeer(c, u.uid)).length : 0;
+  $('chatCount').hidden = n === 0;
+  $('chatCount').textContent = n > 9 ? '9+' : String(n);
+}
+
+$('chatToggle').addEventListener('click', ()=>{
+  const u = estado.usuario;
+  const chats = estado.chats || [];
+  abrirSheet(`
+    <h3>Mensajes</h3>
+    ${chats.length ? chats.map(c=>Chat.itemChatHtml(c, u.uid)).join('') : '<div class="empty-msg">Todavía no le escribiste a ningún profe.</div>'}
+    <a class="btn outline" href="./?buscar" style="margin-top:12px;">${ic('search')}Buscar profes</a>
+  `);
+  $('sheetContent').querySelectorAll('[data-chat]').forEach(el=>el.addEventListener('click', ()=>{ cerrarSheet(); abrirChat(el.dataset.chat); }));
+});
+
+const perfiles = {};
+async function perfilDe(uid){
+  if(!perfiles[uid]){
+    const s = await getDoc(doc(db, 'perfiles', uid)).catch(()=>null);
+    perfiles[uid] = s && s.exists() ? s.data() : null;
+  }
+  return perfiles[uid];
+}
+
+/** Abre (o crea) el chat con un profe. */
+async function chatConProfe(profeUid){
+  const u = usuarioActual();
+  if(profeUid === u.uid){ toast('Ese es tu propio perfil'); return null; }
+  const p = await perfilDe(profeUid);
+  const a = estado.aulas.find(x=>x.ownerUid === profeUid);
+  const nombreProfe = (p && p.nombre) || (a && a.profeNombre) || 'Profe';
+  try{
+    return await Chat.asegurarChat(profeUid, u.uid, {profe: nombreProfe, est: u.displayName || 'Estudiante'}, {profe: p && p.foto, est: u.photoURL || ''});
+  }catch(e){
+    console.error(e);
+    toast('No se pudo abrir el chat');
+    return null;
+  }
+}
+
+function abrirChat(chatId){
+  const c = (estado.chats || []).find(x=>x.id === chatId);
+  const profeUid = c ? c.profeUid : chatId.split('_')[1];
+  Chat.abrirPantalla(chatId, {
+    rol: 'estudiante',
+    botonExtra: {texto: 'Elegir horario', onClick: ()=>abrirReserva(profeUid, {})},
+    menu: [
+      {id: 'perfil', texto: 'Ver su perfil'},
+      {id: 'bloquear', texto: c && c.bloqueadoPor === estado.usuario.uid ? 'Desbloquear' : 'Bloquear', peligro: !(c && c.bloqueadoPor === estado.usuario.uid)},
+      {id: 'denunciar', texto: 'Denunciar', peligro: true}
+    ],
+    onMenu: async (id, chat)=>{
+      if(id === 'perfil') location.href = 'profe.html?p=' + encodeURIComponent(chat.profeUid);
+      if(id === 'denunciar'){ Chat.cerrarPantalla(); abrirDenuncia(chat.profeUid, chat.id); }
+      if(id === 'bloquear'){
+        const yo = chat.bloqueadoPor === estado.usuario.uid;
+        await Chat.bloquear(chat.id, !yo);
+        toast(yo ? 'Chat desbloqueado' : 'Chat bloqueado');
+      }
+    },
+    onReserva: (accion, msg, chat)=>{
+      if(accion === 'cancelar') Chat.responderReserva(chat.id, msg.id, msg.reserva, 'cancelada').then(()=>toast('Pedido cancelado'));
+    }
+  });
+}
+
+async function escribirleAMiProfe(){
+  const a = aula();
+  if(!a) return;
+  const id = await chatConProfe(a.ownerUid);
+  if(id) abrirChat(id);
+}
+
+/** Lo que pidió el link: chatear, elegir horario o denunciar a un profe. */
+async function atenderPedidoProfe(){
+  const pedido = pedidoProfe;
+  pedidoProfe = null;
+  history.replaceState(null, '', location.pathname);
+  if(pedido.denunciar){ abrirDenuncia(pedido.uid, ''); return; }
+  const id = await chatConProfe(pedido.uid);
+  if(!id) return;
+  abrirChat(id);
+  if(pedido.reservar) abrirReserva(pedido.uid, {});
+}
+
+function abrirChatDeLaUrl(){
+  if(!chatDeLaUrl || !(estado.chats || []).some(c=>c.id === chatDeLaUrl)) return;
+  const id = chatDeLaUrl;
+  chatDeLaUrl = null;
+  history.replaceState(null, '', location.pathname);
+  abrirChat(id);
+}
+
+/* ---------- Elegir un horario libre del profe ----------
+   extra: {recupero: id} para recuperar una clase cancelada; {mover: claseId} para cambiarla.
+   El pedido viaja por el chat y el profe lo acepta. */
+
+async function abrirReserva(profeUid, extra){
+  const p = await perfilDe(profeUid);
+  if(!p || !p.disponibilidad || !Object.keys(p.disponibilidad).length){
+    toast('Tu profe todavía no cargó sus horarios: escribile');
+    return;
+  }
+  const clase = extra.mover ? ((aula() || {}).clases || []).find(c=>c.id === extra.mover) : null;
+  const dur = (clase && clase.duracionMin) || Number(p.duracion) || 60;
+  const huecos = P.huecosLibres(p.disponibilidad, p.ocupado, {dias: 21, duracion: dur, paso: 30, ahora: new Date(), anticipacionH: 12});
+  const porDia = {};
+  huecos.forEach(h=>{ (porDia[h.fecha] = porDia[h.fecha] || []).push(h.hora); });
+  const sel = {fecha: null, hora: null};
+  const titulo = extra.recupero ? 'Recuperar tu clase' : extra.mover ? 'Cambiar el horario' : `Elegí un horario con ${esc((p.nombre || 'tu profe').split(' ')[0])}`;
+  abrirSheet(`
+    <h3>${titulo}</h3>
+    <p class="sheet-sub">${extra.mover && clase ? `Ahora: ${fechaLarga(clase.fecha).toLowerCase()} a las ${clase.horaEntrada}. ` : ''}Son los horarios libres de los próximos días. Tu profe lo confirma.</p>
+    ${Object.keys(porDia).length ? Object.entries(porDia).map(([f, hs])=>`
+      <div class="huecos-dia">${esc(fechaLarga(f))}</div>
+      <div class="huecos">${hs.map(h=>`<button type="button" class="hueco" data-f="${f}" data-h="${h}">${h}</button>`).join('')}</div>`).join('')
+      : '<div class="empty-msg">No hay horarios libres en estas semanas. Escribile y lo arreglan.</div>'}
+    ${!extra.recupero && !extra.mover ? `<label class="switch-row" style="margin-top:14px;"><span>Todas las semanas a esta hora<small>Se repite cada semana; cuando quieras lo cambian</small></span><input type="checkbox" class="switch" id="f_semanal"></label>` : ''}
+    <div class="note" style="margin-top:12px;">${ic('info')}<div><b>Si hay que cancelar (regla ${esc(P.regla(p.regla).nombre.toLowerCase())}):</b> ${esc(P.textoRegla(p.regla))}</div></div>
+    <div class="sheet-footer"><button type="button" class="btn primary" id="btnPedirHorario" disabled>Elegí un horario</button></div>
+  `);
+  const btn = $('btnPedirHorario');
+  $('sheetContent').querySelectorAll('.hueco').forEach(b=>b.addEventListener('click', ()=>{
+    sel.fecha = b.dataset.f; sel.hora = b.dataset.h;
+    $('sheetContent').querySelectorAll('.hueco').forEach(x=>x.classList.toggle('sel', x === b));
+    btn.disabled = false;
+    btn.textContent = `Pedir el ${fechaCorta(sel.fecha).toLowerCase()} a las ${sel.hora}`;
+  }));
+  btn.addEventListener('click', async ()=>{
+    if(!sel.fecha) return;
+    btn.disabled = true;
+    const chatId = await chatConProfe(profeUid);
+    if(!chatId){ btn.disabled = false; return; }
+    const chat = (estado.chats || []).find(c=>c.id === chatId) || {id: chatId, profeUid, estUid: estado.usuario.uid, miembros: [profeUid, estado.usuario.uid], nombres: {}};
+    const reserva = {fecha: sel.fecha, hora: sel.hora, duracion: dur, semanal: !!($('f_semanal') && $('f_semanal').checked), estado: 'pendiente'};
+    if(extra.recupero) reserva.recupero = extra.recupero;
+    if(extra.mover) reserva.mover = extra.mover;
+    try{
+      await Chat.enviar(chat, {tipo: 'reserva', texto: '', reserva});
+      cerrarSheet();
+      toast('¡Listo! Le llegó tu pedido');
+      abrirChat(chatId);
+    }catch(e){ console.error(e); toast('No se pudo mandar'); btn.disabled = false; }
+  });
+}
+
+/* ---------- Cancelar una clase, o responder al horario que propone el profe ---------- */
+
+async function cancelarClaseEst(claseId){
+  const a = aula();
+  const c = (a.clases || []).find(x=>x.id === claseId);
+  if(!c) return;
+  const ev = P.evaluarCancelacion(c, a.regla, 'alumno', new Date());
+  const r = P.regla(a.regla);
+  const msg = ev.aTiempo
+    ? `Faltan más de ${r.horas} h: no la pagás y la podés recuperar en los próximos ${P.DIAS_RECUPERO} días.`
+    : `Faltan menos de ${r.horas} h, así que según la regla de tu profe ${ev.cobro >= 1 ? 'se cobra completa' : 'se cobra la mitad'}. Tu profe igual puede decidir no cobrarla.`;
+  abrirSheet(`
+    <h3>¿Cancelar la clase?</h3>
+    <p class="sheet-sub">${fechaLarga(c.fecha)} a las ${esc(c.horaEntrada)}</p>
+    <div class="note">${ic('info')}<div>${esc(msg)}</div></div>
+    <div class="sheet-footer"><button type="button" class="btn secondary" data-cerrar2>No, la mantengo</button><button type="button" class="btn danger" id="btnCancelarSi">Sí, cancelarla</button></div>
+  `);
+  $('sheetContent').querySelector('[data-cerrar2]').addEventListener('click', cerrarSheet);
+  $('btnCancelarSi').addEventListener('click', async ()=>{
+    $('btnCancelarSi').disabled = true;
+    const ok = await pedirSolicitud('cancelar', claseId);
+    if(ok) cerrarSheet(); else $('btnCancelarSi').disabled = false;
+  });
+}
+
+async function pedirSolicitud(tipo, claseId){
+  const a = aula();
+  const u = usuarioActual();
+  const c = (a.clases || []).find(x=>x.id === claseId);
+  try{
+    await setDoc(doc(collection(db, 'aulas', a.id, 'solicitudes')), {tipo, claseId, por: u.uid, estado: 'pendiente', creada: serverTimestamp()});
+    const cuando = c ? `${fechaLarga(c.fecha).toLowerCase()} a las ${c.horaEntrada}` : '';
+    const textos = {
+      cancelar: ['❌ Canceló una clase', `${a.alumnoNombre} canceló la clase del ${cuando}.`],
+      aceptar: ['✅ Aceptó el cambio de horario', `${a.alumnoNombre} aceptó pasar la clase del ${cuando}.`],
+      rechazar: ['↩️ No puede en ese horario', `${a.alumnoNombre} no puede en el horario que propusiste para la clase del ${cuando}.`]
+    };
+    notificar(a.id, [a.ownerUid], textos[tipo][0], textos[tipo][1], 'app.html', {tipo: 'clase'});
+    toast(tipo === 'cancelar' ? 'Le avisamos a tu profe' : '¡Listo! Le avisamos');
+    return true;
+  }catch(e){ console.error(e); toast('No se pudo mandar. Probá de nuevo.'); return false; }
+}
+
+/* ---------- Denunciar un perfil o un chat ---------- */
+
+function abrirDenuncia(sobre, chatId){
+  if(!estado.usuario){ toast('Entrá con tu cuenta para denunciar'); return; }
+  abrirSheet(`
+    <h3>Denunciar</h3>
+    <p class="sheet-sub">Lo revisa la administración de Estudiemos. No le decimos a nadie quién denunció.</p>
+    <label>¿Qué pasó?</label>
+    <div class="pill-select compact" id="denMotivo">${[['spam','Spam o publicidad'],['acoso','Acoso o maltrato'],['falso','Datos falsos'],['otro','Otra cosa']].map(([v, t])=>`<button type="button" data-v="${v}">${t}</button>`).join('')}</div>
+    <label for="f_den_texto">Contanos un poco más (opcional)</label>
+    <textarea id="f_den_texto" maxlength="1000"></textarea>
+    <div class="sheet-footer"><button type="button" class="btn danger" id="btnDenunciar">Denunciar</button></div>
+  `);
+  $('sheetContent').querySelectorAll('#denMotivo button').forEach(b=>b.addEventListener('click', ()=>$('sheetContent').querySelectorAll('#denMotivo button').forEach(x=>x.classList.toggle('sel', x === b))));
+  $('btnDenunciar').addEventListener('click', async ()=>{
+    const m = $('sheetContent').querySelector('#denMotivo button.sel');
+    if(!m){ toast('Elegí qué pasó'); return; }
+    try{
+      await setDoc(doc(collection(db, 'denuncias')), {de: usuarioActual().uid, sobre, chatId: chatId || '', motivo: m.dataset.v,
+        texto: $('f_den_texto').value.trim().slice(0, 1000), estado: 'nueva', creada: serverTimestamp()});
+      cerrarSheet();
+      toast('Gracias: lo vamos a revisar');
+    }catch(e){ console.error(e); toast('No se pudo enviar'); }
+  });
 }
 
 render();

@@ -125,3 +125,78 @@ main.buscador{max-width:1180px;padding-top:0;}
 .semana-disp div:last-child{border-bottom:0;}
 .semana-disp span:last-child{color:var(--text-dim);}
 .link-sutil{color:var(--text-mute);font-size:12.5px;background:none;border:0;cursor:pointer;text-decoration:underline;font:inherit;font-size:12.5px;}
+
+/* ---------- Chat ---------- */
+.chat-pantalla{position:fixed;inset:0;z-index:45;background:var(--bg);display:flex;flex-direction:column;}
+.chat-pantalla[hidden]{display:none !important;}
+.chat-top{display:flex;align-items:center;gap:8px;padding:calc(8px + env(safe-area-inset-top,0px)) 10px 8px;border-bottom:1px solid var(--border);background:var(--card);}
+.chat-top .btn{width:auto;}
+.chat-top .btn span{white-space:nowrap;}
+.chat-quien{display:flex;align-items:center;gap:10px;flex:1;min-width:0;}
+.chat-quien > div{min-width:0;}
+.chat-quien b{display:block;font-size:15.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.chat-quien small{color:var(--text-mute);font-size:12px;}
+.chat-avatar{width:38px;height:38px;border-radius:50%;background:var(--soft-tint-bg);color:var(--accent);display:inline-flex;align-items:center;justify-content:center;
+  font-weight:700;flex-shrink:0;overflow:hidden;}
+.chat-avatar img{width:100%;height:100%;object-fit:cover;}
+.chat-menu{position:absolute;right:10px;top:calc(56px + env(safe-area-inset-top,0px));z-index:2;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  box-shadow:var(--shadow);display:flex;flex-direction:column;min-width:200px;overflow:hidden;}
+.chat-menu button{background:none;border:0;text-align:left;padding:12px 14px;font:inherit;font-size:14.5px;color:var(--text);cursor:pointer;}
+.chat-menu button + button{border-top:1px solid var(--border);}
+.chat-menu button.peligro{color:var(--danger);}
+.chat-msgs{flex:1;overflow-y:auto;padding:12px 12px 6px;display:flex;flex-direction:column;gap:6px;max-width:760px;width:100%;margin:0 auto;}
+.chat-vacio{margin:auto;text-align:center;color:var(--text-dim);max-width:300px;line-height:1.5;font-size:14.5px;}
+.chat-dia{align-self:center;font-size:12px;color:var(--text-mute);background:var(--surface);border-radius:999px;padding:3px 10px;margin:8px 0 4px;}
+.chat-sistema{align-self:center;font-size:13px;color:var(--text-dim);text-align:center;max-width:85%;padding:4px 8px;}
+.burbuja{align-self:flex-start;max-width:80%;background:var(--card);border:1px solid var(--border);border-radius:16px 16px 16px 4px;padding:8px 12px 6px;position:relative;}
+.burbuja.mia{align-self:flex-end;background:var(--primary);border-color:var(--primary);color:#fff;border-radius:16px 16px 4px 16px;}
+.burbuja .txt{white-space:pre-wrap;word-wrap:break-word;font-size:15px;line-height:1.4;}
+.burbuja .txt a{color:inherit;text-decoration:underline;}
+.burbuja .hora,.chat-reserva .hora{display:block;text-align:right;font-size:10.5px;opacity:.7;margin-top:2px;}
+.chat-foto{display:block;max-width:100%;max-height:300px;border-radius:10px;margin:2px 0 4px;cursor:zoom-in;}
+.chat-reserva{align-self:flex-start;max-width:86%;background:var(--card);border:1px solid var(--border);border-left:4px solid var(--warn);border-radius:14px;padding:10px 12px 6px;}
+.chat-reserva.mia{align-self:flex-end;}
+.chat-reserva.aceptada{border-left-color:var(--ok);}
+.chat-reserva.rechazada,.chat-reserva.cancelada{border-left-color:var(--border-strong);opacity:.8;}
+.chat-reserva .r-tit{display:flex;align-items:center;gap:6px;font-weight:700;font-size:14px;}
+.chat-reserva .r-tit svg{width:16px;height:16px;color:var(--accent);}
+.chat-reserva .r-cuando{font-size:15px;margin:3px 0;}
+.chat-reserva .r-est{font-size:12.5px;color:var(--text-dim);font-weight:600;}
+.chat-reserva .r-nota{font-size:13px;color:var(--text-dim);margin-top:4px;}
+.chat-reserva .r-botones{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;}
+.chat-bloqueado{padding:12px 16px calc(12px + var(--safe-bottom));text-align:center;color:var(--text-dim);font-size:14px;border-top:1px solid var(--border);background:var(--card);}
+.chat-escribir{display:flex;align-items:flex-end;gap:6px;padding:8px 10px calc(8px + var(--safe-bottom));border-top:1px solid var(--border);background:var(--card);}
+.chat-escribir[hidden]{display:none;}
+.chat-escribir textarea{flex:1;min-height:42px;max-height:140px;resize:none;border-radius:21px;padding:10px 14px;font-size:15.5px;line-height:1.35;}
+.chat-escribir .icon-btn{flex-shrink:0;cursor:pointer;}
+.chat-escribir .enviar{background:var(--primary);color:#fff;}
+.chat-item .chat-avatar{width:42px;height:42px;}
+.chat-item.nuevo .item-title{font-weight:700;}
+.punto-nuevo{width:10px;height:10px;border-radius:50%;background:var(--primary);flex-shrink:0;}
+
+/* ---------- Reservas: elegir un horario libre ---------- */
+.huecos-dia{margin:12px 0 4px;font-weight:700;font-size:14px;}
+.huecos-dia::first-letter{text-transform:uppercase;}
+.huecos{display:flex;gap:6px;flex-wrap:wrap;}
+.hueco{padding:8px 12px;border-radius:10px;border:1px solid var(--border);background:var(--card);font:inherit;font-weight:600;font-size:14px;cursor:pointer;color:var(--text);font-variant-numeric:tabular-nums;}
+.hueco.sel{background:var(--primary);border-color:var(--primary);color:#fff;}
+
+/* ---------- Clases canceladas y propuestas ---------- */
+.wk-ev.cancelada{opacity:.45;text-decoration:line-through;background:var(--surface) !important;}
+.class-row.cancelada .item-title{text-decoration:line-through;color:var(--text-dim);}
+.badge.cancelada{background:var(--danger-bg);color:var(--danger);}
+.propuesta-box{background:var(--warn-bg);border-radius:12px;padding:10px 12px;margin-top:8px;font-size:14px;}
+.propuesta-box .btn-row{margin-top:8px;}
+
+/* ---------- Pestaña Mensajes (contador) ---------- */
+nav.bottom-nav button,.sidebar button{position:relative;}
+nav.bottom-nav .ico{width:50px;}
+.nav-count{position:absolute;top:0;left:calc(50% + 6px);min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--danger);color:#fff;
+  font-size:10.5px;font-weight:700;line-height:17px;text-align:center;box-shadow:0 0 0 2px var(--card);}
+.nav-count[hidden]{display:none;}
+.sidebar .nav-count{position:static;margin-left:auto;box-shadow:none;}
+.clase-acciones{display:flex;gap:16px;margin-top:6px;}
+.clase-acciones .link-btn{font-size:13.5px;}
+.link-btn.peligro{color:var(--danger);}
+.note.recupero{background:var(--soft-tint-bg);}
+#buscarLink{display:inline-flex;align-items:center;justify-content:center;color:inherit;}

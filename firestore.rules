@@ -162,8 +162,14 @@ service cloud.firestore {
     //   entregas/{tpId}           lo que resolvió el estudiante + la devolución del profe
     //   resenas/{uid}             la reseña de cada miembro
     //   alumno/perfil             lo que le interesa estudiar
-    // perfiles/{uid}              página pública del profe (reseñas elegidas)
-    // notifs/{id}                 notificaciones, solo entre profe y miembros de un aula
+    //   solicitudes/{id}          pedidos del estudiante (cancelar, aceptar o no otro horario)
+    // perfiles/{uid}              perfil público del profe en el buscador (lo lee cualquiera)
+    // chats/{c_<profe>_<est>}     el chat entre un estudiante y un profe (solo ellos dos)
+    //   mensajes/{id}             mensajes, fotos achicadas y pedidos de horario
+    // denuncias/{id}              las crea cualquiera con cuenta; solo las lee la administración
+    // moderacion/{uid}            profes ocultos del buscador (lo escribe la administración)
+    // plataforma/config           {admins: [uid]}: se carga a mano en la consola de Firebase
+    // notifs/{id}                 notificaciones, entre profe y miembros de un aula, o entre los dos de un chat
     // tokens/{uid}                tokens de push de cada persona
     // enviados/…                  registro del notificador (solo el servidor)
     // =====================================================================================
@@ -271,6 +277,21 @@ service cloud.firestore {
         allow delete: if signedIn() && (request.auth.uid == uid || esProfeDe(aulaId));
       }
 
+      match /solicitudes/{id} {
+        allow read: if esProfeDe(aulaId) || (esMiembroDe(aulaId) && resource.data.por == request.auth.uid);
+        allow create: if esMiembroDe(aulaId)
+          && request.resource.data.keys().hasOnly(['tipo', 'claseId', 'por', 'estado', 'creada'])
+          && request.resource.data.tipo in ['cancelar', 'aceptar', 'rechazar']
+          && request.resource.data.claseId is string && request.resource.data.claseId.size() <= 80
+          && request.resource.data.por == request.auth.uid
+          && request.resource.data.estado == 'pendiente'
+          && request.resource.data.creada == request.time;
+        allow update: if esProfeDe(aulaId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado', 'resultado', 'resueltaEn'])
+          && request.resource.data.estado in ['hecha', 'rechazada'];
+        allow delete: if esProfeDe(aulaId);
+      }
+
       match /alumno/{docId} {
         allow read: if esProfeDe(aulaId) || esMiembroDe(aulaId);
         allow create, update: if docId == 'perfil' && esMiembroDe(aulaId)
@@ -315,6 +336,90 @@ service cloud.firestore {
         && (!('visible' in d) || d.visible is bool);
     }
 
+    // ---- Chat entre estudiante y profe ----
+
+    function esAdmin() {
+      return conCuenta() && request.auth.uid in get(/databases/$(database)/documents/plataforma/config).data.admins;
+    }
+
+    function chatData(chatId) {
+      return get(/databases/$(database)/documents/chats/$(chatId)).data;
+    }
+
+    match /chats/{chatId} {
+      allow get: if conCuenta() && (resource == null || request.auth.uid in resource.data.miembros);
+      allow list: if conCuenta() && request.auth.uid in resource.data.miembros;
+
+      // Lo crea cualquiera de los dos; el id es siempre c_<profe>_<estudiante> y el profe tiene perfil
+      allow create: if conCuenta()
+        && chatId == 'c_' + request.resource.data.profeUid + '_' + request.resource.data.estUid
+        && request.resource.data.profeUid != request.resource.data.estUid
+        && request.auth.uid in [request.resource.data.profeUid, request.resource.data.estUid]
+        && request.resource.data.miembros == [request.resource.data.profeUid, request.resource.data.estUid]
+        && exists(/databases/$(database)/documents/perfiles/$(request.resource.data.profeUid))
+        && request.resource.data.keys().hasOnly(['profeUid', 'estUid', 'miembros', 'nombres', 'fotos', 'leido', 'ultimo', 'bloqueadoPor', 'creado'])
+        && request.resource.data.bloqueadoPor == null;
+
+      allow update: if conCuenta() && request.auth.uid in resource.data.miembros
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ultimo', 'leido', 'bloqueadoPor', 'nombres', 'fotos'])
+        // cada uno marca solo lo suyo como leído
+        && request.resource.data.leido.diff(resource.data.leido).affectedKeys().hasOnly([request.auth.uid])
+        // bloquea (o desbloquea) solo quien bloqueó; con el chat bloqueado no se escribe
+        && (request.resource.data.bloqueadoPor == resource.data.bloqueadoPor
+          || (resource.data.bloqueadoPor == null && request.resource.data.bloqueadoPor == request.auth.uid)
+          || (resource.data.bloqueadoPor == request.auth.uid && request.resource.data.bloqueadoPor == null))
+        && (!('ultimo' in request.resource.data.diff(resource.data).affectedKeys()) || resource.data.bloqueadoPor == null);
+
+      match /mensajes/{msgId} {
+        allow read: if conCuenta() && request.auth.uid in chatData(chatId).miembros;
+        allow create: if conCuenta()
+          && request.auth.uid in chatData(chatId).miembros
+          && chatData(chatId).bloqueadoPor == null
+          && request.resource.data.de == request.auth.uid
+          && request.resource.data.keys().hasOnly(['de', 'tipo', 'texto', 'foto', 'reserva', 'en'])
+          && request.resource.data.tipo in ['texto', 'foto', 'reserva', 'sistema']
+          && request.resource.data.texto is string && request.resource.data.texto.size() <= 2000
+          && request.resource.data.en == request.time
+          && (!('foto' in request.resource.data) || (request.resource.data.foto is string && request.resource.data.foto.size() <= 300000))
+          // los mensajes "del sistema" (clase agendada, etc.) los manda la app del profe
+          && (request.resource.data.tipo != 'sistema' || request.auth.uid == chatData(chatId).profeUid)
+          && (request.resource.data.tipo != 'reserva' || (request.resource.data.reserva is map && request.resource.data.reserva.estado == 'pendiente'));
+        // El profe acepta o rechaza un pedido de horario; quien lo pidió lo puede cancelar
+        allow update: if conCuenta()
+          && request.auth.uid in chatData(chatId).miembros
+          && resource.data.tipo == 'reserva'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reserva'])
+          && request.resource.data.reserva.diff(resource.data.reserva).affectedKeys().hasOnly(['estado'])
+          && resource.data.reserva.estado == 'pendiente'
+          && ((request.auth.uid == chatData(chatId).profeUid && request.resource.data.reserva.estado in ['aceptada', 'rechazada'])
+            || (request.auth.uid == resource.data.de && request.resource.data.reserva.estado == 'cancelada'));
+      }
+    }
+
+    // ---- Moderación ----
+
+    match /denuncias/{id} {
+      allow create: if conCuenta()
+        && request.resource.data.keys().hasOnly(['de', 'sobre', 'chatId', 'motivo', 'texto', 'estado', 'creada'])
+        && request.resource.data.de == request.auth.uid
+        && request.resource.data.sobre is string && request.resource.data.sobre.size() <= 128
+        && request.resource.data.motivo in ['spam', 'acoso', 'falso', 'otro']
+        && request.resource.data.texto is string && request.resource.data.texto.size() <= 1000
+        && request.resource.data.estado == 'nueva'
+        && request.resource.data.creada == request.time;
+      allow read, update, delete: if esAdmin();
+    }
+
+    match /moderacion/{uid} {
+      allow read: if true;
+      allow write: if esAdmin();
+    }
+
+    match /plataforma/{doc} {
+      allow read: if conCuenta();
+      allow write: if false;
+    }
+
     match /notifs/{id} {
       allow read, delete: if signedIn() && resource.data.para == request.auth.uid;
       allow update: if signedIn() && resource.data.para == request.auth.uid
@@ -323,8 +428,7 @@ service cloud.firestore {
     }
 
     function notifValida(d) {
-      let a = aulaData(d.aulaId);
-      return d.keys().hasOnly(['para', 'de', 'deNombre', 'aulaId', 'tipo', 'tpId', 'titulo', 'cuerpo', 'url', 'leida', 'pushPendiente', 'creada'])
+      return d.keys().hasOnly(['para', 'de', 'deNombre', 'aulaId', 'chatId', 'tipo', 'tpId', 'titulo', 'cuerpo', 'url', 'leida', 'pushPendiente', 'creada'])
         && d.de == request.auth.uid
         && d.para is string && d.aulaId is string
         && d.titulo is string && d.titulo.size() <= 120
@@ -332,8 +436,20 @@ service cloud.firestore {
         && d.url is string && d.url.size() <= 300
         && d.leida == false && d.pushPendiente == true
         && d.creada == request.time
-        && ((a.ownerUid == request.auth.uid && d.para in a.miembros)
-          || (request.auth.uid in a.miembros && d.para == a.ownerUid));
+        && ((d.aulaId != '' && notifDeAula(d)) || (d.aulaId == '' && 'chatId' in d && notifDeChat(d)));
+    }
+
+    // Entre el profe y los miembros de un aula
+    function notifDeAula(d) {
+      let a = aulaData(d.aulaId);
+      return (a.ownerUid == request.auth.uid && d.para in a.miembros)
+        || (request.auth.uid in a.miembros && d.para == a.ownerUid);
+    }
+
+    // Entre los dos de un chat
+    function notifDeChat(d) {
+      let c = chatData(d.chatId);
+      return request.auth.uid in c.miembros && d.para in c.miembros && d.para != request.auth.uid;
     }
 
     match /tokens/{uid} {

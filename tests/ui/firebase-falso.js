@@ -111,6 +111,11 @@ export function notificar(aulaId, paras, titulo, cuerpo, url, extra){
   }));
   return Promise.resolve();
 }
+export function notificarChat(chatId, para, titulo, cuerpo, url, extra){
+  if(!para || para === (usuario && usuario.uid)) return Promise.resolve();
+  return addDoc(collection(db, 'notifs'), {para, de: usuario.uid, aulaId: '', chatId, titulo, cuerpo, url: url || '', tipo: (extra && extra.tipo) || 'chat', tpId: '',
+    leida: false, pushPendiente: true, creada: {__op: 'ts'}});
+}
 export function escucharNotifs(cb){
   return onSnapshot(query(collection(db, 'notifs'), where('para', '==', usuario && usuario.uid)), s=>cb(s.docs.map(d=>({id: d.id, ...d.data()}))));
 }

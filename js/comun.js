@@ -164,7 +164,8 @@
 
   /** Lo que el estudiante ve de sus pagos: cuántas clases ya dadas falta abonar. */
   function estadoCuenta(clases, ahora){
-    const adeudadas = (clases || []).filter(c => !c.pagada && claseTerminada(c, ahora));
+    // una clase cancelada solo se debe si se cobra algo (cancelación tarde)
+    const adeudadas = (clases || []).filter(c => !c.pagada && claseTerminada(c, ahora) && (!c.cancelada || c.cancelada.cobro > 0));
     const monto = adeudadas.reduce((s,c)=> s + (typeof c.monto === 'number' ? c.monto : 0), 0);
     return {clasesAdeudadas: adeudadas.length, monto, alDia: adeudadas.length === 0};
   }
@@ -195,10 +196,14 @@
         pizarra: c.pizarra && c.pizarra.codigo ? {codigo: c.pizarra.codigo} : null,
         links: limpiarLinks(c.links)
       };
-      // total de la clase: precio + pasajes (si el profe va a su casa)
+      // cancelada: quién y cuánto se cobra (0, la mitad o completa); y si el profe propuso otro horario
+      if(c.cancelada) o.cancelada = {por: c.cancelada.por === 'profe' ? 'profe' : 'alumno', cobro: Number(c.cancelada.cobro) || 0};
+      if(c.propuesta && c.propuesta.fecha && !c.cancelada) o.propuesta = {fecha: c.propuesta.fecha, hora: c.propuesta.hora};
+      // total de la clase: precio + extra a domicilio (si el profe va a su casa)
       if(mostrarMontos) o.monto = Number(c.monto || 0) + Number(c.viatico || 0);
       return o;
     });
+    const hoyIso = new Date(ahora.getTime() - 3 * 3600000).toISOString().slice(0, 10);   // hoy en Argentina
     // Las tareas del alumno son db.tps. db.tareas son los pendientes del profe: no se publican.
     const tps = (db.tps || []).filter(tp => tp.alumnoId === alumno.id && tp.publicado).map(tp=>({
       id: tp.id, titulo: tp.titulo || tituloDeTexto(tp.consigna), consigna: tp.consigna || '', tema: tp.temaId ? temaNombre(tp.temaId) : '',
@@ -221,6 +226,10 @@
       mostrarMontos,
       tarifa: mostrarMontos ? Number(alumno.tarifa || 0) : null,
       telefonoProfe: cfg.telefonoProfe || perfil.telefono || '',
+      regla: ['flexible', 'normal', 'estricta'].includes(perfil.regla) ? perfil.regla : 'normal',
+      // clases canceladas a tiempo que le quedan para recuperar (sin vencer)
+      recuperos: (alumno.recuperos || []).filter(r=>!r.usado && r.vence >= hoyIso).slice(0, 20)
+        .map(r=>({id: r.id, vence: r.vence, fechaOriginal: r.fechaOriginal || ''})),
       clases, tps,
       avisos: (alumno.avisos || []).slice(-MAX_AVISOS)
     };
@@ -242,7 +251,7 @@
    */
   function clasesPorEmpezar(clases, ahora, antesMin){
     const limite = ahora.getTime() + antesMin * 60000;
-    return (clases || []).filter(c=>{
+    return (clases || []).filter(c=>!c.cancelada).filter(c=>{
       const t = instanteArg(c.fecha, c.horaEntrada).getTime();
       return t > ahora.getTime() && t <= limite;
     });
@@ -250,7 +259,7 @@
 
   /** Clases que terminaron hace menos de `ventanaMin` minutos. */
   function clasesRecienTerminadas(clases, ahora, ventanaMin){
-    return (clases || []).filter(c=>{
+    return (clases || []).filter(c=>!c.cancelada).filter(c=>{
       if(!c.horaSalida) return false;
       const t = instanteArg(c.fecha, c.horaSalida).getTime();
       return t <= ahora.getTime() && t > ahora.getTime() - ventanaMin * 60000;

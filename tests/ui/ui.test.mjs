@@ -571,6 +571,105 @@ const datosProfe = {
   await page.close();
 }
 
+/* =========================================================
+   CHAT Y RESERVAS: del buscador al chat, el profe acepta, el estudiante cancela
+   ========================================================= */
+{
+  const todos = {};
+  for(let d = 0; d < 7; d++) todos[d] = {activo: true, desde: '09:00', hasta: '21:00'};
+  const perfilAna = {nombre:'Ana Pérez', materias:['Matemática'], materiaIds:['matematica'], zonas:['capital'], lugares:['casa_mia'], precioHora:10000,
+    regla:'normal', duracion:60, disponibilidad: todos, ocupado: [], visible:true, resenas:[], foto:''};
+  // 1) El estudiante llega desde el perfil con "Elegí un horario"
+  let docs = {'perfiles/ana': perfilAna};
+  {
+    const {page, errores} = await pagina('estudiante.html?profe=ana&reservar=1', {usuario: {uid:'tomi', displayName:'Tomás Gil', email:'tomi@x.com'}, docs});
+    await esperar(800);
+    const chat = await page.evaluate(()=>window.__docs.get('chats/c_ana_tomi'));
+    ok(chat && chat.miembros.join() === 'ana,tomi' && chat.nombres.ana === 'Ana Pérez', 'se crea el chat con el profe');
+    ok(await page.$eval('#chatPantalla', e=>!e.hidden), 'se abre el chat');
+    ok(await page.$('#sheetContent .hueco'), 'y la hoja para elegir horario con los huecos libres');
+    ok((await texto(page, '#sheetContent')).includes('24 h antes'), 'muestra la regla de cancelación antes de pedir');
+    await page.screenshot({path: join(capturas, 'chat-1-elegir-horario.png'), fullPage: true});
+    await page.evaluate(()=>document.querySelector('#sheetContent .hueco').click());
+    await clickTexto(page, 'Pedir el');
+    await esperar(500);
+    const msgs = await page.evaluate(()=>[...window.__docs.entries()].filter(([k])=>k.startsWith('chats/c_ana_tomi/mensajes/')).map(([k, v])=>({id: k.split('/').pop(), ...v})));
+    ok(msgs.length === 1 && msgs[0].tipo === 'reserva' && msgs[0].reserva.estado === 'pendiente' && msgs[0].reserva.duracion === 60, 'el pedido de horario viaja por el chat');
+    await page.type('#chTexto', 'Hola Ana, necesito ayuda con funciones');
+    await page.evaluate(()=>document.getElementById('chForm').requestSubmit());
+    await esperar(500);
+    ok((await texto(page, '#chMsgs')).includes('necesito ayuda con funciones') && (await texto(page, '#chMsgs')).includes('Esperando respuesta'), 'se ven el mensaje y el pedido');
+    ok(await page.evaluate(()=>[...window.__docs.values()].some(v=>v.para==='ana' && v.chatId==='c_ana_tomi')), 'al profe le llega la notificación');
+    await page.screenshot({path: join(capturas, 'chat-2-estudiante.png')});
+    ok(errores.length === 0, 'el chat del estudiante no tuvo errores: ' + errores.join(' | '));
+    docs = Object.fromEntries([...(await page.evaluate(()=>[...window.__docs.entries()]))]);
+    await page.close();
+  }
+  // 2) El profe lo ve en Mensajes y acepta: se crea el alumno, la clase y su acceso a la app
+  const fechaReserva = Object.entries(docs).find(([k])=>k.includes('/mensajes/') && docs[k].tipo === 'reserva')[1].reserva;
+  {
+    const profeDb = {alumnos: [], clases: [], temas: [{id:'t1', nombre:'Matemática', catId:'matematica'}], tareas: [], trabajos: [], pagos: [], resenas: [], tps: [],
+      config: {nombreProfe:'Ana Pérez', tarifaHabitual: 12000, configInicial: true, tutorialVisto: true, migPlataforma: true, perfil: {zonas:['capital'], lugares:['casa_mia'], regla:'normal', duracion:60}}};
+    const {page, errores} = await pagina('app.html?chat=c_ana_tomi', {usuario: {uid:'ana', displayName:'Ana Pérez', email:'ana@x.com'}, docs: {...docs, 'users/ana': profeDb}});
+    await esperar(1200);
+    ok(await page.$eval('#chatPantalla', e=>!e.hidden).catch(()=>false), 'el link de la notificación abre el chat');
+    await page.screenshot({path: join(capturas, 'chat-3-profe.png')});
+    await clickTexto(page, 'Aceptar', '#chMsgs button');
+    await esperar(1500);
+    const r = await page.evaluate(()=>({alumnos: db.alumnos, clases: db.clases}));
+    ok(r.alumnos.length === 1 && r.alumnos[0].nombre === 'Tomás Gil' && r.alumnos[0].chatId === 'c_ana_tomi' && r.alumnos[0].aulaId, 'aceptar suma al estudiante como alumno, con su acceso a la app');
+    ok((await texto(page, '.chat-top')).includes('Ficha'), 'después del chat se va directo a su ficha');
+    ok(r.clases.length === 1 && r.clases[0].fecha === fechaReserva.fecha && r.clases[0].horaEntrada === fechaReserva.hora && r.clases[0].monto === 12000, 'y agenda la clase en el horario pedido');
+    const msgs = await page.evaluate(()=>[...window.__docs.entries()].filter(([k])=>k.startsWith('chats/c_ana_tomi/mensajes/')).map(([, v])=>v));
+    ok(msgs.some(m=>m.tipo === 'reserva' && m.reserva.estado === 'aceptada') && msgs.some(m=>m.tipo === 'sistema' && m.texto.includes('Quedó agendada')) && msgs.some(m=>m.texto && m.texto.includes('estudiante.html?aula=')), 'el chat cuenta que quedó agendada y lleva el link a la app');
+    await page.screenshot({path: join(capturas, 'chat-4-aceptado.png')});
+    await page.evaluate(()=>chatNube.cerrarPantalla());
+    await page.evaluate(()=>goTo('mensajes'));
+    await esperar(200);
+    ok((await texto(page, '#listaChats')).includes('Tomás Gil'), 'la conversación está en Mensajes');
+    ok(errores.length === 0, 'el profe aceptó sin errores: ' + errores.join(' | '));
+    docs = Object.fromEntries([...(await page.evaluate(()=>[...window.__docs.entries()]))]);
+    globalThis.__profeAna = docs['users/ana'];
+    await page.close();
+  }
+  // 3) El estudiante, ya con su aula, cancela la clase desde la app
+  const aulaId = globalThis.__profeAna.alumnos[0].aulaId;
+  docs['aulas/' + aulaId].miembros = ['tomi'];
+  {
+    const {page, errores} = await pagina('estudiante.html', {usuario: {uid:'tomi', displayName:'Tomás Gil', email:'tomi@x.com'}, docs});
+    await esperar(800);
+    for(let i = 0; i < 3 && !(await page.$(`.tira-dia[data-dia="${fechaReserva.fecha}"]`)); i++){ await click(page, '[data-semana="1"]'); await esperar(150); }
+    await click(page, `.tira-dia[data-dia="${fechaReserva.fecha}"]`);
+    await esperar(200);
+    await click(page, '[data-cancelar]');
+    await esperar(200);
+    ok((await texto(page, '#sheetContent')).includes('h'), 'antes de cancelar le dice qué pasa según la regla');
+    await page.screenshot({path: join(capturas, 'chat-5-cancelar.png')});
+    await click(page, '#btnCancelarSi');
+    await esperar(400);
+    const sol = await page.evaluate(id=>[...window.__docs.entries()].filter(([k])=>k.startsWith('aulas/' + id + '/solicitudes/')).map(([k, v])=>({id: k.split('/').pop(), ...v})), aulaId);
+    ok(sol.length === 1 && sol[0].tipo === 'cancelar' && sol[0].estado === 'pendiente', 'la cancelación le llega al profe como pedido');
+    ok(errores.length === 0, 'cancelar sin errores: ' + errores.join(' | '));
+    docs = Object.fromEntries([...(await page.evaluate(()=>[...window.__docs.entries()]))]);
+    await page.close();
+  }
+  // 4) La app del profe aplica la regla sola
+  {
+    const {page, errores} = await pagina('app.html', {usuario: {uid:'ana', displayName:'Ana Pérez', email:'ana@x.com'}, docs});
+    await esperar(2500);
+    const c = await page.evaluate(()=>db.clases[0]);
+    ok(c.cancelada && c.cancelada.por === 'alumno', 'el profe ve la clase cancelada: ' + JSON.stringify(c.cancelada));
+    const a = await page.evaluate(()=>db.alumnos[0]);
+    ok(c.cancelada.cobro === 0 ? (a.recuperos.length === 1 && c.monto === 0) : c.monto > 0, 'si fue a tiempo queda para recuperar; si no, se cobra');
+    const sol = await page.evaluate(id=>[...window.__docs.entries()].filter(([k])=>k.startsWith('aulas/' + id + '/solicitudes/')).map(([, v])=>v)[0], aulaId);
+    ok(sol.estado === 'hecha' && sol.resultado.includes('Canceló'), 'el pedido queda resuelto con lo que pasó: ' + sol.resultado);
+    const pub = await page.evaluate(id=>window.__docs.get('aulas/' + id), aulaId);
+    ok(pub.clases[0].cancelada && pub.regla === 'normal', 'el estudiante ve su clase cancelada');
+    ok(errores.length === 0, 'aplicar la cancelación sin errores: ' + errores.join(' | '));
+    await page.close();
+  }
+}
+
 /* Un profe que abre la dirección de siempre va a su panel */
 {
   const {page} = await pagina('index.html', {usuario: null, docs: {}}, {estudiantes_app_data_v1: JSON.stringify({alumnos: []}), estudiemos_rol: 'profe'});

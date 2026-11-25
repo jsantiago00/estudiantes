@@ -8,7 +8,10 @@
        entregas/{tpId}           lo que resolvió el estudiante, y la devolución del profe
        resenas/{uid}             la reseña de cada miembro (estudiante o familia)
        alumno/perfil             lo que le interesa estudiar
-     perfiles/{uid}              perfil público del profe y reseñas elegidas para mostrar
+       solicitudes/{id}          pedidos del estudiante: cancelar una clase, aceptar otro horario
+     perfiles/{uid}              perfil público del profe (buscador) y reseñas elegidas para mostrar
+     chats/{id}/mensajes/{id}    el chat con cada estudiante (js/chat.js), con los pedidos de horario
+     denuncias/{id}, moderacion/{uid}, plataforma/config   moderación (solo la administración)
      notifs/{id}                 notificaciones dentro de la app (y push)
      tokens/{uid}                tokens de push de cada dispositivo
      rooms/{code}                salas de la Pizarra (mismo proyecto)
@@ -18,8 +21,10 @@ import {
   doc, getDoc, setDoc, updateDoc, deleteDoc, collection, onSnapshot, serverTimestamp, writeBatch,
   arrayRemove, deleteField,
   notificar, escucharNotifs, marcarLeidas, borrarNotif,
-  activarPush, renovarPushSiCorresponde, pushDisponible, estadoPermisoPush, linkSala, fechaDe
+  activarPush, renovarPushSiCorresponde, pushDisponible, estadoPermisoPush, linkSala, fechaDe,
+  query, where, getDocs
 } from './firebase.js';
+import * as Chat from './chat.js';
 
 const Comun = window.Comun;
 
@@ -62,8 +67,27 @@ alCambiarSesion(user=>{
   if(user){
     renovarPushSiCorresponde(alRecibirPush);
     escucharMisNotifs();
+    escucharChats();
   }
 });
+
+/* ---------- Chats ---------- */
+
+let soltarChats = null;
+let misChats = [];
+function escucharChats(){
+  if(soltarChats) soltarChats();
+  soltarChats = Chat.escucharMisChats(lista=>{
+    misChats = lista;
+    if(window.onChatsCambio) window.onChatsCambio(lista);
+  });
+}
+window.chatNube = {
+  chats: ()=>misChats,
+  abrirPantalla: Chat.abrirPantalla, cerrarPantalla: Chat.cerrarPantalla, chatAbierto: Chat.chatAbierto,
+  enviar: Chat.enviar, responderReserva: Chat.responderReserva, bloquear: Chat.bloquear,
+  itemChatHtml: Chat.itemChatHtml, sinLeer: Chat.sinLeer, fechaLinda: Chat.fechaLinda
+};
 
 /* ---------- Aulas ---------- */
 
@@ -167,6 +191,38 @@ window.nube = {
     return notificar(aulaId, miembros, titulo, cuerpo, 'estudiante.html?aula=' + aulaId, extra);
   },
 
+  /** Marca un pedido del estudiante como resuelto ('hecha' o 'rechazada'), con lo que pasó. */
+  responderSolicitud(aulaId, id, estado, resultado){
+    return updateDoc(doc(db, 'aulas', aulaId, 'solicitudes', id), {estado, resultado: String(resultado || '').slice(0, 300), resueltaEn: serverTimestamp()});
+  },
+
+  /* Moderación: solo quien figura en plataforma/config.admins (se carga a mano en la consola) */
+  async esAdmin(){
+    const u = usuarioActual();
+    if(!u) return false;
+    try{ const s = await getDoc(doc(db, 'plataforma', 'config')); return s.exists() && (s.data().admins || []).includes(u.uid); }
+    catch(e){ return false; }
+  },
+  async denuncias(){
+    const s = await getDocs(collection(db, 'denuncias'));
+    return s.docs.map(d=>({id: d.id, ...d.data({serverTimestamps: 'estimate'})}));
+  },
+  async moderacion(){
+    const s = await getDocs(collection(db, 'moderacion'));
+    return s.docs.map(d=>({uid: d.id, ...d.data()}));
+  },
+  ocultarProfe(uid, oculto, motivo){
+    return setDoc(doc(db, 'moderacion', uid), {oculto: !!oculto, motivo: String(motivo || '').slice(0, 300), en: serverTimestamp()});
+  },
+  /** Una denuncia (de un estudiante o de un profe sobre un estudiante). */
+  denunciar(d){
+    const u = usuarioActual();
+    return setDoc(doc(collection(db, 'denuncias')), {de: u.uid, sobre: String(d.sobre || ''), chatId: String(d.chatId || ''),
+      motivo: d.motivo, texto: String(d.texto || '').slice(0, 1000), estado: 'nueva', creada: serverTimestamp()});
+  },
+  cerrarDenuncia(id){ return updateDoc(doc(db, 'denuncias', id), {estado: 'revisada'}); },
+  async perfil(uid){ const s = await getDoc(doc(db, 'perfiles', uid)); return s.exists() ? s.data() : null; },
+
   /* Notificaciones del profe */
   notifs: ()=>misNotifs,
   marcarLeidas, borrarNotif,
@@ -192,7 +248,7 @@ function avisarCambio(aulaId){
 
 function escucharAula(aulaId){
   if(escuchas[aulaId] || !usuarioActual()) return;
-  vivo[aulaId] = {aula: null, entregas: {}, resenas: [], perfil: null};
+  vivo[aulaId] = {aula: null, entregas: {}, resenas: [], perfil: null, solicitudes: []};
   const err = e=>console.warn('Aula', aulaId, e.code || e);
   escuchas[aulaId] = [
     onSnapshot(doc(db, 'aulas', aulaId), s=>{
@@ -211,6 +267,10 @@ function escucharAula(aulaId){
     }, err),
     onSnapshot(doc(db, 'aulas', aulaId, 'alumno', 'perfil'), s=>{
       vivo[aulaId].perfil = s.exists() ? s.data() : null;
+      avisarCambio(aulaId);
+    }, err),
+    onSnapshot(query(collection(db, 'aulas', aulaId, 'solicitudes'), where('estado', '==', 'pendiente')), s=>{
+      vivo[aulaId].solicitudes = s.docs.map(d=>({id: d.id, aulaId, ...d.data({serverTimestamps: 'estimate'})}));
       avisarCambio(aulaId);
     }, err)
   ];
@@ -234,6 +294,9 @@ function escucharMisNotifs(){
 
 function cortarEscuchas(){
   Object.keys(escuchas).forEach(soltarAula);
+  if(soltarChats){ soltarChats(); soltarChats = null; }
+  misChats = [];
+  if(window.onChatsCambio) window.onChatsCambio([]);
   if(soltarNotifs){ soltarNotifs(); soltarNotifs = null; }
   misNotifs = [];
   if(window.onNotifsCambio) window.onNotifsCambio([]);

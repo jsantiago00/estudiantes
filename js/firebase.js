@@ -92,6 +92,18 @@ export function notificar(aulaId, paraUids, titulo, cuerpo, url, extra){
   return lote.commit().catch(e=>console.error('No se pudo notificar', e));
 }
 
+/** Notificación de un chat (sin aula): las reglas piden que los dos sean del chat. */
+export function notificarChat(chatId, paraUid, titulo, cuerpo, url, extra){
+  const u = usuarioActual();
+  if(!u || !paraUid || paraUid === u.uid) return Promise.resolve();
+  return setDoc(doc(collection(db, 'notifs')), {
+    para: paraUid, de: u.uid, deNombre: u.displayName || '', aulaId: '', chatId,
+    tipo: (extra && extra.tipo) || 'chat', tpId: '',
+    titulo: String(titulo).slice(0, 120), cuerpo: String(cuerpo || '').slice(0, 500), url: url || '',
+    leida: false, pushPendiente: true, creada: serverTimestamp()
+  }).catch(e=>console.error('No se pudo notificar', e));
+}
+
 export function escucharNotifs(cb){
   const u = usuarioActual();
   if(!u) return ()=>{};
