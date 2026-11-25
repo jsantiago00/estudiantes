@@ -286,12 +286,26 @@ service cloud.firestore {
         && d.porNombre is string && d.porNombre.size() <= 60;
     }
 
+    // Perfil público del profe en el buscador. Lo arma Plataforma.perfilPublico (js/plataforma.js).
     match /perfiles/{uid} {
       allow read: if true;
-      allow write: if conCuenta() && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['nombre', 'bio', 'paleta', 'materias', 'resenas', 'actualizado'])
-        && request.resource.data.resenas is list && request.resource.data.resenas.size() <= 60
-        && request.resource.data.materias is list && request.resource.data.materias.size() <= 30;
+      allow write: if conCuenta() && request.auth.uid == uid && perfilValido(request.resource.data);
+    }
+
+    function perfilValido(d) {
+      return d.keys().hasOnly(['nombre', 'bio', 'foto', 'paleta', 'materias', 'materiaIds', 'otras', 'niveles', 'zonas', 'barrio',
+          'lugares', 'precioHora', 'detalle', 'whatsapp', 'regla', 'duracion', 'disponibilidad', 'ocupado', 'visible',
+          'resenas', 'promedio', 'cantResenas', 'actualizado'])
+        && d.nombre is string && d.nombre.size() <= 60
+        && d.bio is string && d.bio.size() <= 600
+        && d.resenas is list && d.resenas.size() <= 60
+        && d.materias is list && d.materias.size() <= 30
+        && (!('materiaIds' in d) || (d.materiaIds is list && d.materiaIds.size() <= 30))
+        && (!('zonas' in d) || (d.zonas is list && d.zonas.size() <= 18))
+        && (!('ocupado' in d) || (d.ocupado is list && d.ocupado.size() <= 300))
+        && (!('whatsapp' in d) || (d.whatsapp is string && d.whatsapp.size() <= 20))
+        && (!('precioHora' in d) || (d.precioHora is int && d.precioHora >= 0))
+        && (!('visible' in d) || d.visible is bool);
     }
 
     match /notifs/{id} {

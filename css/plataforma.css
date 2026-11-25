@@ -1,0 +1,19 @@
+/* Estudiemos como plataforma: catálogo de materias, perfil público, buscador, chat y reservas.
+   Solo agrega componentes nuevos sobre base.css; usa sus variables (3 paletas, claro y oscuro). */
+
+/* ---------- Catálogo de materias y chips del perfil ---------- */
+.cat-grupo{margin:10px 0 4px;}
+.cat-grupo-t{font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text-mute);margin:12px 0 6px;}
+.cat-grupo .cat-grupo-t{margin-top:4px;}
+.dia-chip svg{width:14px;height:14px;}
+button.dia-chip{font-family:inherit;}
+
+/* ---------- Reglas de cancelación ---------- */
+.regla-opts{display:flex;flex-direction:column;gap:8px;}
+.regla-opt{display:flex;flex-direction:column;gap:3px;text-align:left;padding:12px 14px;border-radius:var(--radius);
+  border:1px solid var(--border);background:var(--card);color:var(--text);font:inherit;cursor:pointer;}
+.regla-opt b{font-size:14.5px;}
+.regla-opt b small{font-weight:500;color:var(--text-mute);}
+.regla-opt span{font-size:13px;line-height:1.45;color:var(--text-dim);}
+.regla-opt.sel{border-color:var(--primary);background:var(--soft-tint-bg);}
+.regla-opt.sel b{color:var(--accent);}

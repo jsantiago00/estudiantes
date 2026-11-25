@@ -95,22 +95,27 @@ const datosProfe = {
   await clickTexto(page, 'Siguiente');
   await clickTexto(page, 'Matemática');
   await clickTexto(page, 'Física');
+  await clickTexto(page, 'Secundaria');
   await page.screenshot({path: join(capturas, 'nuevo-2-materias.png')});
   await clickTexto(page, 'Siguiente');
   await page.type('#pp_tarifa', '12000');
-  await clickTexto(page, 'Las dos');
+  await clickTexto(page, 'A domicilio');
+  await clickTexto(page, 'Godoy Cruz');
+  await page.$eval('#pp_alumnos', e=>e.click());
   await page.screenshot({path: join(capturas, 'nuevo-3-tarifa.png')});
-  await clickTexto(page, 'Siguiente');
-  await page.type('#pp_alumnos', 'Sofi 2611234567\nTomi\nJuli Pérez, 261 555-0000');
-  ok((await texto(page, '#pp_cuenta')).includes('3 alumnos'), 'cuenta los alumnos de la lista');
-  await page.screenshot({path: join(capturas, 'nuevo-4-alumnos.png')});
   await clickTexto(page, 'Empezar');
   await esperar(300);
-  const cfg = await page.evaluate(()=>({n: db.alumnos.length, temas: db.temas.map(t=>t.nombre), tarifa: db.config.tarifaHabitual, nombre: db.config.nombreProfe,
-    sofi: db.alumnos.find(a=>a.nombre==='Sofi'), min: db.config.tarifaMin, max: db.config.tarifaMax}));
-  ok(cfg.n === 3 && cfg.temas.join() === 'Matemática,Física' && cfg.tarifa === 12000 && cfg.nombre === 'Juli', 'la configuración inicial guarda todo: ' + JSON.stringify({n: cfg.n, temas: cfg.temas, tarifa: cfg.tarifa}));
-  ok(cfg.sofi.telefono === '2611234567' && cfg.sofi.tarifa === 12000 && cfg.sofi.porCompletar.join() === 'contacto,lugar,materias,nivel', 'el alumno queda con lo mínimo y lo demás por completar');
-  ok(cfg.min <= 12000 && cfg.max >= 12000, 'el rango de precios incluye la tarifa');
+  ok(await page.$('#f_cr_lista'), 'si tiene alumnos, al terminar se abre la carga de varios');
+  await page.type('#f_cr_lista', 'Sofi 2611234567\nTomi\nJuli Pérez, 261 555-0000');
+  ok((await texto(page, '#f_cr_cuenta')).includes('3 alumnos'), 'cuenta los alumnos de la lista');
+  await page.screenshot({path: join(capturas, 'nuevo-4-alumnos.png')});
+  await clickTexto(page, 'Agregar', '.sheet-footer button');
+  await esperar(300);
+  const cfg = await page.evaluate(()=>({n: db.alumnos.length, temas: db.temas.map(t=>t.nombre), cats: db.temas.map(t=>t.catId), tarifa: db.config.tarifaHabitual, nombre: db.config.nombreProfe,
+    sofi: db.alumnos.find(a=>a.nombre==='Sofi'), perfil: db.config.perfil}));
+  ok(cfg.n === 3 && cfg.temas.join() === 'Matemática,Física' && cfg.cats.join() === 'matematica,fisica' && cfg.tarifa === 12000 && cfg.nombre === 'Juli', 'la configuración inicial guarda todo: ' + JSON.stringify({n: cfg.n, temas: cfg.temas, tarifa: cfg.tarifa}));
+  ok(cfg.perfil.lugares.join() === 'casa_mia,casa_alumno' && cfg.perfil.zonas.join() === 'godoy-cruz' && cfg.perfil.niveles.join() === 'secundario', 'y arma el perfil: ' + JSON.stringify(cfg.perfil));
+  ok(cfg.sofi.telefono === '2611234567' && cfg.sofi.tarifa === 12000 && cfg.sofi.nivel === 'secundario' && cfg.sofi.porCompletar.join() === 'contacto,lugar,materias', 'el alumno queda con lo mínimo y lo demás por completar: ' + cfg.sofi.porCompletar);
   ok(await page.$eval('#primerosPasos', e=>e.hidden), 'se cierra la configuración');
   await page.screenshot({path: join(capturas, 'nuevo-5-alumnos.png')});
 
@@ -123,12 +128,11 @@ const datosProfe = {
   await page.type('#f_fc_contacto', 'Laura');
   await clickTexto(page, 'Listo', '#detalleCompletar button');
   ok((await texto(page, '#detalleCompletar')).includes('¿Dónde son las clases'), 'después pregunta dónde son las clases');
-  await clickTexto(page, 'En su casa');
+  await clickTexto(page, 'A domicilio', '#detalleCompletar button');
   await page.type('#f_fc_dir', 'San Martín 123');
   await clickTexto(page, 'Listo', '#detalleCompletar button');
   await clickTexto(page, 'Física', '#detalleCompletar button');
   await clickTexto(page, 'Listo', '#detalleCompletar button');
-  await clickTexto(page, 'Secundario', '#detalleCompletar button');
   const sofi = await page.evaluate(()=>db.alumnos.find(a=>a.nombre==='Sofi'));
   ok(sofi.tipo==='nino' && sofi.contacto==='Laura' && sofi.modalidad==='casa_alumno' && sofi.direccion==='San Martín 123' && sofi.nivel==='secundario' && sofi.temasIds.length===1 && !sofi.porCompletar.length, 'la ficha queda completa: ' + JSON.stringify({c: sofi.contacto, m: sofi.modalidad, n: sofi.nivel}));
   ok(await page.$eval('#detalleCompletar', e=>e.hidden), 'cuando está completa, la tarjeta desaparece');
@@ -197,6 +201,20 @@ const datosProfe = {
   await esperar(600);
   ok(await page.$eval('#primerosPasos', e=>e.hidden).catch(()=>true), 'con datos no aparece la configuración inicial');
   ok(await page.title() === 'Estudiemos', 'el título es Estudiemos');
+  // Datos viejos: el rango de tarifas pasa a un precio por hora, y la materia al catálogo
+  const mig = await page.evaluate(()=>({t: db.config.tarifaHabitual, min: db.config.tarifaMin, cat: db.temas[0].catId}));
+  ok(mig.t === 9000 && mig.min === undefined && mig.cat === 'matematica', 'migra la tarifa (la que usa con sus alumnos) y las materias: ' + JSON.stringify(mig));
+  // Perfil público
+  await page.evaluate(()=>{ abrirAjustes(); abrirPerfilPublico(); });
+  await esperar(200);
+  await clickTexto(page, 'Maipú');
+  await clickTexto(page, 'Flexible', '.regla-opt');
+  await clickTexto(page, 'Química');
+  await page.screenshot({path: join(capturas, 'profe-perfil-publico.png'), fullPage: true});
+  const perf = await page.evaluate(()=>({p: db.config.perfil, temas: db.temas.map(t=>t.catId), pub: Plataforma.perfilPublico(db, {})}));
+  ok(perf.p.zonas.includes('maipu') && perf.p.regla === 'flexible' && perf.temas.includes('quimica'), 'el perfil guarda zona, regla y materias');
+  ok(perf.pub.visible && perf.pub.materiaIds.includes('quimica') && !JSON.stringify(perf.pub).includes('Sofi'), 'y lo público no lleva a los alumnos');
+  await page.evaluate(()=>closeSheet());
   ok((await texto(page, '#nextClassActions')).includes('Pizarra'), 'la clase en curso ofrece la pizarra');
 
   await page.evaluate(()=>{ goTo('alumnos'); abrirDetalleAlumno('a1'); });

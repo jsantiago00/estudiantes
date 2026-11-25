@@ -187,6 +187,97 @@ igual(C.limpiarLinks([{url:'youtube.com/watch?v=1', nombre:''}, {url:'nada'}, {u
   igual(C.formatoCodigoSala('ABCDEF'), 'ABC-DEF', 'formato de código');
 }
 
+
+/* ---------- Plataforma: catálogos, perfil público, horarios, cancelaciones ---------- */
+{
+  const P = require('../js/plataforma.js');
+  igual(P.materiaPorNombre('Matemáticas').id, 'matematica', 'materia escrita a mano → catálogo');
+  igual(P.materiaPorNombre('  ingles ').id, 'ingles', 'sin tilde y con espacios');
+  igual(P.materiaPorNombre('Lengua').id, 'lengua', 'alias de lengua');
+  igual(P.materiaPorNombre('Astrología'), null, 'una que no está');
+  ok(new Set(P.MATERIAS.map(m=>m.id)).size === P.MATERIAS.length, 'ids de materias únicos');
+  ok(P.MATERIAS.every(m=>P.GRUPOS.some(g=>g.id === m.grupo)), 'cada materia tiene un grupo');
+  igual(P.ZONAS.length, 18, 'los 18 departamentos de Mendoza');
+  ok(P.ZONAS.every(z=>z.lat < -32 && z.lat > -36.5 && z.lng < -66.5 && z.lng > -70.5), 'las zonas caen en Mendoza');
+
+  // Cancelaciones (clase el 10/12 a las 18 h, hora argentina)
+  const clase = {fecha: '2026-12-10', horaEntrada: '18:00'};
+  const h = horas => new Date(Date.parse('2026-12-10T18:00:00-03:00') - horas * 3600000);
+  let r = P.evaluarCancelacion(clase, 'normal', 'alumno', h(30));
+  ok(r.aTiempo && r.cobro === 0 && r.recuperar, 'normal: 30 h antes es a tiempo');
+  r = P.evaluarCancelacion(clase, 'normal', 'alumno', h(5));
+  ok(!r.aTiempo && r.cobro === 1 && !r.recuperar, 'normal: 5 h antes se cobra completa');
+  r = P.evaluarCancelacion(clase, 'flexible', 'alumno', h(5));
+  ok(r.cobro === 0.5, 'flexible: tarde se cobra la mitad');
+  r = P.evaluarCancelacion(clase, 'flexible', 'alumno', h(13));
+  ok(r.aTiempo, 'flexible: 13 h antes es a tiempo');
+  r = P.evaluarCancelacion(clase, 'estricta', 'alumno', h(30));
+  ok(!r.aTiempo && r.cobro === 1, 'estricta: 30 h antes ya es tarde');
+  r = P.evaluarCancelacion(clase, 'estricta', 'profe', h(1));
+  ok(r.cobro === 0 && r.recuperar, 'si cancela el profe nunca se cobra y se recupera');
+  r = P.evaluarCancelacion(clase, 'inventada', 'alumno', h(23));
+  ok(r.cobro === 1, 'regla desconocida = normal');
+  igual(P.vencimientoRecupero('2026-12-10'), '2027-01-09', 'se recupera dentro de 30 días');
+  ok(/12 h/.test(P.textoRegla('flexible')) && /mitad/.test(P.textoRegla('flexible')), 'texto de la regla');
+
+  // Huecos libres: martes 14 a 17, clases de 1 h, con una clase tomada de 15 a 16
+  const disp = {2: {activo: true, desde: '14:00', hasta: '17:00'}};
+  const ahora = new Date('2026-12-01T09:00:00-03:00');   // martes 1/12, 9 h
+  let hs = P.huecosLibres(disp, [{f: '2026-12-01', d: '15:00', h: '16:00'}], {desde: '2026-12-01', dias: 8, duracion: 60, paso: 30, ahora, anticipacionH: 2});
+  igual(hs.filter(x=>x.fecha === '2026-12-01').map(x=>x.hora), ['14:00', '16:00'], 'el martes: antes y después de la clase tomada');
+  igual(hs.filter(x=>x.fecha === '2026-12-08').map(x=>x.hora), ['14:00', '14:30', '15:00', '15:30', '16:00'], 'el martes siguiente, libre entero');
+  ok(hs.every(x=>P.diaSemana(x.fecha) === 2), 'solo los días con disponibilidad');
+  hs = P.huecosLibres(disp, [], {desde: '2026-12-01', dias: 1, duracion: 60, ahora: new Date('2026-12-01T14:10:00-03:00'), anticipacionH: 1});
+  igual(hs.map(x=>x.hora), ['15:30', '16:00'], 'no ofrece turnos que empiezan en menos de la anticipación');
+  igual(P.ahoraArg(new Date('2026-12-02T01:30:00Z')), {fecha: '2026-12-01', hora: '22:30'}, 'hora argentina a la noche');
+
+  // Perfil público: no lleva nada privado
+  const data = {
+    config: {nombreProfe: 'Juli', bioProfe: 'Profe de mate', tarifaHabitual: 12000, telefonoProfe: '549261555',
+      disponibilidad: {1: {activo: true, desde: '14:00', hasta: '20:00'}, 0: {activo: false, desde: '9:00', hasta: '12:00'}},
+      perfil: {zonas: ['godoy-cruz', 'marte'], niveles: ['secundario'], lugares: ['casa_mia', 'virtual'], regla: 'flexible', mostrarWhatsapp: false, detalle: 'A domicilio cobro el pasaje'}},
+    temas: [{id: 't1', nombre: 'Matemáticas'}, {id: 't2', nombre: 'Física', catId: 'fisica'}, {id: 't3', nombre: 'Ajedrez'}],
+    alumnos: [{id: 'a', nombre: 'Sofi', direccion: 'Calle 123', notas: 'secreto'}],
+    clases: [{id: 'c', alumnoId: 'a', fecha: '2026-12-02', horaEntrada: '15:00', horaSalida: '16:00', monto: 9999, notas: 'privado'},
+      {id: 'c2', alumnoId: 'a', fecha: '2026-11-01', horaEntrada: '15:00', horaSalida: '16:00'}]
+  };
+  const pub = P.perfilPublico(data, {ahora, nombre: 'x', foto: 'https://foto'});
+  const txt = JSON.stringify(pub);
+  ok(!/Sofi|Calle 123|secreto|privado|9999/.test(txt), 'el perfil no lleva alumnos, direcciones, notas ni montos');
+  igual(pub.materiaIds, ['matematica', 'fisica'], 'materias del catálogo');
+  igual(pub.otras, ['Ajedrez'], 'las que no están en el catálogo van aparte');
+  igual(pub.zonas, ['godoy-cruz'], 'solo zonas que existen');
+  igual(pub.whatsapp, '', 'el WhatsApp no se muestra si no lo eligió');
+  igual(P.perfilPublico({...data, config: {...data.config, perfil: {...data.config.perfil, mostrarWhatsapp: true}}}).whatsapp, '549261555', 'y sí si lo eligió');
+  igual(pub.ocupado, [{f: '2026-12-02', d: '15:00', h: '16:00'}], 'lo ocupado: solo de hoy en adelante y sin nombres');
+  igual(Object.keys(pub.disponibilidad), ['1'], 'solo los días activos');
+  ok(pub.visible, 'visible con nombre y materias');
+  ok(!P.perfilPublico({config: {perfil: {}}, temas: []}).visible, 'sin nombre ni materias no aparece');
+  ok(!P.perfilPublico({...data, config: {...data.config, perfil: {visible: false}}}).visible, 'el profe puede ocultarse');
+  igual(P.faltaEnPerfil(data), [], 'perfil completo');
+  igual(P.faltaEnPerfil({config: {}, temas: []}), ['nombre', 'materias', 'zona', 'precio'], 'lo que falta');
+
+  // Buscador
+  const lista = [
+    {uid: 'a', nombre: 'Ana', materiaIds: ['matematica'], materias: ['Matemática'], niveles: ['secundario'], zonas: ['capital'], lugares: ['casa_mia'], precioHora: 10000, cantResenas: 0},
+    {uid: 'b', nombre: 'Beto', materiaIds: ['ingles'], materias: ['Inglés'], niveles: ['primario'], zonas: [], lugares: ['virtual'], precioHora: 20000, cantResenas: 3, promedio: 4.7},
+    {uid: 'c', nombre: 'Caro', materiaIds: ['matematica', 'fisica'], materias: ['Matemática', 'Física'], niveles: ['secundario'], zonas: ['maipu'], lugares: ['casa_alumno'], precioHora: 15000, cantResenas: 1, promedio: 5},
+    {uid: 'd', nombre: 'Dani', materiaIds: ['matematica'], visible: false}
+  ];
+  igual(P.filtrarProfes(lista, {}).map(p=>p.uid), ['c', 'b', 'a'], 'orden: con reseñas y mejor puntaje primero; ocultos afuera');
+  igual(P.filtrarProfes(lista, {materia: 'matematica'}).map(p=>p.uid), ['c', 'a'], 'por materia');
+  igual(P.filtrarProfes(lista, {zona: 'virtual'}).map(p=>p.uid), ['b'], 'virtual');
+  igual(P.filtrarProfes(lista, {precioMax: 12000}).map(p=>p.uid), ['a'], 'precio máximo');
+  igual(P.filtrarProfes(lista, {texto: 'fisica maipu'}).map(p=>p.uid), ['c'], 'texto libre, sin tildes');
+  igual(P.filtrarProfes(lista, {ocultos: ['c']}).map(p=>p.uid), ['b', 'a'], 'ocultos por moderación');
+  const pz = P.puntoEnZona('abc', 'capital');
+  ok(P.distanciaKm(pz, [P.zona('capital').lat, P.zona('capital').lng]) < 2.5, 'el punto queda cerca del centro de la zona');
+  igual(P.puntoEnZona('abc', 'capital'), pz, 'y siempre el mismo');
+  ok(Math.abs(P.distanciaKm([-32.8895, -68.8458], [-32.9253, -68.8441]) - 4) < 0.5, 'Capital a Godoy Cruz, unos 4 km');
+  igual(P.chatId('p1', 'e1'), 'c_p1_e1', 'id de chat');
+  igual(P.tipoActividad('nada').id, 'tarea', 'tipo de actividad por defecto');
+}
+
 /* ---------- Archivos que referencian las páginas ---------- */
 for(const pagina of ['index.html', 'estudiante.html', 'resenas.html']){
   const html = readFileSync(join(raiz, pagina), 'utf8');
@@ -200,7 +291,7 @@ for(const pagina of ['index.html', 'estudiante.html', 'resenas.html']){
 {
   // Las funciones que se llaman desde onclick="..." en index.html tienen que existir
   const html = readFileSync(join(raiz, 'index.html'), 'utf8');
-  const todo = html + readFileSync(join(raiz, 'js/profe-aula.js'), 'utf8') + readFileSync(join(raiz, 'js/primeros-pasos.js'), 'utf8');
+  const todo = html + ['js/profe-aula.js', 'js/primeros-pasos.js', 'js/perfil-profe.js'].map(f=>readFileSync(join(raiz, f), 'utf8')).join('\n');
   const llamadas = new Set([...todo.matchAll(/on(?:click|change|input)="(?:event\.stopPropagation\(\); )?([a-zA-Z_]\w*)\(/g)].map(m=>m[1]));
   const definidas = new Set([...todo.matchAll(/function\s+([a-zA-Z_]\w*)\s*\(/g)].map(m=>m[1]));
   for(const f of llamadas){

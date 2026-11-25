@@ -1,8 +1,8 @@
 /* =========================================================
    Estudiemos (profe): que empezar sea fácil.
 
-   - Configuración inicial (la primera vez): nombre, materias, cuánto cobrás y dónde,
-     y la lista de alumnos. Cuatro pantallas cortas, todas salteables.
+   - Configuración inicial (la primera vez), en tres pantallas cortas que arman de paso el
+     perfil del buscador: nombre; materias y niveles; precio, dónde y zona.
    - Alumno nuevo = nombre y WhatsApp. Y carga de varios a la vez (uno por renglón).
    - "Completá la ficha": lo que falta de cada alumno se pregunta después, de a una
      pregunta y con un toque, en su ficha (alumno.porCompletar).
@@ -10,8 +10,6 @@
    Script clásico: comparte el ámbito global con index.html (db, saveDB, openSheet, ic...).
    Se carga antes que el script principal: acá arriba solo se declaran funciones.
    ========================================================= */
-
-const MATERIAS_SUGERIDAS = ['Matemática', 'Física', 'Química', 'Biología', 'Lengua', 'Inglés', 'Historia', 'Geografía', 'Contabilidad', 'Programación', 'Música', 'Apoyo escolar'];
 
 /** Pone el foco en un campo al abrir una hoja, salvo que la persona ya esté escribiendo en otro. */
 function enfocarSiLibre(id){
@@ -28,14 +26,13 @@ function necesitaPrimerosPasos(){
   return !db.config.configInicial && db.alumnos.length === 0 && db.clases.length === 0;
 }
 
-const pp = {paso: 0, nombre: '', materias: [], tarifa: '', lugar: 'casa_mia', alumnos: ''};
+const pp = {paso: 0, nombre: '', tarifa: '', alumnos: false};
+const PP_TOTAL = 3;
 
 function abrirPrimerosPasos(){
   pp.paso = 0;
-  pp.nombre = db.config.nombreProfe || '';
-  pp.materias = db.temas.map(t=>t.nombre);
-  pp.tarifa = db.config.tarifaHabitual || '';
-  pp.lugar = db.config.modalidadHabitual || 'casa_mia';
+  pp.nombre = db.config.nombreProfe || (firebaseUser && firebaseUser.displayName) || '';
+  pp.tarifa = db.config.configInicial ? (db.config.tarifaHabitual || '') : '';
   let el = document.getElementById('primerosPasos');
   if(!el){
     el = document.createElement('div');
@@ -56,51 +53,48 @@ function cerrarPrimerosPasos(){
 
 function pintarPrimerosPasos(){
   const el = document.getElementById('primerosPasos');
-  const total = 4;
-  const dots = Array.from({length: total}, (_, i)=>`<span class="${i===pp.paso?'on':''}"></span>`).join('');
+  const p = perfilCfg();
+  const dots = Array.from({length: PP_TOTAL}, (_, i)=>`<span class="${i===pp.paso?'on':''}"></span>`).join('');
   let cuerpo = '', pie = '';
+  const atras = `<button type="button" class="btn secondary" onclick="ppAtras()">Atrás</button>`;
   if(pp.paso === 0){
     cuerpo = `
       <div class="pp-ic">${ic('sparkles')}</div>
       <h2>¡Hola! Armemos tu espacio</h2>
-      <p>Son cuatro preguntas cortas. Todo se puede cambiar después.</p>
+      <p>Son tres pasos cortos. Todo se puede cambiar después.</p>
       <label for="pp_nombre">¿Cómo te llamás?</label>
       <input type="text" id="pp_nombre" value="${escapeAttr(pp.nombre)}" placeholder="Ej: Profe Juli" autocomplete="name" onkeydown="if(event.key==='Enter') ppSiguiente()">
-      <div class="hint">Así te ven tus alumnos y aparece en tus reseñas.</div>
-      <button type="button" class="link-btn" style="margin-top:18px;" onclick="iniciarSesionGoogle()">${ic('cloud')}¿Ya usabas la app en otro dispositivo? Iniciá sesión</button>`;
+      <div class="hint">Así te ven tus alumnos y los estudiantes en el buscador.</div>
+      ${firebaseUser ? '' : `<button type="button" class="link-btn" style="margin-top:18px;" onclick="iniciarSesionGoogle()">${ic('cloud')}¿Ya usabas la app en otro dispositivo? Iniciá sesión</button>`}`;
     pie = `<button type="button" class="btn primary" onclick="ppSiguiente()">Siguiente</button>`;
   }else if(pp.paso === 1){
-    const todas = MATERIAS_SUGERIDAS.concat(pp.materias.filter(m=>!MATERIAS_SUGERIDAS.includes(m)));
     cuerpo = `
       <div class="pp-ic">${ic('book')}</div>
-      <h2>¿Qué materias das?</h2>
-      <p>Tocá las que correspondan.</p>
-      <div class="dias-chips pp-chips">${todas.map(m=>`<button type="button" class="dia-chip ${pp.materias.includes(m)?'sel':''}" onclick="ppToggleMateria(this, '${jsArg(m)}')">${pp.materias.includes(m) ? ic('check') : ''}${escapeHtml(m)}</button>`).join('')}</div>
-      <div class="row2" style="margin-top:12px;">
-        <input type="text" id="pp_otraMateria" placeholder="Otra materia" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();ppAgregarMateria();}">
-        <button type="button" class="btn secondary" onclick="ppAgregarMateria()" aria-label="Agregar materia">${ic('plus')}</button>
-      </div>`;
-    pie = `<button type="button" class="btn secondary" onclick="ppAtras()">Atrás</button><button type="button" class="btn primary" onclick="ppSiguiente()">Siguiente</button>`;
-  }else if(pp.paso === 2){
+      <h2>¿Qué das y a quién?</h2>
+      <p>Tocá las materias y los niveles.</p>
+      <div id="catalogoMaterias" data-toggle="ppToggleMateria">${catalogoMateriasHtml('ppToggleMateria')}</div>
+      <div id="otrasMaterias">${otrasMateriasHtml()}</div>
+      <label>Niveles</label>
+      <div id="perfilNiveles">${chipsHtml(Plataforma.NIVELES, p.niveles, 'ppToggleNivel')}</div>`;
+    pie = atras + `<button type="button" class="btn primary" onclick="ppSiguiente()">Siguiente</button>`;
+  }else{
+    const lugares = Plataforma.LUGARES.map(l=>({id: l.id, nombre: l.corto}));
     cuerpo = `
       <div class="pp-ic">${ic('cash')}</div>
-      <h2>¿Cuánto cobrás la hora?</h2>
-      <p>Más o menos: después lo podés cambiar para cada alumno.</p>
+      <h2>¿Cuánto y dónde?</h2>
+      <label for="pp_tarifa" style="margin-top:4px;">Cuánto cobrás la hora</label>
       <input type="number" id="pp_tarifa" class="pp-grande" inputmode="numeric" min="0" step="500" value="${escapeAttr(pp.tarifa)}" placeholder="10000">
-      <label>¿Dónde das las clases?</label>
-      <div class="pill-select" id="pp_lugar">
-        ${[['casa_mia','home','En mi casa'],['casa_alumno','bus','En la casa del alumno'],['ambas','repeat','Las dos']].map(([v, icono, t])=>
-          `<button type="button" class="${pp.lugar===v?'sel':''}" onclick="ppLugar('${v}')">${ic(icono)}${t}</button>`).join('')}
-      </div>`;
-    pie = `<button type="button" class="btn secondary" onclick="ppAtras()">Atrás</button><button type="button" class="btn primary" onclick="ppSiguiente()">Siguiente</button>`;
-  }else{
-    cuerpo = `
-      <div class="pp-ic">${ic('users')}</div>
-      <h2>¿Quiénes son tus alumnos?</h2>
-      <p>Escribí o pegá un nombre por renglón. Si querés, el WhatsApp al lado.</p>
-      <textarea id="pp_alumnos" class="pp-lista" placeholder="Sofi 2611234567&#10;Tomi&#10;Juli Pérez, 2615550000" oninput="ppContarAlumnos()">${escapeHtml(pp.alumnos)}</textarea>
-      <div class="hint" id="pp_cuenta"></div>`;
-    pie = `<button type="button" class="btn secondary" onclick="ppTerminar(false)">Lo hago después</button><button type="button" class="btn primary" onclick="ppTerminar(true)">Empezar</button>`;
+      <label>Dónde das las clases</label>
+      <div id="perfilLugares">${chipsHtml(lugares, p.lugares, 'ppToggleLugar')}</div>
+      <label>Zona de Mendoza</label>
+      <div id="perfilZonas">${chipsHtml(Plataforma.ZONAS.filter(z=>z.gran), p.zonas, 'ppToggleZona')}
+        <details class="more" style="margin-top:6px;" ${(p.zonas||[]).some(z=>!(Plataforma.zona(z)||{}).gran) ? 'open' : ''}><summary>${ic('chevron-right')}Resto de la provincia</summary>${chipsHtml(Plataforma.ZONAS.filter(z=>!z.gran), p.zonas, 'ppToggleZona')}</details>
+      </div>
+      <label class="switch-row" style="margin-top:12px;">
+        <span>Ya tengo alumnos<small>Al terminar los cargás todos juntos</small></span>
+        <input type="checkbox" class="switch" id="pp_alumnos" ${pp.alumnos?'checked':''}>
+      </label>`;
+    pie = atras + `<button type="button" class="btn primary" onclick="ppTerminar()">Empezar</button>`;
   }
   el.innerHTML = `
     <div class="pp-card">
@@ -108,63 +102,43 @@ function pintarPrimerosPasos(){
       <div class="pp-body">${cuerpo}</div>
       <div class="pp-pie">${pie}</div>
     </div>`;
-  if(pp.paso === 3) ppContarAlumnos();
-  const foco = el.querySelector('#pp_nombre, #pp_tarifa, #pp_alumnos');
-  if(foco && pp.paso !== 1) setTimeout(()=>foco.focus(), 60);
+  const foco = el.querySelector('#pp_nombre');
+  if(foco) setTimeout(()=>foco.focus(), 60);
 }
 
 function ppLeerPaso(){
   if(pp.paso === 0) pp.nombre = document.getElementById('pp_nombre').value.trim();
-  if(pp.paso === 2) pp.tarifa = document.getElementById('pp_tarifa').value;
-  if(pp.paso === 3) pp.alumnos = document.getElementById('pp_alumnos').value;
+  if(pp.paso === 2){
+    pp.tarifa = document.getElementById('pp_tarifa').value;
+    pp.alumnos = document.getElementById('pp_alumnos').checked;
+  }
 }
-function ppSiguiente(){ ppLeerPaso(); pp.paso = Math.min(3, pp.paso + 1); pintarPrimerosPasos(); }
+function ppSiguiente(){ ppLeerPaso(); pp.paso = Math.min(PP_TOTAL - 1, pp.paso + 1); pintarPrimerosPasos(); }
 function ppAtras(){ ppLeerPaso(); pp.paso = Math.max(0, pp.paso - 1); pintarPrimerosPasos(); }
-function ppToggleMateria(btn, m){
-  const i = pp.materias.indexOf(m);
-  if(i >= 0) pp.materias.splice(i, 1); else pp.materias.push(m);
-  btn.classList.toggle('sel', i < 0);
-  btn.innerHTML = (i < 0 ? ic('check') : '') + escapeHtml(m);
+function ppToggleMateria(catId){
+  const t = db.temas.find(x=>x.catId === catId);
+  if(t) borrarMateria(t.id); else agregarMateria(catId);
+  refrescarMaterias('ppToggleMateria');
 }
-function ppAgregarMateria(){
-  const input = document.getElementById('pp_otraMateria');
-  const m = input.value.trim();
-  if(!m) return;
-  if(!pp.materias.some(x=>x.toLowerCase() === m.toLowerCase())) pp.materias.push(m);
-  pintarPrimerosPasos();
-}
-function ppLugar(v){
-  pp.lugar = v;
-  document.querySelectorAll('#pp_lugar button').forEach((b, i)=>b.classList.toggle('sel', ['casa_mia','casa_alumno','ambas'][i] === v));
-}
-function ppContarAlumnos(){
-  const ta = document.getElementById('pp_alumnos');
-  const n = Comun.parsearListaAlumnos(ta.value).length;
-  document.getElementById('pp_cuenta').textContent = n ? `Se van a agregar ${n} alumno${n!==1?'s':''}. Lo demás de cada uno te lo vamos preguntando después.` : '';
-}
+function ppToggleNivel(id){ toggleEnLista('niveles', id); pintarSinPerder(); }
+function ppToggleLugar(id){ toggleEnLista('lugares', id); pintarSinPerder(); }
+function ppToggleZona(id){ toggleEnLista('zonas', id); pintarSinPerder(); }
+/** Vuelve a pintar el paso sin perder lo que ya escribió. */
+function pintarSinPerder(){ ppLeerPaso(); pintarPrimerosPasos(); }
 
-function ppTerminar(conAlumnos){
+function ppTerminar(){
   ppLeerPaso();
   const cfg = db.config;
   if(pp.nombre) cfg.nombreProfe = pp.nombre;
-  pp.materias.forEach(m=>{
-    if(!db.temas.some(t=>t.nombre.toLowerCase() === m.toLowerCase())) db.temas.push({id: uid(), nombre: m});
-  });
   const tarifa = Math.round(parseFloat(pp.tarifa) || 0);
-  if(tarifa > 0){
-    cfg.tarifaHabitual = tarifa;
-    cfg.tarifaMin = Math.min(cfg.tarifaMin || tarifa, Math.max(1000, Math.floor(tarifa * 0.6 / 1000) * 1000));
-    cfg.tarifaMax = Math.max(cfg.tarifaMax || tarifa, Math.ceil(tarifa * 1.5 / 1000) * 1000);
-  }
-  cfg.modalidadHabitual = pp.lugar;
+  if(tarifa > 0) cfg.tarifaHabitual = tarifa;
   cfg.configInicial = true;
   cfg.tutorialVisto = true;
-  let n = 0;
-  if(conAlumnos) n = agregarAlumnosDeLista(pp.alumnos);
   saveDB();
   cerrarPrimerosPasos();
-  goTo(n ? 'alumnos' : 'clases');
-  showToast(n ? `¡Listo! Agregaste ${n} alumno${n!==1?'s':''}` : '¡Listo! Ya podés empezar');
+  goTo('clases');
+  if(pp.alumnos) abrirCargaRapida();
+  else showToast('¡Listo! Ya podés empezar');
 }
 
 /* ---------- Alumnos: alta rápida y de a varios ---------- */
@@ -172,17 +146,19 @@ function ppTerminar(conAlumnos){
 /** Un alumno con lo mínimo; lo que falta queda en porCompletar para preguntarlo después. */
 function crearAlumnoRapido(nombre, telefono){
   const cfg = db.config;
-  const lugar = cfg.modalidadHabitual || 'casa_mia';
+  const lugares = (cfg.perfil && cfg.perfil.lugares) || ['casa_mia'];
+  const lugar = lugares.length === 1 ? lugares[0] : 'varios';
   const porCompletar = ['contacto'];
-  if(lugar === 'ambas' || lugar === 'casa_alumno') porCompletar.push('lugar');
+  if(lugar === 'varios' || lugar === 'casa_alumno') porCompletar.push('lugar');
   if(db.temas.length > 1) porCompletar.push('materias');
-  porCompletar.push('nivel');
+  if(!(cfg.perfil && cfg.perfil.niveles && cfg.perfil.niveles.length === 1)) porCompletar.push('nivel');
   const a = {
-    id: uid(), nombre, telefono: telefono || '', tarifa: cfg.tarifaHabitual || cfg.tarifaMin,
+    id: uid(), nombre, telefono: telefono || '', tarifa: cfg.tarifaHabitual || 0,
     tipo: 'nino', contacto: '', direccion: '', mensajes: [],
     color: COLOR_SWATCHES[db.alumnos.length % COLOR_SWATCHES.length],
     temasIds: db.temas.length === 1 ? [db.temas[0].id] : [], activo: true,
-    nivel: '', modalidad: lugar === 'casa_alumno' ? 'casa_alumno' : 'casa_mia', temario: [], pasajes: 2,
+    nivel: (cfg.perfil && cfg.perfil.niveles && cfg.perfil.niveles.length === 1) ? cfg.perfil.niveles[0] : '',
+    modalidad: lugar === 'varios' ? 'casa_mia' : lugar, temario: [],
     aulaId: null, avisos: [], mostrarMontos: false, porCompletar
   };
   db.alumnos.push(a);
@@ -283,7 +259,8 @@ function renderCompletarFicha(alumno){
         <button type="button" onclick="fichaContacto('${id}','nino')">${ic('users')}A su familia</button></div>`;
     }
   }else if(item === 'lugar'){
-    if(fichaSub === 'lugar:' + id || db.config.modalidadHabitual === 'casa_alumno'){
+    const lugaresPerfil = (db.config.perfil && db.config.perfil.lugares) || [];
+    if(fichaSub === 'lugar:' + id || (lugaresPerfil.length === 1 && lugaresPerfil[0] === 'casa_alumno')){
       pregunta = `¿Cuál es la dirección de ${nombre}?`;
       respuesta = `<div class="row2"><input type="text" id="f_fc_dir" placeholder="Para el botón «Cómo llego»" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();fichaDireccion('${id}');}">
         <button type="button" class="btn primary" onclick="fichaDireccion('${id}')">Listo</button></div>`;
@@ -291,7 +268,8 @@ function renderCompletarFicha(alumno){
       pregunta = `¿Dónde son las clases con ${nombre}?`;
       respuesta = `<div class="pill-select">
         <button type="button" onclick="fichaLugar('${id}','casa_mia')">${ic('home')}En mi casa</button>
-        <button type="button" onclick="fichaLugar('${id}','casa_alumno')">${ic('bus')}En su casa</button></div>`;
+        <button type="button" onclick="fichaLugar('${id}','casa_alumno')">${ic('bus')}A domicilio</button>
+        <button type="button" onclick="fichaLugar('${id}','virtual')">${ic('globe')}Virtual</button></div>`;
     }
   }else if(item === 'materias'){
     pregunta = `¿Qué materias le das a ${nombre}?`;
@@ -338,16 +316,8 @@ function fichaLugar(id, modalidad){
   const a = getAlumno(id);
   if(!a) return;
   a.modalidad = modalidad;
-  // sus próximas clases sin cobrar pasan a tener (o no) pasajes
-  const ahora = new Date();
-  db.clases.forEach(c=>{
-    if(c.alumnoId === id && !c.pagada && !claseYaOcurrida(c, ahora)){
-      c.modalidad = modalidad;
-      c.pasajeCant = a.pasajes || 2;
-      c.pasajePrecio = modalidad === 'casa_alumno' ? precioPasaje() : null;
-      c.viatico = viaticoPorModalidad(modalidad, a.pasajes || 2);
-    }
-  });
+  // sus próximas clases sin cobrar cambian de lugar (y suman o no el extra a domicilio)
+  cambiarLugarProximasClases(id, modalidad);
   if(modalidad === 'casa_alumno'){ fichaSub = 'lugar:' + id; saveDB(); renderDetalleAlumno(); return; }
   fichaListo(id, 'lugar');
 }

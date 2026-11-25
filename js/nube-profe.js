@@ -91,19 +91,14 @@ let perfilPublicado = null;
 async function publicarPerfil(data){
   const u = usuarioActual();
   if(!u) return;
-  const cfg = data.config || {};
   // Las reseñas elegidas para la página pública ("A tu página"), firmadas igual que en la app:
   // firmaResena (index.html) respeta a quien no quiso aparecer con su nombre
   const firma = r => (typeof window.firmaResena === 'function') ? window.firmaResena(r) : (r.autor || '');
-  const pub = {
-    nombre: cfg.nombreProfe || u.displayName || '',
-    bio: cfg.bioProfe || '',
-    paleta: cfg.paleta || 'lila',
-    materias: (data.temas || []).map(t=>t.nombre).slice(0, 30),
-    resenas: (data.resenas || []).filter(r=>r.enPagina && !r.privada).slice(0, 60).map(r=>({
-      estrellas: Number(r.estrellas) || 5, texto: String(r.texto || '').slice(0, 1200), autor: firma(r), fecha: r.fecha || ''
-    }))
-  };
+  const resenas = (data.resenas || []).filter(r=>r.enPagina && !r.privada).slice(0, 60).map(r=>({
+    estrellas: Number(r.estrellas) || 5, texto: String(r.texto || '').slice(0, 1200), autor: firma(r), fecha: r.fecha || ''
+  }));
+  // Qué se publica lo decide Plataforma.perfilPublico (y tiene tests): nunca alumnos, notas ni montos
+  const pub = window.Plataforma.perfilPublico(data, {resenas, nombre: u.displayName || '', foto: u.photoURL || ''});
   const json = JSON.stringify(pub);
   if(json === perfilPublicado) return;
   try{

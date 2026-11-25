@@ -30,6 +30,7 @@
 <title>Estudiemos</title>
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/aula.css">
+<link rel="stylesheet" href="css/plataforma.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
@@ -187,7 +188,7 @@
 
     <div class="card list">
       <div class="card-head">
-        <h2>Trabajos prácticos del mes</h2>
+        <h2>Otros cobros del mes</h2>
         <button type="button" class="link-btn" id="nuevoTPBtn" onclick="openTrabajoForm()">Nuevo</button>
       </div>
       <div id="listaTrabajos"></div>
@@ -304,6 +305,8 @@
 </div>
 
 <script src="js/comun.js"></script>
+<script src="js/plataforma.js"></script>
+<script src="js/perfil-profe.js"></script>
 <script src="js/profe-aula.js"></script>
 <script src="js/primeros-pasos.js"></script>
 <script>
@@ -313,10 +316,12 @@
 const STORAGE_KEY = 'estudiantes_app_data_v1';
 
 const CONFIG_DEFAULT = {
-  tarifaMin:7000, tarifaMax:15000, paleta:'lila', tema:'auto', tutorialVisto:false,
-  precioPasaje:1680,          // bondi: "voy a su casa" suma pasajes (2 por defecto: ida y vuelta)
-  tarifaTP:10000,             // tarifa por hora sugerida para trabajos prácticos
+  tarifaHabitual:10000,       // cuánto cobra la hora (se usa al agregar alumnos y en el perfil público)
+  paleta:'lila', tema:'auto', tutorialVisto:false,
+  extraDomicilio:0,           // opcional: un extra que se suma a cada clase a domicilio (0 = nada)
   nombreProfe:'', telefonoProfe:'', bioProfe:'',
+  // perfil público en el buscador (ver js/plataforma.js: perfilPublico)
+  perfil:{zonas:[], barrio:'', niveles:[], lugares:['casa_mia'], regla:'normal', duracion:60, detalle:'', mostrarWhatsapp:false, visible:true},
   // recordatorios push (los manda scripts/notificador.mjs): minutos antes de cada clase (0 = no),
   // aviso al terminar una clase sin cobrar, y horas antes para avisarle al estudiante (0 = no)
   notif:{antesMin:30, finClase:true, alumnosHoras:2},
@@ -359,7 +364,9 @@ function aplicarDatosCargados(parsed){
     db.tps = parsed.tps || [];
     db.config = Object.assign(JSON.parse(JSON.stringify(CONFIG_DEFAULT)), parsed.config||{});
     db.config.notif = Object.assign(JSON.parse(JSON.stringify(CONFIG_DEFAULT.notif)), (parsed.config && parsed.config.notif) || {});
+    db.config.perfil = Object.assign(JSON.parse(JSON.stringify(CONFIG_DEFAULT.perfil)), (parsed.config && parsed.config.perfil) || {});
   }
+  migrarSimplificacion(parsed && parsed.config);
   // Estudiemos: aula del alumno en la app, resumen y pizarra de cada clase
   db.alumnos.forEach(a=>{
     if(a.aulaId===undefined) a.aulaId = null;
@@ -405,7 +412,6 @@ function aplicarDatosCargados(parsed){
     if(typeof a.nivel !== 'string') a.nivel = '';
     if(!a.modalidad) a.modalidad = 'casa_mia';
     if(!Array.isArray(a.temario)) a.temario = [];
-    if(typeof a.pasajes!=='number') a.pasajes = 2;
   });
   db.trabajos.forEach(t=>{ if(t.pagoId===undefined) t.pagoId = null; });
   // migración: clases que ya estaban marcadas como pagadas antes de existir el historial de pagos
@@ -425,23 +431,36 @@ function aplicarDatosCargados(parsed){
   // migración de temas: antes eran propios de un alumno (alumnoId), ahora son un catálogo
   // global del profesor y se vinculan a cada alumno vía alumno.temasIds
   db.temas.forEach(t=>{
+    if(t.catId===undefined){ const m = Plataforma.materiaPorNombre(t.nombre); t.catId = m ? m.id : null; if(m) t.nombre = m.nombre; }
     if(t.alumnoId){
       const alumno = db.alumnos.find(a=>a.id===t.alumnoId);
       if(alumno && !alumno.temasIds.includes(t.id)) alumno.temasIds.push(t.id);
       delete t.alumnoId;
     }
   });
-  // el precio por defecto del pasaje era $1.000 (estimado); el real es $1.680. Se corrige una sola vez
-  // en las clases sin cobrar que tenían ese valor por defecto.
-  if(!db.config.migPasaje1680){
-    if(Number(db.config.precioPasaje)===1000){
-      db.config.precioPasaje = 1680;
-      db.clases.forEach(c=>{
-        if(!c.pagada && c.modalidad==='casa_alumno' && Number(c.viatico)===2000){ c.viatico = 3360; c.pasajePrecio = 1680; c.pasajeCant = 2; }
-      });
-    }
-    db.config.migPasaje1680 = true;
+}
+
+// Estudiemos plataforma: sin pasajes fijos ni rango de tarifas, materias del catálogo.
+function migrarSimplificacion(orig){
+  const cfg = db.config;
+  if(cfg.migPlataforma) return;
+  // si nunca eligió una tarifa habitual, la que más usa con sus alumnos (o la mínima de antes)
+  if(orig && !(Number(orig.tarifaHabitual)>0)){
+    const cuenta = {};
+    db.alumnos.forEach(a=>{ const t = Number(a.tarifa)||0; if(t>0) cuenta[t] = (cuenta[t]||0) + 1; });
+    const masUsada = Object.keys(cuenta).sort((a,b)=>cuenta[b]-cuenta[a])[0];
+    cfg.tarifaHabitual = Number(masUsada) || Number(orig.tarifaMin) || CONFIG_DEFAULT.tarifaHabitual;
   }
+  // quien usaba "voy a su casa" con pasajes sigue cobrando lo mismo, como un extra a domicilio
+  if(cfg.precioPasaje !== undefined){
+    const usaba = db.alumnos.some(a=>a.modalidad==='casa_alumno') || db.clases.some(c=>Number(c.viatico)>0);
+    if(usaba && !(Number(cfg.extraDomicilio)>0)) cfg.extraDomicilio = (Number(cfg.precioPasaje)||0) * 2;
+  }
+  if(cfg.modalidadHabitual){
+    cfg.perfil.lugares = cfg.modalidadHabitual==='ambas' ? ['casa_mia','casa_alumno'] : [cfg.modalidadHabitual];
+  }
+  ['precioPasaje','tarifaMin','tarifaMax','migPasaje1680'].forEach(k=>delete cfg[k]);
+  cfg.migPlataforma = true;
 }
 
 function loadDB(){
@@ -475,50 +494,15 @@ function hoyIso(){ return toIsoCalendario(new Date()); }
 function totalClase(c){ return Number(c.monto||0) + Number(c.viatico||0); }
 function totalTrabajo(t){ return Number(t.monto||0); }
 
-const NIVELES = [
-  {id:'primario', label:'Primario', corto:'Primario'},
-  {id:'secundario', label:'Secundario', corto:'Secundario'},
-  {id:'preuniversitario', label:'Preuniversitario', corto:'Preu'}
-];
+const NIVELES = Plataforma.NIVELES;
 function nivelBadge(nivel){
   const n = NIVELES.find(x=>x.id===nivel);
   return n ? `<span class="nivel-badge ${n.id}">${n.label}</span>` : '';
 }
-function precioPasaje(){ return Number(db.config.precioPasaje)||0; }
-function viaticoPorModalidad(modalidad, cant){
-  return modalidad==='casa_alumno' ? (cant||2)*precioPasaje() : 0;
-}
-// Cambia el precio del pasaje y lo aplica a las clases que todavía no se dieron ni se cobraron.
-function actualizarPrecioPasaje(nuevo){
-  nuevo = Number(nuevo)||0;
-  if(nuevo===precioPasaje()) return 0;
-  db.config.precioPasaje = nuevo;
-  const ahora = new Date();
-  let n = 0;
-  db.clases.forEach(c=>{
-    if(c.modalidad==='casa_alumno' && !c.pagada && !claseYaOcurrida(c, ahora)){
-      c.pasajePrecio = nuevo;
-      c.viatico = nuevo*(c.pasajeCant||2);
-      n++;
-    }
-  });
-  return n;
-}
-function pasajeBoxHtml(visible, precio, cant, onchange){
-  return `
-    <div id="pasajeBox" style="display:${visible?'block':'none'};">
-      <div class="field-row">
-        <div>
-          <label for="f_pasaje">Precio del pasaje</label>
-          <input type="number" id="f_pasaje" min="0" step="10" inputmode="numeric" value="${precio}" oninput="${onchange||''}">
-        </div>
-        <div style="flex:0 0 118px;">
-          <label for="f_cantPasajes">Pasajes</label>
-          <select id="f_cantPasajes" onchange="${onchange||''}">${[1,2,3,4,5,6].map(n=>`<option value="${n}" ${n===cant?'selected':''}>${n}</option>`).join('')}</select>
-        </div>
-      </div>
-      <div class="hint">Ida y vuelta son 2. Si cambiás el precio, se actualiza también en tus próximas clases.</div>
-    </div>`;
+// Extra opcional por ir a domicilio (Ajustes → Precios). Apagado de entrada.
+function extraDomicilio(){ return Number(db.config.extraDomicilio)||0; }
+function viaticoPorModalidad(modalidad){
+  return modalidad==='casa_alumno' ? extraDomicilio() : 0;
 }
 
 const COLOR_SWATCHES = ['#ef4444','#f97316','#f59e0b','#84cc16','#22c55e','#14b8a6','#06b6d4','#3b82f6','#6366f1','#a855f7','#ec4899','#78716c'];
@@ -641,14 +625,14 @@ function actualizarHeader(){
   if(v==='clases') sub = formatoFechaLarga(hoyIso());
   if(v==='alumnos') sub = db.alumnos.length ? `${db.alumnos.length} alumno${db.alumnos.length!==1?'s':''}` : '';
   if(v==='tareas'){ const n = db.tareas.filter(t=>!t.hecha).length; sub = db.tareas.length ? (n ? `${n} pendiente${n!==1?'s':''} tuyo${n!==1?'s':''}` : 'Todo listo') : 'Lo que preparás y lo que mandás'; }
-  if(v==='stats') sub = 'Pagos, saldo y trabajos';
+  if(v==='stats') sub = 'Quién te pagó, quién te debe y cuánto viene';
   setHeader(TITULOS[v], sub);
 }
 const FAB_CFG = {
   clases:{label:'Clase', fn:()=>openClaseForm(null, calendarioSelectedDate < hoyIso() ? hoyIso() : calendarioSelectedDate)},
   alumnos:{label:'Alumno', fn:()=>openAlumnoForm()},
   tareas:{label:'Pendiente', fn:()=>openTareaForm()},
-  stats:{label:'Trabajo práctico', fn:()=>openTrabajoForm()},
+  stats:{label:'Otro cobro', fn:()=>openTrabajoForm()},
   detalle:{label:'Agendar clase', fn:()=>openClaseForm(null, null, null, currentAlumnoDetalleId)}
 };
 function fabKey(){ return currentAlumnoDetalleId ? 'detalle' : vistaActual; }
@@ -803,14 +787,8 @@ function getSunday(monday){
   s.setHours(23,59,59,999);
   return s;
 }
-function tarifaOptionsHtml(selected){
-  const min = db.config.tarifaMin, max = db.config.tarifaMax;
-  const opts = [];
-  for(let v=min; v<=max; v+=1000) opts.push(v);
-  const sel = Number(selected);
-  if(sel && !opts.includes(sel)) opts.push(sel);
-  opts.sort((a,b)=>a-b);
-  return opts.map(v=>`<option value="${v}" ${sel===v?'selected':''}>${money(v)}</option>`).join('');
+function tarifaInputHtml(id, valor, extra){
+  return `<input type="number" id="${id}" min="0" step="500" inputmode="numeric" value="${Math.round(Number(valor)||0)}" ${extra||''}>`;
 }
 
 /* =========================================================
@@ -820,16 +798,15 @@ let formTemario = [];
 let formNivel = '';
 let formModalidad = 'casa_mia';
 
+const ICONO_LUGAR = {casa_mia:'home', casa_alumno:'bus', virtual:'globe'};
+function textoLugar(m){ return ({casa_mia:'En mi casa', casa_alumno:'A domicilio', virtual:'Virtual'})[m] || 'En mi casa'; }
 function modalidadPillsHtml(sel, onclickFn){
-  return `
-    <button type="button" class="${sel==='casa_mia'?'sel':''}" data-mod="casa_mia" onclick="${onclickFn}('casa_mia')">${ic('home')}Viene a mi casa<small>Sin pasajes</small></button>
-    <button type="button" class="${sel==='casa_alumno'?'sel':''}" data-mod="casa_alumno" onclick="${onclickFn}('casa_alumno')">${ic('bus')}Voy a su casa<small>Se suman pasajes</small></button>`;
+  const extra = extraDomicilio();
+  return ['casa_mia','casa_alumno','virtual'].map(m=>`<button type="button" class="${sel===m?'sel':''}" data-mod="${m}" onclick="${onclickFn}('${m}')">${ic(ICONO_LUGAR[m])}${textoLugar(m)}${m==='casa_alumno' && extra ? `<small>+ ${money(extra)}</small>` : ''}</button>`).join('');
 }
 function setFormModalidad(m){
   formModalidad = m;
   document.querySelectorAll('#modalidadAlumnoBox button').forEach(b=>b.classList.toggle('sel', b.dataset.mod===m));
-  const box = document.getElementById('pasajeBox');
-  if(box) box.style.display = m==='casa_alumno' ? 'block' : 'none';
 }
 function setFormNivel(n){
   formNivel = (formNivel===n) ? '' : n;
@@ -897,7 +874,7 @@ function openAlumnoFormCompleto(id){
     </div>
 
     <label for="f_tarifa">Tarifa por hora</label>
-    <select id="f_tarifa">${tarifaOptionsHtml(editing ? editing.tarifa : (db.config.tarifaHabitual || db.config.tarifaMin))}</select>
+    ${tarifaInputHtml('f_tarifa', editing ? editing.tarifa : db.config.tarifaHabitual)}
 
     <details class="more">
       <summary>${ic('chevron-right')}Nivel, lugar y dirección</summary>
@@ -907,7 +884,6 @@ function openAlumnoFormCompleto(id){
       </div>
       <label>¿Dónde son las clases?</label>
       <div class="pill-select" id="modalidadAlumnoBox">${modalidadPillsHtml(formModalidad, 'setFormModalidad')}</div>
-      ${pasajeBoxHtml(formModalidad==='casa_alumno', precioPasaje(), editing ? (editing.pasajes||2) : 2)}
       <label for="f_direccion">Dirección</label>
       <input type="text" id="f_direccion" value="${editing ? escapeAttr(editing.direccion||'') : ''}" placeholder="Para el botón «Cómo llego»" autocomplete="off">
     </details>
@@ -972,40 +948,33 @@ function guardarAlumno(id){
   const temasIds = leerTemasSeleccionadosForm();
 
   if(!nombre){ showToast('Poné un nombre'); return; }
-  const cantPasajes = parseInt(document.getElementById('f_cantPasajes').value)||2;
-  const precioNuevo = parseFloat(document.getElementById('f_pasaje').value);
-  let avisoPasaje = '';
-  if(formModalidad==='casa_alumno' && precioNuevo>=0 && precioNuevo!==precioPasaje()){
-    actualizarPrecioPasaje(precioNuevo);
-    avisoPasaje = ` · pasaje a ${money(precioNuevo)}`;
-  }
 
   if(id){
     const a = getAlumno(id);
-    // si cambió dónde son las clases o cuántos pasajes, se actualizan sus próximas clases sin cobrar
-    if(a.modalidad!==formModalidad || (a.pasajes||2)!==cantPasajes){
-      const ahora = new Date();
-      db.clases.forEach(c=>{
-        if(c.alumnoId===id && !c.pagada && !claseYaOcurrida(c, ahora)){
-          c.modalidad = formModalidad;
-          c.pasajeCant = cantPasajes;
-          c.pasajePrecio = formModalidad==='casa_alumno' ? precioPasaje() : null;
-          c.viatico = viaticoPorModalidad(formModalidad, cantPasajes);
-        }
-      });
-    }
-    a.pasajes = cantPasajes;
+    // si cambió dónde son las clases, se actualizan sus próximas clases sin cobrar
+    if(a.modalidad!==formModalidad) cambiarLugarProximasClases(id, formModalidad);
     a.nombre = nombre; a.tarifa = tarifa; a.tipo = tipo; a.contacto = contacto; a.telefono = telefono; a.direccion = direccion; a.color = color; a.temasIds = temasIds;
     a.nivel = formNivel; a.modalidad = formModalidad; a.temario = formTemario;
     a.porCompletar = [];   // ya vio todos los datos: no hace falta la tarjeta "Completá la ficha"
   }else{
     db.alumnos.push({id: uid(), nombre, tarifa, tipo, contacto, telefono, direccion, mensajes:[], color, temasIds, activo:true,
-      nivel: formNivel, modalidad: formModalidad, temario: formTemario, pasajes: cantPasajes});
+      nivel: formNivel, modalidad: formModalidad, temario: formTemario});
   }
   saveDB();
   closeSheet();
   renderAll();
-  showToast('Alumno guardado' + avisoPasaje);
+  showToast('Alumno guardado');
+}
+
+/** Las próximas clases sin cobrar de un alumno pasan a otro lugar (y suman o no el extra a domicilio). */
+function cambiarLugarProximasClases(alumnoId, modalidad){
+  const ahora = new Date();
+  db.clases.forEach(c=>{
+    if(c.alumnoId===alumnoId && !c.pagada && !claseYaOcurrida(c, ahora)){
+      c.modalidad = modalidad;
+      c.viatico = viaticoPorModalidad(modalidad);
+    }
+  });
 }
 
 async function eliminarAlumno(id){
@@ -1137,7 +1106,7 @@ function abrirWhatsappAlumno(alumnoId, claseId){
 }
 
 function textoResumenClase(c){
-  const extra = c.viatico>0 ? ` (clase ${money(c.monto)} + pasajes ${money(c.viatico)})` : '';
+  const extra = c.viatico>0 ? ` (clase ${money(c.monto)} + extra a domicilio ${money(c.viatico)})` : '';
   return `Tuvimos ${formatDuracionTexto(c.duracionMin)} de clase y el total es ${money(totalClase(c))}${extra}.`;
 }
 
@@ -1276,76 +1245,12 @@ function crearTemaInlineDesdeAlumno(){
   const input = document.getElementById('f_temaNuevoInline');
   const nombre = input.value.trim();
   if(!nombre){ showToast('Escribí un nombre de tema'); return; }
-  const nuevo = {id: uid(), nombre};
-  db.temas.push(nuevo);
+  const nuevo = agregarMateria(nombre);
   saveDB();
   input.value = '';
   const seleccionados = leerTemasSeleccionadosForm();
-  seleccionados.push(nuevo.id);
+  if(nuevo && !seleccionados.includes(nuevo.id)) seleccionados.push(nuevo.id);
   document.getElementById('temasChipsBox').innerHTML = temasChipsPickerHtml(seleccionados);
-}
-
-function abrirGestionTemas(){
-  openSheet(`
-    <h3>Materias</h3>
-    <p class="sheet-sub">Las materias que das (Matemáticas, Biología…). Se crean una vez y se vinculan a cada alumno. Si cambiás un nombre, se actualiza en todos lados.</p>
-    <div id="listaGestionTemas">${renderListaGestionTemas()}</div>
-    <div class="row2" style="margin-top:12px;">
-      <input type="text" id="f_nuevoTemaGestion" placeholder="Nueva materia" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarTemaGestion();}">
-      <button type="button" class="btn secondary" onclick="agregarTemaGestion()" aria-label="Agregar materia">${ic('plus')}</button>
-    </div>
-    <div class="sheet-footer"><button type="button" class="btn primary" onclick="closeSheet()">Listo</button></div>
-  `);
-}
-
-function renderListaGestionTemas(){
-  if(db.temas.length===0) return '<div class="empty-msg">Todavía no creaste materias.</div>';
-  return db.temas.map(t=>`
-    <div class="row2" style="margin:8px 0;align-items:center;">
-      <input type="text" value="${escapeAttr(t.nombre)}" onchange="renombrarTema('${t.id}', this.value)">
-      <button type="button" class="icon-btn danger" style="flex:0 0 auto;" onclick="eliminarTemaGlobal('${t.id}')" aria-label="Eliminar materia">${ic('trash')}</button>
-    </div>
-  `).join('');
-}
-
-function refrescarListasTemas(){
-  const elSheet = document.getElementById('listaGestionTemas');
-  if(elSheet) elSheet.innerHTML = renderListaGestionTemas();
-  const elTab = document.getElementById('listaTemasTab');
-  if(elTab) elTab.innerHTML = renderListaGestionTemas();
-}
-
-function agregarTemaGestion(){
-  const input = document.getElementById('f_nuevoTemaGestion');
-  const nombre = input.value.trim();
-  if(!nombre){ showToast('Escribí un nombre'); return; }
-  db.temas.push({id: uid(), nombre});
-  saveDB();
-  input.value = '';
-  refrescarListasTemas();
-  renderAll();
-}
-
-
-function renombrarTema(id, nuevoNombre){
-  const t = db.temas.find(t=>t.id===id);
-  if(!t) return;
-  const nombre = nuevoNombre.trim();
-  if(!nombre){ showToast('El nombre no puede quedar vacío'); refrescarListasTemas(); return; }
-  t.nombre = nombre;
-  saveDB();
-  renderAll();
-}
-
-async function eliminarTemaGlobal(id){
-  const ok = await confirmar({titulo:'¿Eliminar esta materia?', mensaje:'Se quita de todos los alumnos y de las tareas que la usaban.', ok:'Eliminar', peligro:true});
-  if(!ok) return;
-  db.temas = db.temas.filter(t=>t.id!==id);
-  db.alumnos.forEach(a=>{ if(Array.isArray(a.temasIds)) a.temasIds = a.temasIds.filter(tid=>tid!==id); });
-  db.tareas.forEach(t=>{ if(t.temaId===id) t.temaId = null; });
-  saveDB();
-  refrescarListasTemas();
-  renderAll();
 }
 
 /* =========================================================
@@ -1413,6 +1318,7 @@ async function openClaseForm(id, fechaPreset, horaPreset, alumnoPreset){
   const alumnoInicial = getAlumno(alumnoInicialId);
   formClaseModalidad = editing ? (editing.modalidad||'casa_mia') : ((alumnoInicial && alumnoInicial.modalidad) || 'casa_mia');
   formClaseTemario = editing ? (editing.temarioIds||[]).slice() : [];
+  formClaseEditando = editing;
 
   let presetInicial = '60', customInicial = 60;
   if(editing){
@@ -1450,14 +1356,10 @@ async function openClaseForm(id, fechaPreset, horaPreset, alumnoPreset){
     </div>
 
     <label for="f_monto">Precio de la clase</label>
-    <select id="f_monto" onchange="renderTotalClaseForm()"></select>
+    ${tarifaInputHtml('f_monto', 0, 'oninput="renderTotalClaseForm()"')}
 
     <label>Lugar</label>
     <div class="pill-select" id="modalidadClaseBox">${modalidadPillsHtml(formClaseModalidad, 'setModalidadClaseForm')}</div>
-    ${pasajeBoxHtml(formClaseModalidad==='casa_alumno',
-        editing && editing.modalidad==='casa_alumno' ? (editing.pasajePrecio || (editing.viatico ? Math.round(editing.viatico/(editing.pasajeCant||2)) : precioPasaje())) : precioPasaje(),
-        editing ? (editing.pasajeCant||2) : ((alumnoInicial && alumnoInicial.pasajes) || 2),
-        'renderTotalClaseForm()')}
     <div class="total-box" id="totalClaseForm"></div>
 
     <label class="switch-row">
@@ -1516,11 +1418,12 @@ async function openClaseForm(id, fechaPreset, horaPreset, alumnoPreset){
   pintarLinks('clase');
 }
 
+let formClaseEditando = null;
+// lo que se suma a la clase por ir a domicilio: el de la clase si ya lo tenía, o el de Ajustes
 function viaticoFormActual(){
-  if(formClaseModalidad!=='casa_alumno') return 0;
-  const p = document.getElementById('f_pasaje'), c = document.getElementById('f_cantPasajes');
-  if(!p || !c) return viaticoPorModalidad('casa_alumno');
-  return (parseFloat(p.value)||0) * (parseInt(c.value)||0);
+  const e = formClaseEditando;
+  if(e && e.modalidad===formClaseModalidad) return Number(e.viatico)||0;
+  return viaticoPorModalidad(formClaseModalidad);
 }
 
 function renderTotalClaseForm(){
@@ -1528,24 +1431,19 @@ function renderTotalClaseForm(){
   if(!box) return;
   const monto = parseFloat(document.getElementById('f_monto').value)||0;
   const viatico = viaticoFormActual();
-  box.innerHTML = `<span>Total a cobrar${viatico>0 ? `<br><small>clase ${money(monto)} + pasajes ${money(viatico)}</small>` : ''}</span><b>${money(monto+viatico)}</b>`;
+  box.innerHTML = `<span>Total a cobrar${viatico>0 ? `<br><small>clase ${money(monto)} + extra a domicilio ${money(viatico)}</small>` : ''}</span><b>${money(monto+viatico)}</b>`;
+  box.style.display = viatico>0 ? '' : 'none';
 }
 
 function setModalidadClaseForm(m){
   formClaseModalidad = m;
   document.querySelectorAll('#modalidadClaseBox button').forEach(b=>b.classList.toggle('sel', b.dataset.mod===m));
-  const box = document.getElementById('pasajeBox');
-  if(box) box.style.display = m==='casa_alumno' ? 'block' : 'none';
   renderTotalClaseForm();
 }
 
 function onCambioAlumnoClaseForm(){
   const a = getAlumno(document.getElementById('f_alumnoId').value);
-  if(a){
-    const cant = document.getElementById('f_cantPasajes');
-    if(cant) cant.value = String(a.pasajes||2);
-    setModalidadClaseForm(a.modalidad||'casa_mia');
-  }
+  if(a) setModalidadClaseForm(a.modalidad||'casa_mia');
   formClaseTemario = [];
   recalcularMontoForm();
   renderTemarioClaseForm();
@@ -1628,8 +1526,8 @@ function leerDuracionPreset(){
   return parseInt(val)||0;
 }
 
-function redondearA1000(n){
-  return Math.max(0, Math.round(n/1000)*1000);
+function redondearA100(n){
+  return Math.max(0, Math.round(n/100)*100);
 }
 
 function recalcularMontoForm(montoActual){
@@ -1638,8 +1536,7 @@ function recalcularMontoForm(montoActual){
   const tarifa = a ? Number(a.tarifa)||0 : 0;
   const durMin = leerDuracionPreset();
   const montoSel = document.getElementById('f_monto');
-  const sugerido = (montoActual!=null) ? redondearA1000(montoActual) : redondearA1000(tarifa*(durMin/60));
-  montoSel.innerHTML = tarifaOptionsHtml(sugerido);
+  montoSel.value = (montoActual!=null) ? Math.round(montoActual) : redondearA100(tarifa*(durMin/60));
   renderTotalClaseForm();
 }
 
@@ -1655,15 +1552,7 @@ function guardarClase(id){
   const duracionMin = leerDuracionPreset();
   const modalidad = formClaseModalidad;
   const viatico = viaticoFormActual();
-  const pasajePrecio = modalidad==='casa_alumno' ? (parseFloat(document.getElementById('f_pasaje').value)||0) : null;
-  const pasajeCant = parseInt(document.getElementById('f_cantPasajes').value)||2;
   const temarioIds = formClaseTemario.slice();
-  // si cambió el precio del pasaje, pasa a ser el nuevo precio para las próximas clases
-  const aplicarPasaje = ()=>{
-    if(pasajePrecio==null || pasajePrecio===precioPasaje()) return '';
-    actualizarPrecioPasaje(pasajePrecio);
-    return ` · pasaje actualizado a ${money(pasajePrecio)}`;
-  };
 
   if(!alumnoId){ showToast('Elegí un alumno'); return; }
   if(!fecha){ showToast('Elegí una fecha'); return; }
@@ -1673,15 +1562,14 @@ function guardarClase(id){
     const c = db.clases.find(c=>c.id===id);
     const estabaPagada = c.pagada;
     if(resumen && resumen !== (c.resumen||'')) notificarAlumno(alumnoId, '📒 Resumen de la clase', `Ya está el resumen de la clase del ${nombreDiaFecha(fecha)}.`, {tipo:'resumen'});
-    Object.assign(c, {alumnoId, fecha, horaEntrada, horaSalida: sumarMinutos(horaEntrada, duracionMin), duracionMin, monto, viatico, pasajePrecio, pasajeCant, modalidad, temarioIds, notas, resumen, links});
-    const aviso = aplicarPasaje();
+    Object.assign(c, {alumnoId, fecha, horaEntrada, horaSalida: sumarMinutos(horaEntrada, duracionMin), duracionMin, monto, viatico, modalidad, temarioIds, notas, resumen, links});
     if(pagada && !estabaPagada) registrarPago({alumnoId, claseIds:[c.id], fecha: hoyIso()});
     else if(!pagada && estabaPagada) quitarClaseDePago(c);
     else if(pagada && c.pagoId) recalcularPago(c.pagoId);
     saveDB();
     closeSheet();
     renderAll();
-    showToast('Clase guardada' + aviso);
+    showToast('Clase guardada');
     return;
   }
 
@@ -1693,24 +1581,22 @@ function guardarClase(id){
     const ocurrencias = generarOcurrenciasRecurrentes(fecha, repeatDiasHoras, semanas);
     const serieId = uid();
     ocurrencias.forEach(o=>{
-      db.clases.push({id: uid(), serieId, alumnoId, fecha:o.fecha, horaEntrada:o.horaEntrada, horaSalida: sumarMinutos(o.horaEntrada, duracionMin), duracionMin, monto, viatico, pasajePrecio, pasajeCant, modalidad, temarioIds:[], notas, resumen:'', links: links.slice(), pizarra:null, pagada:false, pagoId:null});
+      db.clases.push({id: uid(), serieId, alumnoId, fecha:o.fecha, horaEntrada:o.horaEntrada, horaSalida: sumarMinutos(o.horaEntrada, duracionMin), duracionMin, monto, viatico, modalidad, temarioIds:[], notas, resumen:'', links: links.slice(), pizarra:null, pagada:false, pagoId:null});
     });
-    const aviso = aplicarPasaje();
     saveDB();
     closeSheet();
     renderAll();
-    showToast(`Se crearon ${ocurrencias.length} clases` + aviso);
+    showToast(`Se crearon ${ocurrencias.length} clases`);
     return;
   }
 
-  const nueva = {id: uid(), serieId:null, alumnoId, fecha, horaEntrada, horaSalida: sumarMinutos(horaEntrada, duracionMin), duracionMin, monto, viatico, pasajePrecio, pasajeCant, modalidad, temarioIds, notas, resumen, links, pizarra:null, pagada:false, pagoId:null};
+  const nueva = {id: uid(), serieId:null, alumnoId, fecha, horaEntrada, horaSalida: sumarMinutos(horaEntrada, duracionMin), duracionMin, monto, viatico, modalidad, temarioIds, notas, resumen, links, pizarra:null, pagada:false, pagoId:null};
   db.clases.push(nueva);
-  const aviso = aplicarPasaje();
   if(pagada) registrarPago({alumnoId, claseIds:[nueva.id], fecha: hoyIso()});
   saveDB();
   closeSheet();
   renderAll();
-  showToast('Clase guardada' + aviso);
+  showToast('Clase guardada');
 }
 
 function generarOcurrenciasRecurrentes(fechaInicioStr, diasConHora, semanas){
@@ -1741,7 +1627,7 @@ function enviarWhatsappDesdeForm(){
 
   const a = getAlumno(alumnoId);
   const horasTexto = formatDuracionTexto(durMin);
-  const extraPasajes = viatico>0 ? ` (incluye ${money(viatico)} de pasajes)` : '';
+  const extraPasajes = viatico>0 ? ` (incluye ${money(viatico)} de traslado)` : '';
   let msg;
   if(a.tipo === 'adulto'){
     msg = `Hola ${a.nombre}, ¿cómo estás?\nYa terminamos de estudiar por hoy, estuvimos ${horasTexto} y el total es ${money(monto)}${extraPasajes}. Cualquier cosa estoy atenta, muchas gracias!`;
@@ -2151,7 +2037,7 @@ function renderDayDetail(){
             <div class="item-title">${escapeHtml(alumnoNombre(c.alumnoId))} ${alumnoC ? nivelBadge(alumnoC.nivel) : ''}</div>
             <div class="meta">
               <span class="amount">${money(totalClase(c))}</span>
-              ${c.viatico>0 ? `<span class="badge neutral">${ic('bus')}Su casa</span>` : ''}
+              ${c.modalidad && c.modalidad!=='casa_mia' ? `<span class="badge neutral">${ic(ICONO_LUGAR[c.modalidad]||'bus')}${textoLugar(c.modalidad)}</span>` : ''}
               ${c.serieId ? `<span class="badge neutral">${ic('repeat')}Semanal</span>` : ''}
               ${estado}
             </div>
@@ -2256,8 +2142,7 @@ function guardarTarea(id){
     if(temaSelVal==='__nuevo__'){
       const nombreNuevo = document.getElementById('f_t_temaNuevo').value.trim();
       if(!nombreNuevo){ showToast('Escribí el nombre del nuevo tema'); return; }
-      const nuevoTema = {id: uid(), nombre: nombreNuevo};
-      db.temas.push(nuevoTema);
+      const nuevoTema = agregarMateria(nombreNuevo);
       const alumno = getAlumno(alumnoId);
       if(alumno){
         if(!Array.isArray(alumno.temasIds)) alumno.temasIds = [];
@@ -2315,7 +2200,6 @@ function setFiltroTareas(v){ filtroTareasAlumno = v; renderAll(); }
 
 function renderTareas(){
   renderFiltroTareas();
-  refrescarListasTemas();
   const cont = document.getElementById('listaTareas');
   const toggle = document.getElementById('tareasEstadoToggle');
   const materias = document.getElementById('materiasRow');
@@ -2431,11 +2315,10 @@ function crearTemaDesdeDetalle(alumnoId){
   const input = document.getElementById('f_nuevoTemaDetalle');
   const nombre = input.value.trim();
   if(!nombre){ showToast('Escribí un nombre de tema'); return; }
-  const nuevo = {id: uid(), nombre};
-  db.temas.push(nuevo);
+  const nuevo = agregarMateria(nombre);
   const alumno = getAlumno(alumnoId);
   if(!Array.isArray(alumno.temasIds)) alumno.temasIds = [];
-  alumno.temasIds.push(nuevo.id);
+  if(nuevo && !alumno.temasIds.includes(nuevo.id)) alumno.temasIds.push(nuevo.id);
   saveDB();
   renderDetalleAlumno();
 }
@@ -2516,7 +2399,7 @@ function renderDetalleAlumno(){
     <div class="p-badges">${nivelBadge(alumno.nivel)}<span class="badge neutral">${alumno.tipo==='adulto'?'Adulto':'Niño/a'}</span></div>
     <div class="p-info">
       <span>${ic('cash')}${money(alumno.tarifa)}/h</span>
-      <span>${ic(alumno.modalidad==='casa_alumno'?'bus':'home')}${alumno.modalidad==='casa_alumno' ? 'Voy a su casa' : 'Viene a mi casa'}</span>
+      <span>${ic(ICONO_LUGAR[alumno.modalidad]||'home')}${textoLugar(alumno.modalidad)}</span>
       ${contactoTxt ? `<span>${ic('user')}${escapeHtml(contactoTxt)}</span>` : ''}
     </div>
     <div class="quick-actions">
@@ -2632,7 +2515,7 @@ function renderProximaClaseCountdown(c, ahora, enCurso){
   document.getElementById('nextClassAlumno').textContent = alumnoNombre(c.alumnoId);
   document.getElementById('nextClassCuando').textContent = enCurso
     ? `Hasta las ${c.horaSalida} · ${money(totalClase(c))}`
-    : `${fechaCorta(c.fecha)} · ${formatDuracion(c.duracionMin)}${c.viatico>0 ? ' · en su casa' : ''}`;
+    : `${fechaCorta(c.fecha)} · ${formatDuracion(c.duracionMin)}${c.modalidad && c.modalidad!=='casa_mia' ? ' · ' + textoLugar(c.modalidad).toLowerCase() : ''}`;
 
   const alumno = getAlumno(c.alumnoId);
   const acciones = [];
@@ -2754,8 +2637,8 @@ function conceptoPago(p){
   const partes = [];
   const nc = p.claseIds.length, nt = (p.trabajoIds||[]).length;
   if(nc) partes.push(`${nc} clase${nc!==1?'s':''}`);
-  if(nt===1){ const t = db.trabajos.find(x=>x.id===p.trabajoIds[0]); partes.push('TP: '+(t?t.titulo:'trabajo práctico')); }
-  else if(nt>1) partes.push(`${nt} trabajos prácticos`);
+  if(nt===1){ const t = db.trabajos.find(x=>x.id===p.trabajoIds[0]); partes.push(t?t.titulo:'otro cobro'); }
+  else if(nt>1) partes.push(`${nt} cobros más`);
   return partes.join(' + ');
 }
 
@@ -2800,7 +2683,7 @@ function agendadoRestoMes(){
 function totalPorCobrar(){ return deudores().reduce((s,d)=>s+d.total,0); }
 
 function detalleItemsTexto(it){
-  const lineas = it.clases.map(c=>`• ${nombreDiaFecha(c.fecha)}/${c.fecha.slice(5,7)}: ${formatDuracion(c.duracionMin)} de clase${c.viatico>0?' + pasajes':''} → ${money(totalClase(c))}`);
+  const lineas = it.clases.map(c=>`• ${nombreDiaFecha(c.fecha)}/${c.fecha.slice(5,7)}: ${formatDuracion(c.duracionMin)} de clase${c.viatico>0?' + traslado':''} → ${money(totalClase(c))}`);
   it.trabajos.forEach(t=>lineas.push(`• TP "${t.titulo}" (${formatDuracion(t.minutos||0)}) → ${money(totalTrabajo(t))}`));
   return lineas.join('\n');
 }
@@ -2832,7 +2715,7 @@ function abrirCobro(key){
     <h3>Cobrar a ${escapeHtml(nombre)}</h3>
     <p class="sheet-sub">Destildá lo que no te pagó. Queda registrado en el historial.</p>
     <div id="cobroItems" style="margin-top:6px;">
-      ${it.clases.map(c=>fila('clase', c.id, totalClase(c), `Clase · ${fechaCorta(c.fecha)}`, `${formatDuracion(c.duracionMin)}${c.viatico>0?` · incluye ${money(c.viatico)} de pasajes`:''}`)).join('')}
+      ${it.clases.map(c=>fila('clase', c.id, totalClase(c), `Clase · ${fechaCorta(c.fecha)}`, `${formatDuracion(c.duracionMin)}${c.viatico>0?` · incluye ${money(c.viatico)} de traslado`:''}`)).join('')}
       ${it.trabajos.map(t=>fila('trabajo', t.id, totalTrabajo(t), escapeHtml(t.titulo), `Trabajo práctico · ${formatDuracion(t.minutos||0)}`)).join('')}
     </div>
     <label for="f_fechaPago">Fecha del pago</label>
@@ -2881,7 +2764,7 @@ function abrirPagoDetalle(pagoId){
     <h3>Pago de ${escapeHtml(nombrePagador(p))}</h3>
     <p class="sheet-sub">Recibido el ${formatoFechaLarga(p.fecha).toLowerCase()}</p>
     <div style="margin-top:6px;">
-    ${clases.map(c=>`<div class="list-item"><div class="item-main"><div class="item-title" style="font-size:14.5px;">Clase · ${fechaCorta(c.fecha)}</div><div class="item-sub">${formatDuracion(c.duracionMin)}${c.viatico>0?` · pasajes ${money(c.viatico)}`:''}</div></div><div class="item-right">${money(totalClase(c))}</div></div>`).join('')}
+    ${clases.map(c=>`<div class="list-item"><div class="item-main"><div class="item-title" style="font-size:14.5px;">Clase · ${fechaCorta(c.fecha)}</div><div class="item-sub">${formatDuracion(c.duracionMin)}${c.viatico>0?` · traslado ${money(c.viatico)}`:''}</div></div><div class="item-right">${money(totalClase(c))}</div></div>`).join('')}
     ${trabajos.map(t=>`<div class="list-item"><div class="item-main"><div class="item-title" style="font-size:14.5px;">${escapeHtml(t.titulo)}</div><div class="item-sub">Trabajo práctico · ${formatDuracion(t.minutos||0)}</div></div><div class="item-right">${money(totalTrabajo(t))}</div></div>`).join('')}
     <div class="list-item"><div class="item-main"><b>Total</b></div><div class="item-right ok" style="font-size:17px;">${money(p.monto)}</div></div>
     </div>
@@ -2922,21 +2805,19 @@ function renderHistorialPagos(){
   cont.innerHTML = html;
 }
 
-/* ---------- trabajos prácticos ---------- */
+/* ---------- otros cobros (db.trabajos): material preparado, un trabajo aparte, etc. ---------- */
 function openTrabajoForm(id){
   const editing = id ? db.trabajos.find(t=>t.id===id) : null;
   const ordenados = db.alumnos.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'));
-  const alumnoSel = editing ? (editing.alumnoId || '__otro__') : (ordenados[0] ? ordenados[0].id : '__otro__');
-  const min = editing ? (editing.minutos||0) : 120;
-  const tarifa = editing ? editing.tarifaHora : (db.config.tarifaTP || 10000);
+  const alumnoSel = editing ? (editing.alumnoId || '__otro__') : (currentAlumnoDetalleId || (ordenados[0] ? ordenados[0].id : '__otro__'));
   openSheet(`
-    <h3>${editing ? 'Editar trabajo práctico' : 'Nuevo trabajo práctico'}</h3>
-    <p class="sheet-sub">Se cobra según las horas que te llevó y se suma a tu billetera.</p>
+    <h3>${editing ? 'Editar cobro' : 'Otro cobro'}</h3>
+    <p class="sheet-sub">Algo que cobrás aparte de las clases, como preparar material. Se suma a lo que te deben.</p>
 
-    <label for="f_tp_titulo">¿Qué trabajo hiciste?</label>
-    <input type="text" id="f_tp_titulo" value="${editing ? escapeAttr(editing.titulo) : ''}" placeholder="Ej: TP de Física – Cinemática" autocomplete="off">
+    <label for="f_tp_titulo">¿Qué es?</label>
+    <input type="text" id="f_tp_titulo" value="${editing ? escapeAttr(editing.titulo) : ''}" placeholder="Ej: Material para el examen de Física" autocomplete="off">
 
-    <label for="f_tp_alumno">¿Para quién?</label>
+    <label for="f_tp_alumno">¿Quién lo paga?</label>
     <select id="f_tp_alumno" onchange="document.getElementById('tpClienteBox').style.display = this.value==='__otro__' ? 'block':'none';">
       ${ordenados.map(a=>`<option value="${a.id}" ${a.id===alumnoSel?'selected':''}>${escapeHtml(a.nombre)}</option>`).join('')}
       <option value="__otro__" ${alumnoSel==='__otro__'?'selected':''}>Otra persona…</option>
@@ -2948,27 +2829,14 @@ function openTrabajoForm(id){
 
     <div class="field-row">
       <div>
-        <label for="f_tp_horas">Tiempo</label>
-        <div class="row2" style="gap:6px;">
-          <select id="f_tp_horas" onchange="recalcularMontoTP()">${Array.from({length:41},(_,h)=>`<option value="${h}" ${h===Math.floor(min/60)?'selected':''}>${h} h</option>`).join('')}</select>
-          <select id="f_tp_mins" onchange="recalcularMontoTP()">${[0,15,30,45].map(m=>`<option value="${m}" ${m===min%60?'selected':''}>${m} min</option>`).join('')}</select>
-        </div>
-      </div>
-    </div>
-    <div class="field-row">
-      <div>
-        <label for="f_tp_tarifa">Tarifa por hora</label>
-        <input type="number" id="f_tp_tarifa" min="0" step="500" inputmode="numeric" value="${tarifa}" oninput="recalcularMontoTP()">
+        <label for="f_tp_monto">Monto</label>
+        <input type="number" id="f_tp_monto" min="0" step="500" inputmode="numeric" value="${editing ? editing.monto : ''}" placeholder="${db.config.tarifaHabitual||''}">
       </div>
       <div>
         <label for="f_tp_fecha">Fecha</label>
         <input type="date" id="f_tp_fecha" value="${editing ? editing.fecha : hoyIso()}">
       </div>
     </div>
-
-    <label for="f_tp_monto">Total a cobrar</label>
-    <input type="number" id="f_tp_monto" min="0" step="500" inputmode="numeric" value="${editing ? editing.monto : ''}">
-    <div class="hint">Se calcula solo (horas × tarifa), pero lo podés ajustar.</div>
 
     <label class="switch-row">
       <span>Ya lo cobré</span>
@@ -2977,22 +2845,15 @@ function openTrabajoForm(id){
 
     <details class="more">
       <summary>${ic('chevron-right')}Notas</summary>
-      <textarea id="f_tp_notas" style="margin-top:10px;" placeholder="Detalles del trabajo…">${editing ? escapeHtml(editing.notas||'') : ''}</textarea>
+      <textarea id="f_tp_notas" style="margin-top:10px;" placeholder="Detalles…">${editing ? escapeHtml(editing.notas||'') : ''}</textarea>
     </details>
 
     <div class="sheet-footer">
-      ${editing ? `<button type="button" class="btn danger" onclick="eliminarTrabajo('${editing.id}')" aria-label="Eliminar trabajo">${ic('trash')}</button>` : ''}
-      <button type="button" class="btn primary" onclick="guardarTrabajo(${editing ? `'${editing.id}'` : 'null'})">${editing ? 'Guardar cambios' : 'Agregar trabajo'}</button>
+      ${editing ? `<button type="button" class="btn danger" onclick="eliminarTrabajo('${editing.id}')" aria-label="Eliminar cobro">${ic('trash')}</button>` : ''}
+      <button type="button" class="btn primary" onclick="guardarTrabajo(${editing ? `'${editing.id}'` : 'null'})">${editing ? 'Guardar cambios' : 'Agregar'}</button>
     </div>
   `);
-  if(!editing) recalcularMontoTP();
-}
-function minutosTPForm(){
-  return (parseInt(document.getElementById('f_tp_horas').value)||0)*60 + (parseInt(document.getElementById('f_tp_mins').value)||0);
-}
-function recalcularMontoTP(){
-  const tarifa = parseFloat(document.getElementById('f_tp_tarifa').value)||0;
-  document.getElementById('f_tp_monto').value = Math.round(tarifa*minutosTPForm()/60/100)*100;
+  if(!editing) enfocarSiLibre('f_tp_titulo');
 }
 function guardarTrabajo(id){
   const titulo = document.getElementById('f_tp_titulo').value.trim();
@@ -3000,34 +2861,31 @@ function guardarTrabajo(id){
   const alumnoId = sel==='__otro__' ? null : sel;
   const cliente = alumnoId ? '' : document.getElementById('f_tp_cliente').value.trim();
   const fecha = document.getElementById('f_tp_fecha').value || hoyIso();
-  const minutos = minutosTPForm();
-  const tarifaHora = parseFloat(document.getElementById('f_tp_tarifa').value)||0;
   const monto = parseFloat(document.getElementById('f_tp_monto').value)||0;
   const notas = document.getElementById('f_tp_notas').value.trim();
   const cobrado = document.getElementById('f_tp_cobrado').checked;
-  if(!titulo){ showToast('Poné qué trabajo hiciste'); return; }
-  if(!alumnoId && !cliente){ showToast('Poné para quién fue'); return; }
-  if(minutos<=0){ showToast('¿Cuánto tiempo te llevó?'); return; }
+  if(!titulo){ showToast('Poné qué es'); return; }
+  if(!alumnoId && !cliente){ showToast('Poné quién lo paga'); return; }
+  if(monto<=0){ showToast('Poné el monto'); return; }
 
   let t;
   if(id){
     t = db.trabajos.find(x=>x.id===id);
-    Object.assign(t, {titulo, alumnoId, cliente, fecha, minutos, tarifaHora, monto, notas});
+    Object.assign(t, {titulo, alumnoId, cliente, fecha, monto, notas});
   }else{
-    t = {id: uid(), titulo, alumnoId, cliente, fecha, minutos, tarifaHora, monto, notas, cobrado:false, pagoId:null};
+    t = {id: uid(), titulo, alumnoId, cliente, fecha, minutos:0, tarifaHora:0, monto, notas, cobrado:false, pagoId:null};
     db.trabajos.push(t);
   }
   if(cobrado && !t.cobrado) registrarPago({alumnoId, cliente, trabajoIds:[t.id], fecha});
   else if(!cobrado && t.cobrado) quitarTrabajoDePago(t);
   else if(cobrado && t.pagoId) recalcularPago(t.pagoId);
-  db.config.tarifaTP = tarifaHora || db.config.tarifaTP;
   saveDB();
   closeSheet();
   renderAll();
-  showToast('Trabajo práctico guardado');
+  showToast('Cobro guardado');
 }
 async function eliminarTrabajo(id){
-  const ok = await confirmar({titulo:'¿Eliminar este trabajo práctico?', mensaje:'Si estaba cobrado, también se quita del historial de pagos.', ok:'Eliminar', peligro:true});
+  const ok = await confirmar({titulo:'¿Eliminar este cobro?', mensaje:'Si estaba cobrado, también se quita del historial de pagos.', ok:'Eliminar', peligro:true});
   if(!ok) return;
   const t = db.trabajos.find(x=>x.id===id);
   if(t && t.cobrado) quitarTrabajoDePago(t);
@@ -3035,7 +2893,7 @@ async function eliminarTrabajo(id){
   saveDB();
   closeSheet();
   renderAll();
-  showToast('Trabajo eliminado');
+  showToast('Cobro eliminado');
 }
 
 /* ---------- render billetera ---------- */
@@ -3048,7 +2906,7 @@ function renderStats(){
   const nClases = ds.reduce((s,d)=>s+d.it.clases.length,0), nTPs = ds.reduce((s,d)=>s+d.it.trabajos.length,0);
   document.getElementById('billeteraPorCobrar').textContent = money(total);
   document.getElementById('billeteraPorCobrarSub').textContent = total>0
-    ? [nClases?`${nClases} clase${nClases!==1?'s':''}`:'', nTPs?`${nTPs} TP`:''].filter(Boolean).join(' y ') + ' sin cobrar'
+    ? [nClases?`${nClases} clase${nClases!==1?'s':''}`:'', nTPs?`${nTPs} cobro${nTPs!==1?"s":""} más`:''].filter(Boolean).join(' y ') + ' sin cobrar'
     : 'Estás al día';
   const resto = agendadoRestoMes();
   const mesActual = new Date().toLocaleDateString('es-AR',{month:'long'});
@@ -3062,7 +2920,7 @@ function renderStats(){
   document.getElementById('billeteraDeudoresCard').hidden = !ds.length;
   document.getElementById('billeteraDeudores').innerHTML = ds.map(d=>{
     const a = d.key.startsWith('a:') ? getAlumno(d.key.slice(2)) : null;
-    const detalle = [d.it.clases.length?`${d.it.clases.length} clase${d.it.clases.length!==1?'s':''}`:'', d.it.trabajos.length?`${d.it.trabajos.length} TP`:''].filter(Boolean).join(' + ');
+    const detalle = [d.it.clases.length?`${d.it.clases.length} clase${d.it.clases.length!==1?'s':''}`:'', d.it.trabajos.length?`${d.it.trabajos.length} cobro${d.it.trabajos.length!==1?'s':''} más`:''].filter(Boolean).join(' + ');
     return `
     <div class="list-item">
       ${a ? avatarHtml(a) : `<div class="row-ic">${ic('user')}</div>`}
@@ -3101,7 +2959,7 @@ function renderStats(){
   document.getElementById('statsPendiente').textContent = money(pendienteMes);
   const filaBd = (label, val) => `<div class="bd-row"><span>${label}</span><b>${money(val)}</b></div>`;
   document.getElementById('statsDesglose').innerHTML =
-    (generado>0 ? filaBd(`Clases dadas (${clasesDadas.length})`, montoClases) + (montoPasajes ? filaBd('Pasajes', montoPasajes) : '') + (tpsMes.length ? filaBd(`Trabajos prácticos (${tpsMes.length})`, montoTPs) : '') : '')
+    (generado>0 ? filaBd(`Clases dadas (${clasesDadas.length})`, montoClases) + (montoPasajes ? filaBd('Extra a domicilio', montoPasajes) : '') + (tpsMes.length ? filaBd(`Otros cobros (${tpsMes.length})`, montoTPs) : '') : '')
     + (faltanDar.length ? `<div class="bd-row" style="color:var(--accent);"><span>Agendadas que faltan dar (${faltanDar.length})</span><b style="color:var(--accent);">${money(montoFaltan)}</b></div>` : '');
   const esperadoEl = document.getElementById('statsEsperado');
   esperadoEl.hidden = !faltanDar.length;
@@ -3114,13 +2972,13 @@ function renderStats(){
       <div class="row-ic">${ic('file')}</div>
       <div class="item-main">
         <div class="item-title">${escapeHtml(t.titulo)}</div>
-        <div class="item-sub">${escapeHtml(t.alumnoId ? alumnoNombre(t.alumnoId) : (t.cliente||''))} · ${formatDuracion(t.minutos||0)}</div>
+        <div class="item-sub">${escapeHtml(t.alumnoId ? alumnoNombre(t.alumnoId) : (t.cliente||''))} · ${fechaCorta(t.fecha)}</div>
       </div>
       <div class="item-right">
         ${money(totalTrabajo(t))}
         <div style="margin-top:3px;"><span class="badge ${t.cobrado?'pagada':'pendiente'}">${t.cobrado?'Cobrado':'Sin cobrar'}</span></div>
       </div>
-    </div>`).join('') : '<div class="empty-msg" style="padding-bottom:14px;">Cargá los trabajos prácticos que hiciste y se suman a lo que generaste.</div>';
+    </div>`).join('') : '<div class="empty-msg" style="padding-bottom:14px;">Si cobrás algo aparte de las clases (como preparar material), cargalo acá.</div>';
 
   const porAlumno = db.alumnos.map(a=>{
     const cs = clasesDadas.filter(c=>c.alumnoId===a.id);
@@ -3269,10 +3127,13 @@ function abrirAjustes(){
         <div class="row-ic">${ic('clock')}</div><div class="item-main">Horarios disponibles<div class="item-sub">${diasActivos.length ? diasActivos.join(', ') : 'Ninguno'}</div></div>${ic('chevron-right','chev')}
       </button>
       <button type="button" class="set-row" onclick="abrirAjustesPrecios()">
-        <div class="row-ic">${ic('dollar')}</div><div class="item-main">Precios y pasaje<div class="item-sub">${money(db.config.tarifaMin)} – ${money(db.config.tarifaMax)}</div></div>${ic('chevron-right','chev')}
+        <div class="row-ic">${ic('dollar')}</div><div class="item-main">Precio por hora<div class="item-sub">${money(db.config.tarifaHabitual)}${extraDomicilio() ? ` · + ${money(extraDomicilio())} a domicilio` : ''}</div></div>${ic('chevron-right','chev')}
+      </button>
+      <button type="button" class="set-row" onclick="abrirPerfilPublico()">
+        <div class="row-ic">${ic('globe')}</div><div class="item-main">Tu perfil en Estudiemos<div class="item-sub">${textoEstadoPerfil()}</div></div>${ic('chevron-right','chev')}
       </button>
       <button type="button" class="set-row" onclick="abrirAjustesDatosProfe()">
-        <div class="row-ic">${ic('user')}</div><div class="item-main">Tus datos (para reseñas y alumnos)<div class="item-sub">${db.config.nombreProfe ? escapeHtml(db.config.nombreProfe) : 'Sin completar'}</div></div>${ic('chevron-right','chev')}
+        <div class="row-ic">${ic('user')}</div><div class="item-main">Tus datos (nombre, WhatsApp, sobre vos)<div class="item-sub">${db.config.nombreProfe ? escapeHtml(db.config.nombreProfe) : 'Sin completar'}</div></div>${ic('chevron-right','chev')}
       </button>
     </div>
 
@@ -3301,37 +3162,48 @@ function abrirAjustes(){
         <div class="row-ic" style="background:var(--danger-bg);color:var(--danger);">${ic('trash')}</div><div class="item-main">Borrar todos los datos</div>
       </button>
     </div>
-    <p class="hint" style="text-align:center;margin-top:14px;">${db.alumnos.length} alumnos · ${db.clases.length} clases · ${db.pagos.length} pagos · ${db.trabajos.length} TPs · ${db.resenas.length} reseñas</p>
+    <p class="hint" style="text-align:center;margin-top:14px;">${db.alumnos.length} alumnos · ${db.clases.length} clases · ${db.pagos.length} pagos · ${db.trabajos.length} otros cobros · ${db.resenas.length} reseñas</p>
   `);
   renderThemeSwitch();
 }
 function abrirAjustesPrecios(){
+  const extra = extraDomicilio();
   openSheet(`
     ${volverAjustesHtml()}
-    <h3>Precios y pasaje</h3>
-    <p class="sheet-sub">El rango define las opciones de tarifa por hora y de precio al agendar una clase.</p>
-    <div class="field-row">
-      <div><label for="f_tarifaMin">Tarifa mínima</label><input type="number" id="f_tarifaMin" step="1000" min="0" inputmode="numeric" value="${db.config.tarifaMin}"></div>
-      <div><label for="f_tarifaMax">Tarifa máxima</label><input type="number" id="f_tarifaMax" step="1000" min="0" inputmode="numeric" value="${db.config.tarifaMax}"></div>
+    <h3>Precio por hora</h3>
+    <p class="sheet-sub">Es lo que se propone al agregar un alumno y lo que se muestra en tu perfil. Para cada alumno lo podés cambiar en su ficha.</p>
+    <label for="f_tarifaHabitual">Cuánto cobrás la hora</label>
+    ${tarifaInputHtml('f_tarifaHabitual', db.config.tarifaHabitual)}
+    <label class="switch-row">
+      <span>Sumar un extra cuando vas a domicilio<small>Por ejemplo, el pasaje. Se suma a cada clase a domicilio.</small></span>
+      <input type="checkbox" class="switch" id="f_extraOn" ${extra?'checked':''} onchange="document.getElementById('extraBox').hidden = !this.checked">
+    </label>
+    <div id="extraBox" ${extra?'':'hidden'}>
+      <label for="f_extraDomicilio">Extra por clase a domicilio</label>
+      ${tarifaInputHtml('f_extraDomicilio', extra || '', 'step="10"')}
     </div>
-    <label for="f_precioPasaje">Precio del pasaje de bondi</label>
-    <input type="number" id="f_precioPasaje" step="50" min="0" inputmode="numeric" value="${db.config.precioPasaje}">
-    <div class="hint">Cuando vas a la casa del alumno se suman pasajes a la clase (2 por defecto, ida y vuelta). Al cambiarlo se actualizan tus próximas clases sin cobrar.</div>
     <div class="sheet-footer"><button type="button" class="btn primary" onclick="guardarAjustesPrecios()">Guardar</button></div>
   `);
 }
 function guardarAjustesPrecios(){
-  const min = parseInt(document.getElementById('f_tarifaMin').value)||0;
-  const max = parseInt(document.getElementById('f_tarifaMax').value)||0;
-  const pasaje = parseFloat(document.getElementById('f_precioPasaje').value);
-  if(!(min>0) || min>=max){ showToast('La tarifa mínima tiene que ser menor que la máxima'); return; }
-  if(!(pasaje>=0)){ showToast('Poné un precio de pasaje válido'); return; }
-  db.config.tarifaMin = min; db.config.tarifaMax = max;
-  const n = actualizarPrecioPasaje(pasaje);
+  const tarifa = Math.round(parseFloat(document.getElementById('f_tarifaHabitual').value)||0);
+  const extra = document.getElementById('f_extraOn').checked ? Math.max(0, Math.round(parseFloat(document.getElementById('f_extraDomicilio').value)||0)) : 0;
+  if(!(tarifa>0)){ showToast('Poné cuánto cobrás la hora'); return; }
+  db.config.tarifaHabitual = tarifa;
+  const cambioExtra = extra !== extraDomicilio();
+  db.config.extraDomicilio = extra;
+  // el extra nuevo se aplica a las próximas clases a domicilio sin cobrar
+  let n = 0;
+  if(cambioExtra){
+    const ahora = new Date();
+    db.clases.forEach(c=>{
+      if(c.modalidad==='casa_alumno' && !c.pagada && !claseYaOcurrida(c, ahora)){ c.viatico = extra; n++; }
+    });
+  }
   saveDB();
   renderAll();
   abrirAjustes();
-  showToast(n ? `Precios guardados · pasaje actualizado en ${n} clase${n!==1?'s':''} agendada${n!==1?'s':''}` : 'Precios guardados');
+  showToast(n ? `Guardado · se actualizaron ${n} clase${n!==1?'s':''} a domicilio` : 'Guardado');
 }
 function abrirAjustesDatosProfe(){
   openSheet(`
@@ -3414,14 +3286,6 @@ window.onFirebaseAuthChange = async function(user){
 
 function abrirPerfil(){ abrirAjustes(); }
 
-function guardarPrecioPasaje(){
-  const v = parseFloat(document.getElementById('f_precioPasaje').value);
-  if(!(v>=0)){ showToast('Poné un precio válido'); return; }
-  actualizarPrecioPasaje(v);
-  saveDB();
-  renderAll();
-  showToast(`Pasaje: ${money(v)} (2 pasajes = ${money(2*v)})`);
-}
 function guardarDatosProfe(){
   db.config.nombreProfe = document.getElementById('f_nombreProfe').value.trim();
   db.config.telefonoProfe = document.getElementById('f_telefonoProfe').value.replace(/[^\d]/g,'');
@@ -3430,15 +3294,6 @@ function guardarDatosProfe(){
   showToast('Datos guardados');
 }
 
-function guardarRangoTarifas(){
-  const min = parseInt(document.getElementById('f_tarifaMin').value)||7000;
-  const max = parseInt(document.getElementById('f_tarifaMax').value)||15000;
-  if(min>=max){ showToast('El piso debe ser menor que el techo'); return; }
-  db.config.tarifaMin = min;
-  db.config.tarifaMax = max;
-  saveDB();
-  showToast('Rango de tarifas actualizado');
-}
 
 function exportarDatos(){
   const data = JSON.stringify(db, null, 2);
@@ -3719,7 +3574,7 @@ const TUTORIAL_PASOS = [
   {icon:'sparkles', titulo:'Bienvenido/a a Estudiemos', desc:'Tus clases particulares en un solo lugar: alumnos, agenda, cobros y tareas. Movete con la barra de abajo.'},
   {icon:'users', titulo:'Cargá tus alumnos', desc:'Con el nombre alcanza. Lo demás (contacto, nivel, si vas a su casa) te lo va preguntando la ficha de cada uno.'},
   {icon:'calendar', titulo:'Tu semana de un vistazo', desc:'Lo verde es tiempo libre: tocalo para agendar una clase ahí. También podés compartir tus horarios libres por WhatsApp.'},
-  {icon:'wallet', titulo:'Cobrá sin olvidarte', desc:'En Billetera ves quién te debe, registrás pagos y sumás los trabajos prácticos que hiciste.'},
+  {icon:'wallet', titulo:'Cobrá sin olvidarte', desc:'En Billetera ves quién te debe, registrás pagos y ves cuánto podés llegar a cobrar este mes.'},
   {icon:'list', titulo:'Pendientes y tareas', desc:'Anotá lo que tenés que prepararle a cada alumno. Cuando esté listo, lo tachás o se lo mandás como tarea, con preguntas si querés.'},
   {icon:'book', titulo:'Tus alumnos, si quieren, también', desc:'Desde la ficha de un alumno lo invitás a la app: ve su semana, si debe alguna clase, los resúmenes, las pizarras y sus tareas. No es obligatorio.'},
   {icon:'bell', titulo:'Te avisamos', desc:'Con tu cuenta de Google y las notificaciones activadas, te avisamos antes de cada clase y cuando un alumno hace una tarea o te deja una reseña.'},
