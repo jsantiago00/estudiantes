@@ -110,7 +110,7 @@
   /* ---------- Dónde se dan las clases ---------- */
 
   const LUGARES = [
-    {id: 'casa_mia', nombre: 'En su casa', corto: 'En mi casa'},
+    {id: 'casa_mia', nombre: 'En casa del profe', corto: 'En mi casa'},
     {id: 'casa_alumno', nombre: 'A domicilio', corto: 'A domicilio'},
     {id: 'virtual', nombre: 'Virtual', corto: 'Virtual'}
   ];

@@ -7,7 +7,7 @@
      cancelación, duración de la clase y si se muestra el WhatsApp. Lo publica
      js/nube-profe.js en perfiles/{uid} (Plataforma.perfilPublico) cada vez que se guarda.
 
-   Script clásico: comparte el ámbito global con index.html (db, saveDB, openSheet, ic...).
+   Script clásico: comparte el ámbito global con app.html (db, saveDB, openSheet, ic...).
    Se carga antes que el script principal: acá arriba solo se declaran funciones.
    ========================================================= */
 

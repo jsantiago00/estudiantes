@@ -3,7 +3,7 @@
    pizarra por clase, notificaciones y reseñas que llegan desde la app.
 
    Es un script clásico que comparte el ámbito global con el script principal de
-   index.html (db, saveDB, openSheet, confirmar, ic, escapeHtml, getAlumno, ...).
+   app.html (db, saveDB, openSheet, confirmar, ic, escapeHtml, getAlumno, ...).
    Se carga ANTES que él: acá arriba solo se declaran funciones, nada toca db.
    Lo de Firebase lo hace js/nube-profe.js y queda en window.nube (puede tardar
    en cargar, o no estar si no hay conexión).
@@ -295,7 +295,7 @@ function copiarLinkPizarraAlumno(claseId){
    hecha, responde, o (en un trabajo práctico) manda texto, fotos o un link.
    La devolución: comentario, nota, un comentario por pregunta, y "para rehacer".
    En las evaluaciones el alumno no ve las respuestas correctas: se corrigen acá.
-   Tus pendientes (db.tareas, en index.html) se convierten en tarea con "Mandar".
+   Tus pendientes (db.tareas, en app.html) se convierten en tarea con "Mandar".
    ========================================================= */
 
 function entregaDe(tp){
@@ -612,7 +612,7 @@ function abrirIa(cual){
 }
 
 /* ---------- Material: links (un PDF en Drive, un video, una página) ----------
-   Se usa en las tareas (editorLinks.tp) y en las clases (editorLinks.clase, desde index.html). */
+   Se usa en las tareas (editorLinks.tp) y en las clases (editorLinks.clase, desde app.html). */
 
 const editorLinks = {tp: [], clase: []};
 
@@ -1016,7 +1016,7 @@ function guardarRecordatorios(){
 }
 
 function linkPaginaResenas(){
-  return new URL('resenas.html?p=' + (firebaseUser ? firebaseUser.uid : ''), location.href).href;
+  return new URL('profe.html?p=' + (firebaseUser ? firebaseUser.uid : ''), location.href).href;
 }
 
 function abrirPaginaResenas(){

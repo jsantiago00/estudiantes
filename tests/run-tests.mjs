@@ -290,7 +290,7 @@ igual(C.limpiarLinks([{url:'youtube.com/watch?v=1', nombre:''}, {url:'nada'}, {u
 }
 
 /* ---------- Archivos que referencian las páginas ---------- */
-for(const pagina of ['index.html', 'estudiante.html', 'resenas.html']){
+for(const pagina of ['app.html', 'index.html', 'profe.html', 'estudiante.html', 'resenas.html']){
   const html = readFileSync(join(raiz, pagina), 'utf8');
   const refs = [...html.matchAll(/(?:src|href)="(?!https?:|#|data:)([^"?#]+)"/g)].map(m=>m[1]);
   refs.forEach(r=>ok(existsSync(join(raiz, r)), `${pagina} referencia ${r}, que no existe`));
@@ -300,8 +300,8 @@ for(const pagina of ['index.html', 'estudiante.html', 'resenas.html']){
   ok(!/from ['"]\.\/(?!firebase\.js)/.test(js), 'los módulos solo importan ./firebase.js');
 }
 {
-  // Las funciones que se llaman desde onclick="..." en index.html tienen que existir
-  const html = readFileSync(join(raiz, 'index.html'), 'utf8');
+  // Las funciones que se llaman desde onclick="..." en app.html tienen que existir
+  const html = readFileSync(join(raiz, 'app.html'), 'utf8');
   const todo = html + ['js/profe-aula.js', 'js/primeros-pasos.js', 'js/perfil-profe.js'].map(f=>readFileSync(join(raiz, f), 'utf8')).join('\n');
   const llamadas = new Set([...todo.matchAll(/on(?:click|change|input)="(?:event\.stopPropagation\(\); )?([a-zA-Z_]\w*)\(/g)].map(m=>m[1]));
   const definidas = new Set([...todo.matchAll(/function\s+([a-zA-Z_]\w*)\s*\(/g)].map(m=>m[1]));

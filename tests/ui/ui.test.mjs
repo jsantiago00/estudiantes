@@ -87,7 +87,7 @@ const datosProfe = {
    PROFE NUEVO: configuración inicial, lista de alumnos y "Completá la ficha"
    ========================================================= */
 {
-  const {page, errores} = await pagina('index.html', {usuario: null, docs: {}}, {estudiantes_theme_v1: 'light'});
+  const {page, errores} = await pagina('app.html', {usuario: null, docs: {}}, {estudiantes_theme_v1: 'light'});
   ok(await page.$eval('#primerosPasos', e=>!e.hidden), 'la primera vez aparece la configuración inicial');
   ok(!(await page.$eval('#tutorialOverlay', e=>e.classList.contains('show'))), 'no aparece encima el tutorial');
   await page.screenshot({path: join(capturas, 'nuevo-1-nombre.png')});
@@ -194,7 +194,7 @@ const datosProfe = {
    PROFE CON ALUMNOS EN LA APP
    ========================================================= */
 {
-  const {page, errores} = await pagina('index.html', {
+  const {page, errores} = await pagina('app.html', {
     usuario: {uid:'profe', displayName:'Ana Pérez', email:'ana@x.com'},
     docs: {'users/profe': datosProfe}
   });
@@ -497,7 +497,7 @@ const datosProfe = {
   const aulaId = globalThis.__aulaId;
   const docs = {'users/profe': globalThis.__profeDb, ['aulas/' + aulaId]: {...globalThis.__aula, miembros: ['sofi']},
     ['aulas/' + aulaId + '/entregas/' + globalThis.__evId]: globalThis.__eEv, ['aulas/' + aulaId + '/entregas/' + globalThis.__tpTpId]: globalThis.__eTp};
-  const {page, errores} = await pagina('index.html', {usuario: {uid:'profe', displayName:'Ana Pérez', email:'ana@x.com'}, docs});
+  const {page, errores} = await pagina('app.html', {usuario: {uid:'profe', displayName:'Ana Pérez', email:'ana@x.com'}, docs});
   await esperar(1500);
   await page.evaluate(id=>verTp(id), globalThis.__evId);
   await esperar(300);
@@ -524,12 +524,58 @@ const datosProfe = {
   await page.close();
 }
 
-/* Página pública de reseñas */
+/* Página pública del profe (y el link viejo de reseñas) */
 {
-  const {page, errores} = await pagina('resenas.html?p=profe', {usuario: null, docs: {'perfiles/profe': {nombre:'Ana Pérez', bio:'Clases de matemática', materias:['Matemática'], resenas:[{estrellas:5, texto:'Excelente profe', autor:'Laura, familiar de Sofi'}]}}});
+  const perfil = {nombre:'Ana Pérez', bio:'Clases de matemática', materias:['Matemática'], materiaIds:['matematica'], zonas:['godoy-cruz'], lugares:['casa_mia','virtual'],
+    niveles:['secundario'], precioHora:12000, regla:'flexible', duracion:60, disponibilidad:{2:{activo:true, desde:'14:00', hasta:'18:00'}}, visible:true,
+    resenas:[{estrellas:5, texto:'Excelente profe', autor:'Laura, familiar de Sofi'}], promedio:5, cantResenas:1, whatsapp:''};
+  const {page, errores} = await pagina('resenas.html?p=profe', {usuario: null, docs: {'perfiles/profe': perfil}});
+  await esperar(400);
+  ok(page.url().includes('profe.html?p=profe'), 'el link viejo de reseñas lleva al perfil');
   const t = await texto(page, 'body');
-  ok(t.includes('Ana Pérez') && t.includes('Excelente profe'), 'la página pública muestra las reseñas');
-  ok(errores.length === 0, 'la página de reseñas no tiró errores: ' + errores.join(' | '));
+  ok(t.includes('Ana Pérez') && t.includes('Excelente profe') && t.includes('Desde $12.000') && t.includes('Martes') && t.includes('12 h antes'), 'el perfil muestra reseñas, precio, horarios y la regla de cancelación');
+  ok(await page.$('a[href="estudiante.html?profe=profe"]') && !t.includes('WhatsApp'), 'se le escribe por chat; el WhatsApp solo si lo eligió');
+  await page.screenshot({path: join(capturas, 'pub-2-perfil.png'), fullPage: true});
+  ok(errores.length === 0, 'el perfil no tiró errores: ' + errores.join(' | '));
+  await page.close();
+}
+
+/* Buscador */
+{
+  const base = {materias:['Matemática'], materiaIds:['matematica'], niveles:['secundario'], lugares:['casa_mia'], precioHora:10000, visible:true, cantResenas:0, promedio:0, resenas:[]};
+  const docs = {
+    'perfiles/ana': {...base, nombre:'Ana Pérez', zonas:['godoy-cruz'], cantResenas:2, promedio:4.5},
+    'perfiles/beto': {...base, nombre:'Beto Ruiz', materias:['Inglés'], materiaIds:['ingles'], zonas:[], lugares:['virtual'], precioHora:15000},
+    'perfiles/caro': {...base, nombre:'Caro Díaz', zonas:['maipu'], bio:'Física y química para el secundario', materias:['Física'], materiaIds:['fisica']},
+    'perfiles/oculta': {...base, nombre:'Oculta', visible:false},
+    'perfiles/moderada': {...base, nombre:'Moderada'},
+    'moderacion/moderada': {oculto:true}
+  };
+  const {page, errores} = await pagina('index.html', {usuario: null, docs}, {estudiemos_rol: 'estudiante'});
+  await esperar(500);
+  let t = await texto(page, '#lista');
+  ok(t.includes('Ana Pérez') && t.includes('Beto Ruiz') && t.includes('Caro Díaz') && !t.includes('Oculta') && !t.includes('Moderada'), 'el buscador muestra los profes visibles y no los ocultos');
+  ok(t.indexOf('Ana Pérez') < t.indexOf('Beto Ruiz'), 'primero los que tienen reseñas');
+  await page.screenshot({path: join(capturas, 'pub-1-buscador.png'), fullPage: true});
+  await page.select('#fMateria', 'matematica');
+  await esperar(100);
+  t = await texto(page, '#lista');
+  ok(t.includes('Ana Pérez') && !t.includes('Beto Ruiz') && !t.includes('Caro'), 'filtra por materia');
+  ok(page.url().includes('materia=matematica'), 'la búsqueda queda en el link');
+  await page.select('#fMateria', '');
+  await page.type('#q', 'maipu');
+  await esperar(400);
+  t = await texto(page, '#lista');
+  ok(t.includes('Caro Díaz') && !t.includes('Ana'), 'busca por zona escrita sin tilde');
+  ok(errores.length === 0, 'el buscador no tiró errores: ' + errores.join(' | '));
+  await page.close();
+}
+
+/* Un profe que abre la dirección de siempre va a su panel */
+{
+  const {page} = await pagina('index.html', {usuario: null, docs: {}}, {estudiantes_app_data_v1: JSON.stringify({alumnos: []}), estudiemos_rol: 'profe'});
+  await esperar(300);
+  ok(page.url().includes('app.html'), 'el profe que entra a la portada va a su panel');
   await page.close();
 }
 

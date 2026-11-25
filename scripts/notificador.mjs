@@ -144,7 +144,7 @@ async function recordatorios(){
           await push(uid, {
             titulo: `⏰ Clase con ${nombre(c.alumnoId)} ${cuandoEs(c)}`,
             cuerpo: `${c.horaEntrada}${c.horaSalida ? ' a ' + c.horaSalida : ''}${a.direccion ? ' · ' + a.direccion : ''}`,
-            url: BASE + 'index.html', tag: 'clase-' + c.id
+            url: BASE + 'app.html', tag: 'clase-' + c.id
           });
           stats.profe++;
         });
@@ -157,7 +157,7 @@ async function recordatorios(){
           await push(uid, {
             titulo: `✅ Terminó la clase con ${nombre(c.alumnoId)}`,
             cuerpo: `Acordate de mandar el resumen y el cobro (${money(Number(c.monto || 0) + Number(c.viatico || 0))}).`,
-            url: BASE + 'index.html', tag: 'fin-' + c.id
+            url: BASE + 'app.html', tag: 'fin-' + c.id
           });
           stats.fin++;
         });

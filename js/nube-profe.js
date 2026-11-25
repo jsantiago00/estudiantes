@@ -1,5 +1,5 @@
 /* =========================================================
-   Estudiemos (profe): puente entre el script principal de index.html y Firebase.
+   Estudiemos (profe): puente entre el script principal de app.html y Firebase.
    Los módulos no exponen funciones globales, así que todo se cuelga de window.
 
    Firestore:
@@ -92,7 +92,7 @@ async function publicarPerfil(data){
   const u = usuarioActual();
   if(!u) return;
   // Las reseñas elegidas para la página pública ("A tu página"), firmadas igual que en la app:
-  // firmaResena (index.html) respeta a quien no quiso aparecer con su nombre
+  // firmaResena (app.html) respeta a quien no quiso aparecer con su nombre
   const firma = r => (typeof window.firmaResena === 'function') ? window.firmaResena(r) : (r.autor || '');
   const resenas = (data.resenas || []).filter(r=>r.enPagina && !r.privada).slice(0, 60).map(r=>({
     estrellas: Number(r.estrellas) || 5, texto: String(r.texto || '').slice(0, 1200), autor: firma(r), fecha: r.fecha || ''

@@ -21,6 +21,7 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 const LS_AULA = 'estudiemos_aula_sel';
+try{ localStorage.setItem('estudiemos_rol', 'estudiante'); }catch(e){}
 
 function lunesDe(d){ const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
 function sumarDias(d, n){ const x = new Date(d); x.setDate(x.getDate() + n); return x; }
@@ -218,7 +219,7 @@ async function unirseAula(aulaId){
     let yaAvisado = false;
     try{ yaAvisado = localStorage.getItem(clave) === '1'; localStorage.setItem(clave, '1'); }catch(e){}
     if(!yaAvisado && a && a.ownerUid){
-      notificar(aulaId, [a.ownerUid], '👋 Se sumó a la app', `${u.displayName || a.alumnoNombre} entró a Estudiemos (${a.alumnoNombre}).`, 'index.html', {tipo:'miembro'});
+      notificar(aulaId, [a.ownerUid], '👋 Se sumó a la app', `${u.displayName || a.alumnoNombre} entró a Estudiemos (${a.alumnoNombre}).`, 'app.html', {tipo:'miembro'});
       toast('¡Listo! Ya estás adentro');
     }
     estado.errorUnirse = null;
@@ -594,7 +595,7 @@ async function enviarResena(estrellas){
       creada: estado.miResena && estado.miResena.creada ? estado.miResena.creada : serverTimestamp(),
       actualizada: serverTimestamp()
     });
-    if(nueva) notificar(a.id, [a.ownerUid], '⭐ Nueva reseña', `${'★'.repeat(estrellas)} «${texto.slice(0, 90)}»`, 'index.html', {tipo:'resena'});
+    if(nueva) notificar(a.id, [a.ownerUid], '⭐ Nueva reseña', `${'★'.repeat(estrellas)} «${texto.slice(0, 90)}»`, 'app.html', {tipo:'resena'});
     toast(nueva ? '¡Gracias por tu reseña!' : 'Reseña actualizada');
   }catch(e){ console.error(e); toast('No se pudo enviar'); }
 }
@@ -989,7 +990,7 @@ async function enviarEntrega(tp, respuestas, comentario, extra){
   try{
     await setDoc(doc(db, 'aulas', a.id, 'entregas', tp.id), datos, {merge: true});
     notificar(a.id, [a.ownerUid], (previa ? '🔁 Volvió a entregar: ' : conPreg || x.texto !== undefined ? '📥 Entregó: ' : '✅ Hizo: ') + NOMBRE_TIPO[tipoDe(tp)].toLowerCase(),
-      `${a.alumnoNombre}: "${titulo}"${pt.total ? ` · ${pt.ok}/${pt.total} bien` : ''}${(x.fotos || []).length ? ` · ${x.fotos.length} foto${x.fotos.length!==1?'s':''}` : ''}${comentario ? ' · te dejó un comentario' : ''}.`, 'index.html', {tipo:'entrega', tpId: tp.id});
+      `${a.alumnoNombre}: "${titulo}"${pt.total ? ` · ${pt.ok}/${pt.total} bien` : ''}${(x.fotos || []).length ? ` · ${x.fotos.length} foto${x.fotos.length!==1?'s':''}` : ''}${comentario ? ' · te dejó un comentario' : ''}.`, 'app.html', {tipo:'entrega', tpId: tp.id});
     toast(conPreg ? '¡Se la mandaste a tu profe!' : '¡Bien! Tu profe ya lo sabe');
     return true;
   }catch(e){

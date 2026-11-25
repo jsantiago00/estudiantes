@@ -7,7 +7,7 @@
    - "Completá la ficha": lo que falta de cada alumno se pregunta después, de a una
      pregunta y con un toque, en su ficha (alumno.porCompletar).
 
-   Script clásico: comparte el ámbito global con index.html (db, saveDB, openSheet, ic...).
+   Script clásico: comparte el ámbito global con app.html (db, saveDB, openSheet, ic...).
    Se carga antes que el script principal: acá arriba solo se declaran funciones.
    ========================================================= */
 

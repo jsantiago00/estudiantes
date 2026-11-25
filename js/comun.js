@@ -1,6 +1,6 @@
 /* =========================================================
    Estudiemos: lógica compartida, sin DOM ni Firebase.
-   La usan la app del profe (index.html), la del estudiante (estudiante.html),
+   La usan la app del profe (app.html), la del estudiante (estudiante.html),
    el notificador (scripts/notificador.mjs) y los tests (tests/run-tests.mjs).
    En el navegador queda en window.Comun; en Node, con require().
    ========================================================= */

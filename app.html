@@ -1,0 +1,3649 @@
+<!DOCTYPE html>
+<html lang="es" data-palette="lila">
+<head>
+<meta charset="UTF-8">
+<script>
+(function(){
+  try {
+    var p = localStorage.getItem('estudiantes_palette_v1');
+    var viejas = {terracota:'lila', lavanda:'lila', salvia:'verde'};
+    if (viejas[p]) p = viejas[p];
+    if (p) document.documentElement.setAttribute('data-palette', p);
+    var t = localStorage.getItem('estudiantes_theme_v1');
+    if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+  } catch (e) {}
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#faf3ea">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg?v=2">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2">
+<link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2">
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<title>Estudiemos</title>
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/aula.css">
+<link rel="stylesheet" href="css/plataforma.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+</head>
+<body>
+
+<!-- menú lateral (solo en pantallas grandes) -->
+<aside class="sidebar" data-nav>
+  <div class="sb-brand"><img src="icons/icon.svg?v=2" alt="" width="34" height="34"><span>Estudiemos</span></div>
+  <button type="button" data-view="clases" class="active"><span class="ico" data-ic="calendar"></span>Agenda</button>
+  <button type="button" data-view="alumnos"><span class="ico" data-ic="users"></span>Alumnos</button>
+  <button type="button" data-view="tareas"><span class="ico" data-ic="list"></span>Actividades</button>
+  <button type="button" data-view="stats"><span class="ico" data-ic="wallet"></span>Billetera</button>
+  <div class="sb-spacer"></div>
+  <button type="button" class="sb-settings" onclick="abrirAjustes()"><span class="ico" data-ic="settings"></span>Ajustes</button>
+</aside>
+
+<header class="app-header" id="appHeader">
+  <div class="hdr-inner">
+    <button class="icon-btn" id="backBtn" onclick="volverDeDetalle()" style="display:none;margin-left:-8px;" aria-label="Volver"></button>
+    <div class="hdr-titles">
+      <h1 id="headerTitle">Agenda</h1>
+      <p id="headerSub"></p>
+    </div>
+    <button type="button" class="btn primary hdr-action" id="hdrActionBtn" onclick="FAB_CFG[fabKey()].fn()"></button>
+    <button class="icon-btn filled notif-bell" id="notifToggle" type="button" title="Notificaciones" aria-label="Notificaciones" onclick="abrirNotifs()" hidden><span class="notif-count" id="notifCount" hidden></span></button>
+    <button class="icon-btn filled" id="settingsToggle" type="button" title="Ajustes" aria-label="Ajustes" onclick="abrirAjustes()"></button>
+  </div>
+</header>
+
+<main>
+
+  <!-- AGENDA -->
+  <section class="view active agenda-layout" id="view-clases">
+    <div class="next-card" id="nextClassCard" hidden>
+      <div class="next-top">
+        <span class="next-eyebrow" id="nextClassEyebrow">Próxima clase</span>
+        <span class="next-count" id="nextClassCountdown"></span>
+      </div>
+      <div class="next-main">
+        <span class="next-time" id="nextClassHora"></span>
+        <div style="min-width:0;">
+          <div class="next-name" id="nextClassAlumno"></div>
+          <div class="next-when" id="nextClassCuando"></div>
+        </div>
+      </div>
+      <div class="next-actions" id="nextClassActions"></div>
+    </div>
+
+    <div class="kpis">
+      <button type="button" class="kpi warn" onclick="goTo('stats')">
+        <div class="k-label">Te deben</div>
+        <div class="k-val" id="statPendienteMonto">$0</div>
+      </button>
+      <button type="button" class="kpi" onclick="goTo('stats')">
+        <div class="k-label" id="statRestoMesLabel">Resto del mes</div>
+        <div class="k-val" id="statRestoMes">$0</div>
+      </button>
+      <button type="button" class="kpi" onclick="goTo('tareas')">
+        <div class="k-label">Pendientes</div>
+        <div class="k-val" id="statTareas">0</div>
+      </button>
+    </div>
+
+    <div class="ag-cal">
+    <div class="cal-toolbar">
+      <div class="cal-title" id="calendarioMesLabel"></div>
+      <button type="button" class="cal-today" onclick="irAHoyCalendario()">Hoy</button>
+      <button type="button" class="icon-btn sm" id="calPrevBtn" onclick="cambiarPeriodoCalendario(-1)" aria-label="Anterior"></button>
+      <button type="button" class="icon-btn sm" id="calNextBtn" onclick="cambiarPeriodoCalendario(1)" aria-label="Siguiente"></button>
+    </div>
+    <div class="segmented" id="calendarioModoToggle">
+      <button type="button" class="active" data-modo="semana" onclick="setCalendarioModo('semana')">Semana</button>
+      <button type="button" data-modo="mes" onclick="setCalendarioModo('mes')">Mes</button>
+    </div>
+    <div id="calendarioGrid"></div>
+    <div id="calendarioLeyenda"></div>
+    </div>
+
+    <div class="day-detail" id="calendarioDayDetail"></div>
+  </section>
+
+  <!-- ALUMNOS -->
+  <section class="view" id="view-alumnos">
+    <div class="search" id="buscarAlumnoBox">
+      <span id="buscarIco"></span>
+      <input type="text" id="buscarAlumno" placeholder="Buscar alumno" oninput="renderAlumnos()" autocomplete="off">
+    </div>
+    <div class="filter-row" id="filtroNivelAlumnos"></div>
+    <div id="listaAlumnos"></div>
+    <div class="card list" id="resenasRow"></div>
+  </section>
+
+  <!-- TAREAS -->
+  <section class="view narrow" id="view-tareas">
+    <div class="segmented" id="tareasEstadoToggle"></div>
+    <div class="filter-row" id="filtroAlumnoTareas"></div>
+    <div id="listaTareas"></div>
+    <div class="card list">
+      <div class="card-head">
+        <h2>Actividades para tus alumnos</h2>
+        <button type="button" class="link-btn" onclick="openTpForm()">Mandar</button>
+      </div>
+      <div id="listaTps"></div>
+    </div>
+    <div class="card list" id="materiasRow"></div>
+  </section>
+
+  <!-- BILLETERA -->
+  <section class="view two-col" id="view-stats">
+   <div class="col">
+    <div class="saldo-card">
+      <div class="saldo-cols">
+        <div>
+          <div class="lbl">Te deben</div>
+          <div class="big" id="billeteraPorCobrar">$0</div>
+          <div class="sub" id="billeteraPorCobrarSub"></div>
+        </div>
+        <div>
+          <div class="lbl" id="billeteraProximoLbl">Resto del mes</div>
+          <div class="big" id="billeteraProximo">$0</div>
+          <div class="sub" id="billeteraProximoSub"></div>
+        </div>
+      </div>
+      <div class="saldo-total"><span id="billeteraTotalLbl">Total por cobrar</span><b id="billeteraTotal">$0</b></div>
+    </div>
+
+    <div class="card list" id="billeteraDeudoresCard">
+      <div class="card-head"><h2>Quién te debe</h2></div>
+      <div id="billeteraDeudores"></div>
+    </div>
+
+    <div class="card">
+      <div class="month-nav">
+        <button type="button" class="icon-btn sm filled" id="statsPrevBtn" onclick="cambiarMesStats(-1)" aria-label="Mes anterior"></button>
+        <h2 id="statsMesLabel"></h2>
+        <button type="button" class="icon-btn sm filled" id="statsNextBtn" onclick="cambiarMesStats(1)" aria-label="Mes siguiente"></button>
+      </div>
+      <div class="stat-grid">
+        <div class="stat"><div class="s-label">Generado</div><div class="s-val" id="statsMonto">$0</div></div>
+        <div class="stat"><div class="s-label">Horas trabajadas</div><div class="s-val" id="statsHoras">0</div></div>
+        <div class="stat ok"><div class="s-label">Cobrado en el mes</div><div class="s-val" id="statsCobrado">$0</div></div>
+        <div class="stat warn"><div class="s-label">Pendiente del mes</div><div class="s-val" id="statsPendiente">$0</div></div>
+      </div>
+      <div class="breakdown" id="statsDesglose"></div>
+      <div class="note" id="statsEsperado"></div>
+    </div>
+
+   </div>
+   <div class="col">
+    <div class="card list">
+      <div class="card-head"><h2>Últimos pagos</h2></div>
+      <div id="historialPagos"></div>
+    </div>
+
+    <div class="card list">
+      <div class="card-head">
+        <h2>Otros cobros del mes</h2>
+        <button type="button" class="link-btn" id="nuevoTPBtn" onclick="openTrabajoForm()">Nuevo</button>
+      </div>
+      <div id="listaTrabajos"></div>
+    </div>
+
+    <div class="card list">
+      <div class="card-head"><h2>Por alumno este mes</h2></div>
+      <div id="statsPorAlumno"></div>
+    </div>
+   </div>
+  </section>
+
+  <!-- FICHA DE ALUMNO -->
+  <section class="view two-col detalle" id="view-alumno-detalle">
+   <div class="col col-side">
+    <div class="card profile" id="detalleAlumnoHeader"></div>
+   </div>
+   <div class="col">
+
+    <div class="card completar" id="detalleCompletar" hidden></div>
+
+    <div class="card" id="detalleAula"></div>
+
+    <div class="card list">
+      <div class="card-head">
+        <h2>Próximas clases</h2>
+        <button type="button" class="link-btn" onclick="openClaseForm(null, null, null, currentAlumnoDetalleId)">Agendar</button>
+      </div>
+      <div id="detalleProximasClases"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Temario</h2></div>
+      <div id="detalleTemario"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Mis pendientes</h2>
+        <button type="button" class="link-btn" onclick="openTareaForm(null, currentAlumnoDetalleId)">Agregar</button>
+      </div>
+      <div id="detalleTareasPorTema"></div>
+    </div>
+
+    <div class="card list">
+      <div class="card-head">
+        <h2>Sus actividades</h2>
+        <button type="button" class="link-btn" onclick="openTpForm(null, currentAlumnoDetalleId)">Mandar</button>
+      </div>
+      <div id="detalleTps"></div>
+    </div>
+
+    <div class="card list">
+      <div class="card-head">
+        <h2>Mensajes guardados</h2>
+        <button type="button" class="link-btn" onclick="abrirGestionMensajes(currentAlumnoDetalleId)">Editar</button>
+      </div>
+      <div id="detalleMensajes"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Materias</h2>
+        <button type="button" class="link-btn" onclick="abrirGestionTemas()">Editar</button>
+      </div>
+      <div id="detalleTemas"></div>
+    </div>
+   </div>
+  </section>
+
+</main>
+
+<button class="fab" id="fabBtn" type="button"></button>
+
+<nav class="bottom-nav" id="bottomNav" data-nav>
+  <button data-view="clases" class="active"><span class="ico" data-ic="calendar"></span>Agenda</button>
+  <button data-view="alumnos"><span class="ico" data-ic="users"></span>Alumnos</button>
+  <button data-view="tareas"><span class="ico" data-ic="list"></span>Actividades</button>
+  <button data-view="stats"><span class="ico" data-ic="wallet"></span>Billetera</button>
+</nav>
+
+<!-- hoja inferior -->
+<div class="overlay" id="overlay">
+  <div class="sheet" id="sheetContent" role="dialog" aria-modal="true"></div>
+</div>
+
+<!-- diálogo de confirmación -->
+<div class="dialog-overlay" id="dialogOverlay">
+  <div class="dialog" role="alertdialog" aria-modal="true">
+    <h3 id="dlgTitle"></h3>
+    <p id="dlgMsg"></p>
+    <div class="btn-row">
+      <button type="button" class="btn secondary" id="dlgCancel">Cancelar</button>
+      <button type="button" class="btn primary" id="dlgOk">Aceptar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<!-- tutorial de bienvenida -->
+<div class="tutorial-overlay" id="tutorialOverlay">
+  <div class="tutorial-card">
+    <button type="button" class="tutorial-skip" id="tutorialSkipBtn" onclick="cerrarTutorial()">Saltar</button>
+    <div class="tutorial-icon" id="tutorialIcon"></div>
+    <h2 class="tutorial-title" id="tutorialTitle"></h2>
+    <p class="tutorial-desc" id="tutorialDesc"></p>
+    <div class="tutorial-dots" id="tutorialDots"></div>
+    <div class="tutorial-nav">
+      <button type="button" class="btn secondary" id="tutorialBackBtn" onclick="tutorialPaso(-1)">Atrás</button>
+      <button type="button" class="btn primary" id="tutorialNextBtn" onclick="tutorialPaso(1)">Siguiente</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/comun.js"></script>
+<script src="js/plataforma.js"></script>
+<script src="js/perfil-profe.js"></script>
+<script src="js/profe-aula.js"></script>
+<script src="js/primeros-pasos.js"></script>
+<script>
+/* =========================================================
+   ESTRUCTURA DE DATOS
+   ========================================================= */
+const STORAGE_KEY = 'estudiantes_app_data_v1';
+
+const CONFIG_DEFAULT = {
+  tarifaHabitual:10000,       // cuánto cobra la hora (se usa al agregar alumnos y en el perfil público)
+  paleta:'lila', tema:'auto', tutorialVisto:false,
+  extraDomicilio:0,           // opcional: un extra que se suma a cada clase a domicilio (0 = nada)
+  nombreProfe:'', telefonoProfe:'', bioProfe:'',
+  // perfil público en el buscador (ver js/plataforma.js: perfilPublico)
+  perfil:{zonas:[], barrio:'', niveles:[], lugares:['casa_mia'], regla:'normal', duracion:60, detalle:'', mostrarWhatsapp:false, visible:true},
+  // recordatorios push (los manda scripts/notificador.mjs): minutos antes de cada clase (0 = no),
+  // aviso al terminar una clase sin cobrar, y horas antes para avisarle al estudiante (0 = no)
+  notif:{antesMin:30, finClase:true, alumnosHoras:2},
+  // horarios disponibles para dar clases, por día de la semana (0=domingo)
+  disponibilidad:{
+    1:{activo:true,desde:'14:00',hasta:'20:00'}, 2:{activo:true,desde:'14:00',hasta:'20:00'},
+    3:{activo:true,desde:'14:00',hasta:'20:00'}, 4:{activo:true,desde:'14:00',hasta:'20:00'},
+    5:{activo:true,desde:'14:00',hasta:'20:00'}, 6:{activo:true,desde:'09:00',hasta:'13:00'},
+    0:{activo:false,desde:'09:00',hasta:'13:00'}
+  }
+};
+
+let db = {
+  alumnos: [],  // {id, nombre, tarifa, color, contacto, activo, temasIds:[], nivel, modalidad:'casa_mia'|'casa_alumno', temario:[{id,texto,dado}]}
+  clases:  [],  // {id, serieId|null, alumnoId, fecha, horaEntrada, horaSalida, duracionMin, monto, viatico, modalidad, temarioIds:[], pagada, pagoId, notas}
+  temas:   [],  // {id, nombre} -- materias globales del profesor, se vinculan a alumnos vía alumno.temasIds
+  tareas:  [],  // pendientes del profe (privados): {id, alumnoId|null, temaId|null, claseId|null, texto, hecha, tpId?}
+  trabajos:[],  // {id, titulo, alumnoId|null, cliente, fecha, minutos, tarifaHora, monto, cobrado, pagoId, notas}
+  pagos:   [],  // {id, fecha, alumnoId|null, cliente, monto, claseIds:[], trabajoIds:[]}
+  resenas: [],  // {id, alumnoId|null, alumnoNombre, autor, relacion, estrellas, texto, fecha, publicar, enPagina, origen:'app'|undefined, privada}
+  tps:     [],  // tareas para el alumno (lo que hace en casa, con preguntas opcionales): {id, alumnoId, titulo, consigna, temaId|null, claseId|null, fechaEntrega|null, preguntas:[], publicado, publicadoEn}
+  // en alumnos además: aulaId|null (si usa la app), avisos:[], mostrarMontos; en clases: resumen, pizarra:{codigo,clave}|null
+  config:  JSON.parse(JSON.stringify(CONFIG_DEFAULT))
+};
+
+function uid(){
+  if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'id-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+}
+
+function aplicarDatosCargados(parsed){
+  if(parsed){
+    db.alumnos = parsed.alumnos || [];
+    db.clases = parsed.clases || [];
+    db.temas = parsed.temas || [];
+    db.tareas = parsed.tareas || [];
+    db.trabajos = parsed.trabajos || [];
+    db.pagos = parsed.pagos || [];
+    db.resenas = parsed.resenas || [];
+    db.tps = parsed.tps || [];
+    db.config = Object.assign(JSON.parse(JSON.stringify(CONFIG_DEFAULT)), parsed.config||{});
+    db.config.notif = Object.assign(JSON.parse(JSON.stringify(CONFIG_DEFAULT.notif)), (parsed.config && parsed.config.notif) || {});
+    db.config.perfil = Object.assign(JSON.parse(JSON.stringify(CONFIG_DEFAULT.perfil)), (parsed.config && parsed.config.perfil) || {});
+  }
+  migrarSimplificacion(parsed && parsed.config);
+  // Estudiemos: aula del alumno en la app, resumen y pizarra de cada clase
+  db.alumnos.forEach(a=>{
+    if(a.aulaId===undefined) a.aulaId = null;
+    if(!Array.isArray(a.avisos)) a.avisos = [];
+    if(typeof a.mostrarMontos!=='boolean') a.mostrarMontos = false;
+  });
+  db.clases.forEach(c=>{
+    if(typeof c.resumen!=='string') c.resumen = '';
+    if(c.pizarra===undefined) c.pizarra = null;
+  });
+  if(!db.config.disponibilidad || typeof db.config.disponibilidad!=='object'){
+    db.config.disponibilidad = JSON.parse(JSON.stringify(CONFIG_DEFAULT.disponibilidad));
+  }
+  // migración de paletas viejas (6 opciones) a las 3 nuevas, y de modoOscuro booleano a tema auto/light/dark
+  // paletas viejas → nuevas (terracota, lavanda y las de antes → lila; salvia → verde)
+  if(!['lila','azul','rojo','verde','celeste'].includes(db.config.paleta)){
+    db.config.paleta = (db.config.paleta==='salvia') ? 'verde' : 'lila';
+  }
+  if(db.config.tema===undefined){
+    db.config.tema = db.config.modoOscuro ? 'dark' : 'auto';
+  }
+  delete db.config.modoOscuro;
+  // migración de clases con el esquema viejo (hora + duracionMin -> horaEntrada/horaSalida)
+  db.clases.forEach(c=>{
+    if(!c.horaEntrada && c.hora){
+      c.horaEntrada = c.hora;
+      c.horaSalida = c.duracionMin ? sumarMinutos(c.hora, c.duracionMin) : null;
+      delete c.hora;
+    }
+    if(c.serieId===undefined) c.serieId = null;
+    if(typeof c.viatico!=='number') c.viatico = 0;
+    if(!c.modalidad) c.modalidad = c.viatico>0 ? 'casa_alumno' : 'casa_mia';
+    if(!Array.isArray(c.temarioIds)) c.temarioIds = [];
+    if(c.pagoId===undefined) c.pagoId = null;
+  });
+  // migración de alumnos sin tipo definido: antes todo el mundo se trataba como "niño" (mensaje al contacto)
+  db.alumnos.forEach(a=>{
+    if(!a.tipo) a.tipo = 'nino';
+    if(!Array.isArray(a.temasIds)) a.temasIds = [];
+    if(typeof a.telefono !== 'string') a.telefono = '';
+    if(typeof a.direccion !== 'string') a.direccion = '';
+    if(!Array.isArray(a.mensajes)) a.mensajes = [];
+    if(typeof a.nivel !== 'string') a.nivel = '';
+    if(!a.modalidad) a.modalidad = 'casa_mia';
+    if(!Array.isArray(a.temario)) a.temario = [];
+  });
+  db.trabajos.forEach(t=>{ if(t.pagoId===undefined) t.pagoId = null; });
+  // migración: clases que ya estaban marcadas como pagadas antes de existir el historial de pagos
+  db.clases.forEach(c=>{
+    if(c.pagada && (!c.pagoId || !db.pagos.some(p=>p.id===c.pagoId))){
+      const p = {id: uid(), fecha: c.fecha, alumnoId: c.alumnoId, cliente:'', monto: totalClase(c), claseIds:[c.id], trabajoIds:[]};
+      db.pagos.push(p);
+      c.pagoId = p.id;
+    }
+    if(!c.pagada) c.pagoId = null;
+  });
+  // migración de tareas sin temaId/claseId definidos
+  db.tareas.forEach(t=>{
+    if(t.temaId===undefined) t.temaId = null;
+    if(t.claseId===undefined) t.claseId = null;
+  });
+  // migración de temas: antes eran propios de un alumno (alumnoId), ahora son un catálogo
+  // global del profesor y se vinculan a cada alumno vía alumno.temasIds
+  db.temas.forEach(t=>{
+    if(t.catId===undefined){ const m = Plataforma.materiaPorNombre(t.nombre); t.catId = m ? m.id : null; if(m) t.nombre = m.nombre; }
+    if(t.alumnoId){
+      const alumno = db.alumnos.find(a=>a.id===t.alumnoId);
+      if(alumno && !alumno.temasIds.includes(t.id)) alumno.temasIds.push(t.id);
+      delete t.alumnoId;
+    }
+  });
+}
+
+// Estudiemos plataforma: sin pasajes fijos ni rango de tarifas, materias del catálogo.
+function migrarSimplificacion(orig){
+  const cfg = db.config;
+  if(cfg.migPlataforma) return;
+  // si nunca eligió una tarifa habitual, la que más usa con sus alumnos (o la mínima de antes)
+  if(orig && !(Number(orig.tarifaHabitual)>0)){
+    const cuenta = {};
+    db.alumnos.forEach(a=>{ const t = Number(a.tarifa)||0; if(t>0) cuenta[t] = (cuenta[t]||0) + 1; });
+    const masUsada = Object.keys(cuenta).sort((a,b)=>cuenta[b]-cuenta[a])[0];
+    cfg.tarifaHabitual = Number(masUsada) || Number(orig.tarifaMin) || CONFIG_DEFAULT.tarifaHabitual;
+  }
+  // quien usaba "voy a su casa" con pasajes sigue cobrando lo mismo, como un extra a domicilio
+  if(cfg.precioPasaje !== undefined){
+    const usaba = db.alumnos.some(a=>a.modalidad==='casa_alumno') || db.clases.some(c=>Number(c.viatico)>0);
+    if(usaba && !(Number(cfg.extraDomicilio)>0)) cfg.extraDomicilio = (Number(cfg.precioPasaje)||0) * 2;
+  }
+  if(cfg.modalidadHabitual){
+    cfg.perfil.lugares = cfg.modalidadHabitual==='ambas' ? ['casa_mia','casa_alumno'] : [cfg.modalidadHabitual];
+  }
+  ['precioPasaje','tarifaMin','tarifaMax','migPasaje1680'].forEach(k=>delete cfg[k]);
+  cfg.migPlataforma = true;
+}
+
+function loadDB(){
+  // la portada (index.html) es el buscador: así sabe que acá entra un profe y lo trae a su panel
+  try{ localStorage.setItem('estudiemos_rol', 'profe'); }catch(e){}
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    aplicarDatosCargados(raw ? JSON.parse(raw) : null);
+  }catch(e){
+    console.error('Error leyendo datos', e);
+  }
+}
+
+function saveDB(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+  if(window.firebaseQueueSave) window.firebaseQueueSave(db);
+}
+
+/* helpers de acceso */
+function getAlumno(id){ return db.alumnos.find(a => a.id === id); }
+function alumnoNombre(id){ const a = getAlumno(id); return a ? a.nombre : '(alumno eliminado)'; }
+function alumnoColor(id){ const a = getAlumno(id); return a ? a.color : '#999'; }
+function waUrl(phone, text){
+  const digits = (phone||'').replace(/\D/g,'');
+  const base = digits ? `https://wa.me/${digits}` : 'https://api.whatsapp.com/send';
+  return text ? `${base}?text=${encodeURIComponent(text)}` : base;
+}
+function mapsUrl(direccion){
+  return 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(direccion||'') + '&travelmode=driving';
+}
+
+function hoyIso(){ return toIsoCalendario(new Date()); }
+function totalClase(c){ return Number(c.monto||0) + Number(c.viatico||0); }
+function totalTrabajo(t){ return Number(t.monto||0); }
+
+const NIVELES = Plataforma.NIVELES;
+function nivelBadge(nivel){
+  const n = NIVELES.find(x=>x.id===nivel);
+  return n ? `<span class="nivel-badge ${n.id}">${n.label}</span>` : '';
+}
+// Extra opcional por ir a domicilio (Ajustes → Precios). Apagado de entrada.
+function extraDomicilio(){ return Number(db.config.extraDomicilio)||0; }
+function viaticoPorModalidad(modalidad){
+  return modalidad==='casa_alumno' ? extraDomicilio() : 0;
+}
+
+const COLOR_SWATCHES = ['#ef4444','#f97316','#f59e0b','#84cc16','#22c55e','#14b8a6','#06b6d4','#3b82f6','#6366f1','#a855f7','#ec4899','#78716c'];
+
+/* =========================================================
+   ICONOS Y COMPONENTES DE UI
+   ========================================================= */
+const ICONS = {
+  calendar:'<rect x="3" y="4.5" width="18" height="17" rx="3"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/>',
+  'calendar-plus':'<rect x="3" y="4.5" width="18" height="17" rx="3"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4M12 12.5v6M9 15.5h6"/>',
+  users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.8a3.3 3.3 0 0 1 0 6.4M18 14.7c2 .7 3.2 2.5 3.5 5.3"/>',
+  list:'<path d="M10 6h10M10 12h10M10 18h10"/><path d="m3.5 6 1.2 1.2L7 5M3.5 12l1.2 1.2L7 11M3.5 18l1.2 1.2L7 17"/>',
+  wallet:'<path d="M4 7.5V18a2.5 2.5 0 0 0 2.5 2.5H20V9H6.5A2.5 2.5 0 0 1 4 6.5 2.5 2.5 0 0 1 6.5 4H17v5"/><circle cx="16" cy="14.8" r="1.1" fill="currentColor" stroke="none"/>',
+  settings:'<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>',
+  'chevron-left':'<path d="m15 18-6-6 6-6"/>',
+  'chevron-right':'<path d="m9 18 6-6-6-6"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  x:'<path d="M18 6 6 18M6 6l12 12"/>',
+  check:'<path d="M20 6 9 17l-5-5"/>',
+  message:'<path d="M20.5 11.6a8.5 8.5 0 0 1-12.6 7.4L3 20.5l1.6-4.6a8.5 8.5 0 1 1 15.9-4.3Z"/>',
+  'map-pin':'<path d="M19 10c0 5.5-7 11.5-7 11.5S5 15.5 5 10a7 7 0 0 1 14 0Z"/><circle cx="12" cy="10" r="2.5"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  bus:'<rect x="4.5" y="3" width="15" height="14.5" rx="3"/><path d="M4.5 10.5h15M8 17.5V20M16 17.5V20"/><path d="M8 14h.01M16 14h.01" stroke-width="2.6"/>',
+  home:'<path d="M3.5 10.5 12 3.5l8.5 7V20a1 1 0 0 1-1 1H15v-6H9v6H4.5a1 1 0 0 1-1-1Z"/>',
+  book:'<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5Z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/>',
+  star:'<path d="m12 3.2 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17.2l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z"/>',
+  trash:'<path d="M4 7h16M10 11v6M14 11v6M9 7V4.5h6V7M6 7l1 13h10l1-13"/>',
+  edit:'<path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17Z"/><path d="m14 8 2 2"/>',
+  share:'<path d="M12 15V3M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/>',
+  copy:'<rect x="9" y="9" width="12" height="12" rx="2.5"/><path d="M15 9V5.5A2.5 2.5 0 0 0 12.5 3h-7A2.5 2.5 0 0 0 3 5.5v7A2.5 2.5 0 0 0 5.5 15H9"/>',
+  cash:'<rect x="2.5" y="6" width="19" height="12" rx="2.5"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01" stroke-width="2.6"/>',
+  file:'<path d="M14 3H6.5A2.5 2.5 0 0 0 4 5.5v13A2.5 2.5 0 0 0 6.5 21h11a2.5 2.5 0 0 0 2.5-2.5V9Z"/><path d="M14 3v6h6M8 13h8M8 17h5"/>',
+  repeat:'<path d="m17 2 3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  user:'<circle cx="12" cy="8" r="4"/><path d="M4.5 21c.8-4 3.7-6 7.5-6s6.7 2 7.5 6"/>',
+  receipt:'<path d="M5 3v18l2.3-1.5L9.7 21l2.3-1.5 2.3 1.5 2.4-1.5L19 21V3l-2.3 1.5L14.3 3 12 4.5 9.7 3 7.3 4.5Z"/><path d="M9 9h6M9 13h6"/>',
+  info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+  download:'<path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 20h14"/>',
+  upload:'<path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M5 20h14"/>',
+  help:'<circle cx="12" cy="12" r="9"/><path d="M9.6 9.2a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.5M12 16.8h.01"/>',
+  palette:'<path d="M12 3a9 9 0 1 0 0 18c1 0 1.6-.8 1.6-1.6 0-.5-.2-.8-.5-1.1-.3-.3-.5-.7-.5-1.1 0-.9.7-1.6 1.6-1.6h1.9A4.9 4.9 0 0 0 21 10.7C21 6.4 17 3 12 3Z"/><circle cx="7.5" cy="11" r="1.1" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7.3" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="7.8" r="1.1" fill="currentColor" stroke="none"/>',
+  send:'<path d="M21 3 10.5 13.5M21 3l-6.5 18-4-7.5L3 9.5Z"/>',
+  dollar:'<path d="M12 2.5v19M16.5 6.5c0-1.7-2-3-4.5-3s-4.5 1.3-4.5 3.2c0 4.6 9 2.4 9 7.2 0 2-2 3.3-4.5 3.3s-4.5-1.3-4.5-3.1"/>',
+  'log-out':'<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4"/>',
+  cloud:'<path d="M7 18.5a4.5 4.5 0 0 1-.6-9A6 6 0 0 1 18 8.5a4.5 4.5 0 0 1-.5 10Z"/>',
+  bell:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+  pen:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  image:'<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>',
+  globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  sparkles:'<path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/>'
+};
+function ic(name, cls){ return `<svg class="ic ${cls||''}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]||''}</svg>`; }
+function capitalizar(s){ s = String(s||''); return s.charAt(0).toUpperCase()+s.slice(1); }
+function iniciales(nombre){
+  const p = String(nombre||'?').trim().split(/\s+/).filter(Boolean);
+  if(!p.length) return '?';
+  return ((p[0][0]||'') + (p.length>1 ? (p[p.length-1][0]||'') : '')).toUpperCase();
+}
+function avatarHtml(a, cls){
+  return `<span class="avatar ${cls||''}" style="--c:${a ? a.color : '#999'}">${escapeHtml(iniciales(a ? a.nombre : '?'))}</span>`;
+}
+function emptyState(icono, titulo, texto, ctaLabel, ctaOnclick){
+  return `<div class="card empty">
+    <div class="em-ic">${ic(icono)}</div>
+    <h3>${titulo}</h3>
+    <p>${texto}</p>
+    ${ctaLabel ? `<button type="button" class="btn primary" onclick="${ctaOnclick}">${ic('plus')}${ctaLabel}</button>` : ''}
+  </div>`;
+}
+function fmt1(n){ return Number(n).toLocaleString('es-AR',{maximumFractionDigits:1}); }
+function fechaCorta(fechaStr){
+  const hoy = hoyIso();
+  const man = toIsoCalendario(addDiasCalendario(new Date(), 1));
+  if(fechaStr===hoy) return 'Hoy';
+  if(fechaStr===man) return 'Mañana';
+  const [y,m,d] = fechaStr.split('-');
+  return `${nombreDiaFecha(fechaStr).split(' ')[0].slice(0,3)} ${Number(d)}/${Number(m)}`;
+}
+function duracionCorta(ms){
+  const totalMin = Math.max(0, Math.round(ms/60000));
+  const d = Math.floor(totalMin/1440), h = Math.floor((totalMin%1440)/60), m = totalMin%60;
+  if(d>0) return `${d} d${h? ' '+h+' h':''}`;
+  if(h>0) return `${h} h${m? ' '+m+' min':''}`;
+  return `${m} min`;
+}
+
+/* ---------- diálogo de confirmación ---------- */
+function confirmar(opts){
+  const {titulo='¿Seguro?', mensaje='', ok='Aceptar', peligro=false} = opts || {};
+  return new Promise(resolve=>{
+    const ov = document.getElementById('dialogOverlay');
+    const okBtn = document.getElementById('dlgOk'), cancel = document.getElementById('dlgCancel');
+    document.getElementById('dlgTitle').textContent = titulo;
+    document.getElementById('dlgMsg').textContent = mensaje;
+    document.getElementById('dlgMsg').style.display = mensaje ? '' : 'none';
+    okBtn.textContent = ok;
+    okBtn.className = 'btn ' + (peligro ? 'danger' : 'primary');
+    const cerrar = v=>{ ov.classList.remove('show'); okBtn.onclick = cancel.onclick = ov.onclick = null; resolve(v); };
+    okBtn.onclick = ()=>cerrar(true);
+    cancel.onclick = ()=>cerrar(false);
+    ov.onclick = e=>{ if(e.target===ov) cerrar(false); };
+    ov.classList.add('show');
+    setTimeout(()=>okBtn.focus(), 50);
+  });
+}
+
+/* ---------- header, navegación y botón flotante ---------- */
+const TITULOS = {clases:'Agenda', alumnos:'Alumnos', tareas:'Actividades', stats:'Billetera'};
+let vistaAntesDeDetalle = 'alumnos';
+function setHeader(title, sub){
+  document.getElementById('headerTitle').textContent = title;
+  const p = document.getElementById('headerSub');
+  p.textContent = sub || '';
+  p.style.display = sub ? '' : 'none';
+}
+function actualizarHeader(){
+  if(currentAlumnoDetalleId){ setHeader(TITULOS[vistaAntesDeDetalle] || 'Alumnos', ''); return; }
+  const v = vistaActual;
+  let sub = '';
+  if(v==='clases') sub = formatoFechaLarga(hoyIso());
+  if(v==='alumnos') sub = db.alumnos.length ? `${db.alumnos.length} alumno${db.alumnos.length!==1?'s':''}` : '';
+  if(v==='tareas'){ const n = db.tareas.filter(t=>!t.hecha).length; sub = db.tareas.length ? (n ? `${n} pendiente${n!==1?'s':''} tuyo${n!==1?'s':''}` : 'Todo listo') : 'Lo que preparás y lo que mandás'; }
+  if(v==='stats') sub = 'Quién te pagó, quién te debe y cuánto viene';
+  setHeader(TITULOS[v], sub);
+}
+const FAB_CFG = {
+  clases:{label:'Clase', fn:()=>openClaseForm(null, calendarioSelectedDate < hoyIso() ? hoyIso() : calendarioSelectedDate)},
+  alumnos:{label:'Alumno', fn:()=>openAlumnoForm()},
+  tareas:{label:'Pendiente', fn:()=>openTareaForm()},
+  stats:{label:'Otro cobro', fn:()=>openTrabajoForm()},
+  detalle:{label:'Agendar clase', fn:()=>openClaseForm(null, null, null, currentAlumnoDetalleId)}
+};
+function fabKey(){ return currentAlumnoDetalleId ? 'detalle' : vistaActual; }
+function actualizarFab(){
+  const html = `${ic('plus')}<span>${FAB_CFG[fabKey()].label}</span>`;
+  document.getElementById('fabBtn').innerHTML = html;
+  document.getElementById('hdrActionBtn').innerHTML = html;
+}
+// en pantallas grandes la grilla y el mes muestran más detalle: se vuelve a dibujar al cruzar el corte
+const mqDesktop = window.matchMedia('(min-width: 900px)');
+function esDesktop(){ return mqDesktop.matches; }
+if(mqDesktop.addEventListener) mqDesktop.addEventListener('change', ()=>renderCalendario());
+function volverDeDetalle(){ goTo(vistaAntesDeDetalle || 'alumnos'); }
+function initIconos(){
+  document.querySelectorAll('[data-ic]').forEach(el=>{ el.innerHTML = ic(el.dataset.ic); });
+  document.getElementById('backBtn').innerHTML = ic('chevron-left');
+  document.getElementById('settingsToggle').innerHTML = ic('settings');
+  document.getElementById('notifToggle').insertAdjacentHTML('afterbegin', ic('bell'));
+  const bi = document.getElementById('buscarIco'); if(bi) bi.outerHTML = ic('search');
+  ['calPrevBtn','statsPrevBtn'].forEach(id=>{ document.getElementById(id).innerHTML = ic('chevron-left'); });
+  ['calNextBtn','statsNextBtn'].forEach(id=>{ document.getElementById(id).innerHTML = ic('chevron-right'); });
+  document.getElementById('nuevoTPBtn').innerHTML = ic('plus') + 'Nuevo';
+}
+window.addEventListener('scroll', ()=>{
+  document.getElementById('appHeader').classList.toggle('scrolled', window.scrollY > 4);
+}, {passive:true});
+document.addEventListener('keydown', e=>{
+  if(e.key!=='Escape') return;
+  if(document.getElementById('dialogOverlay').classList.contains('show')) document.getElementById('dlgCancel').click();
+  else if(overlay.classList.contains('show')) closeSheet();
+});
+
+/* =========================================================
+   NAVEGACIÓN
+   ========================================================= */
+const views = ['clases','alumnos','tareas','stats'];
+const subtitles = {clases:'Tu semana de clases', alumnos:'Tus alumnos', tareas:'Material a preparar', stats:'Tu plata: pagos y saldo'};
+let vistaActual = 'clases';
+
+function goTo(view){
+  currentAlumnoDetalleId = null;
+  document.getElementById('view-alumno-detalle').classList.remove('active');
+  document.getElementById('backBtn').style.display = 'none';
+  vistaActual = view;
+  views.forEach(v=>{
+    document.getElementById('view-'+v).classList.toggle('active', v===view);
+  });
+  document.querySelectorAll('[data-nav] button[data-view]').forEach(b=>{
+    b.classList.toggle('active', b.dataset.view===view);
+  });
+  renderAll();
+  actualizarFab();
+  window.scrollTo(0,0);
+}
+
+document.querySelectorAll('[data-nav] button[data-view]').forEach(b=>{
+  b.addEventListener('click', ()=>goTo(b.dataset.view));
+});
+
+document.getElementById('fabBtn').addEventListener('click', ()=>FAB_CFG[fabKey()].fn());
+
+/* =========================================================
+   BOTTOM SHEET GENÉRICO
+   ========================================================= */
+const overlay = document.getElementById('overlay');
+const sheetContent = document.getElementById('sheetContent');
+
+function openSheet(html){
+  sheetContent.innerHTML = `<div class="sheet-handle"></div>
+    <button type="button" class="icon-btn sm filled sheet-close" onclick="closeSheet()" aria-label="Cerrar">${ic('x')}</button>
+    <div class="sheet-body">${html}</div>`;
+  const footer = sheetContent.querySelector('.sheet-body .sheet-footer');
+  if(footer) sheetContent.appendChild(footer);
+  overlay.classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+function closeSheet(){
+  overlay.classList.remove('show');
+  sheetContent.innerHTML = '';
+  document.body.style.overflow = '';
+}
+overlay.addEventListener('click', (e)=>{ if(e.target===overlay) closeSheet(); });
+
+let toastTimer = null;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+function money(n){
+  n = Number(n)||0;
+  const conDecimales = Math.round(Math.abs(n)*100) % 100 !== 0;
+  return '$' + n.toLocaleString('es-AR', {minimumFractionDigits: conDecimales ? 2 : 0, maximumFractionDigits: 2});
+}
+function fmtFecha(iso){
+  if(!iso) return '';
+  const [y,m,d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+function fechaHoraClase(c){
+  return new Date(`${c.fecha}T${c.horaEntrada||'00:00'}`);
+}
+function sumarMinutos(horaStr, minutos){
+  const [h,m] = horaStr.split(':').map(Number);
+  const total = h*60+m+minutos;
+  const hh = Math.floor(total/60)%24, mm = total%60;
+  return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');
+}
+function formatDuracion(min){
+  const h = Math.floor(min/60), m = min%60;
+  return `${h>0?h+'h ':''}${m>0?m+'m':''}`.trim() || '0m';
+}
+function formatDuracionTexto(min){
+  const h = Math.floor(min/60), m = min%60;
+  const parts = [];
+  if(h>0) parts.push(`${h} ${h===1?'hora':'horas'}`);
+  if(m>0) parts.push(`${m} minutos`);
+  return parts.length ? parts.join(' y ') : '0 minutos';
+}
+const MINUTOS_OPCIONES = ['00','15','30','45'];
+function opcionesHoras(min, max, selected){
+  let html = '';
+  for(let h=min; h<=max; h++){
+    const hh = String(h).padStart(2,'0');
+    html += `<option value="${hh}" ${hh===selected?'selected':''}>${hh}</option>`;
+  }
+  return html;
+}
+function opcionesMinutos(selected){
+  return MINUTOS_OPCIONES.map(m=>`<option value="${m}" ${m===selected?'selected':''}>${m}</option>`).join('');
+}
+function leerHora(idHora, idMinuto){
+  const h = document.getElementById(idHora).value;
+  if(!h) return null;
+  const m = document.getElementById(idMinuto).value;
+  return h + ':' + m;
+}
+function getMonday(d){
+  const date = new Date(d);
+  const day = date.getDay();
+  const diff = (day===0 ? -6 : 1-day);
+  date.setDate(date.getDate()+diff);
+  date.setHours(0,0,0,0);
+  return date;
+}
+function getSunday(monday){
+  const s = new Date(monday);
+  s.setDate(s.getDate()+6);
+  s.setHours(23,59,59,999);
+  return s;
+}
+function tarifaInputHtml(id, valor, extra){
+  return `<input type="number" id="${id}" min="0" step="500" inputmode="numeric" value="${Math.round(Number(valor)||0)}" ${extra||''}>`;
+}
+
+/* =========================================================
+   ALUMNOS: alta / edición / baja
+   ========================================================= */
+let formTemario = [];
+let formNivel = '';
+let formModalidad = 'casa_mia';
+
+const ICONO_LUGAR = {casa_mia:'home', casa_alumno:'bus', virtual:'globe'};
+function textoLugar(m){ return ({casa_mia:'En mi casa', casa_alumno:'A domicilio', virtual:'Virtual'})[m] || 'En mi casa'; }
+function modalidadPillsHtml(sel, onclickFn){
+  const extra = extraDomicilio();
+  return ['casa_mia','casa_alumno','virtual'].map(m=>`<button type="button" class="${sel===m?'sel':''}" data-mod="${m}" onclick="${onclickFn}('${m}')">${ic(ICONO_LUGAR[m])}${textoLugar(m)}${m==='casa_alumno' && extra ? `<small>+ ${money(extra)}</small>` : ''}</button>`).join('');
+}
+function setFormModalidad(m){
+  formModalidad = m;
+  document.querySelectorAll('#modalidadAlumnoBox button').forEach(b=>b.classList.toggle('sel', b.dataset.mod===m));
+}
+function setFormNivel(n){
+  formNivel = (formNivel===n) ? '' : n;
+  document.querySelectorAll('#nivelBox button').forEach(b=>b.classList.toggle('sel', b.dataset.nivel===formNivel));
+}
+function renderFormTemario(){
+  const box = document.getElementById('temarioFormBox');
+  if(!box) return;
+  box.innerHTML = formTemario.length
+    ? formTemario.map((t,i)=>`<span class="chip-x">${t.dado?'✓ ':''}${escapeHtml(t.texto)}<button type="button" onclick="quitarTemarioForm(${i})" aria-label="Quitar">${ic('x')}</button></span>`).join('')
+    : '<div class="hint" style="margin:0;">Los temas que le tenés que dar (ej: Perímetro y Área). Después los marcás como dados.</div>';
+}
+function agregarTemarioForm(){
+  const input = document.getElementById('f_temarioNuevo');
+  const texto = input.value.trim();
+  if(!texto) return;
+  formTemario.push({id: uid(), texto, dado:false});
+  input.value = '';
+  renderFormTemario();
+  input.focus();
+}
+function quitarTemarioForm(i){ formTemario.splice(i,1); renderFormTemario(); }
+
+function setTipoAlumnoForm(tipo){
+  document.getElementById('f_tipo').value = tipo;
+  document.querySelectorAll('#tipoBox button').forEach(b=>b.classList.toggle('active', b.dataset.tipo===tipo));
+  document.getElementById('contactoRow').style.display = tipo==='nino' ? 'block' : 'none';
+}
+// Alumno nuevo: el formulario corto (nombre y WhatsApp, ver js/primeros-pasos.js); el resto
+// se completa después desde la ficha. Para editar, el formulario completo.
+function openAlumnoForm(id){
+  if(id) return openAlumnoFormCompleto(id);
+  abrirAlumnoRapido();
+}
+
+function openAlumnoFormCompleto(id){
+  const editing = id ? getAlumno(id) : null;
+  formTemario = editing ? JSON.parse(JSON.stringify(editing.temario||[])) : [];
+  formNivel = editing ? (editing.nivel||'') : '';
+  formModalidad = editing ? (editing.modalidad||'casa_mia') : 'casa_mia';
+  const esAdulto = !!(editing && editing.tipo==='adulto');
+  const colorInicial = editing ? editing.color : COLOR_SWATCHES[db.alumnos.length % COLOR_SWATCHES.length];
+  const swatchesHtml = COLOR_SWATCHES.map(c=>
+    `<button type="button" class="swatch ${colorInicial===c ? 'sel':''}" style="background:${c}" data-color="${c}" aria-label="Color"></button>`
+  ).join('');
+
+  openSheet(`
+    <h3>${editing ? 'Editar alumno' : 'Nuevo alumno'}</h3>
+
+    <label for="f_nombre">Nombre</label>
+    <input type="text" id="f_nombre" value="${editing ? escapeAttr(editing.nombre) : ''}" placeholder="Nombre y apellido" autocomplete="off">
+
+    <label for="f_telefono">WhatsApp</label>
+    <input type="tel" id="f_telefono" inputmode="tel" value="${editing ? escapeAttr(editing.telefono||'') : ''}" placeholder="Ej: 2611234567">
+
+    <label>¿A quién le escribís?</label>
+    <div class="segmented" id="tipoBox" style="margin:0;">
+      <button type="button" data-tipo="nino" class="${!esAdulto?'active':''}" onclick="setTipoAlumnoForm('nino')">A la mamá / papá</button>
+      <button type="button" data-tipo="adulto" class="${esAdulto?'active':''}" onclick="setTipoAlumnoForm('adulto')">Al alumno</button>
+    </div>
+    <input type="hidden" id="f_tipo" value="${esAdulto?'adulto':'nino'}">
+    <div id="contactoRow" style="display:${esAdulto?'none':'block'};">
+      <label for="f_contacto">Nombre del contacto</label>
+      <input type="text" id="f_contacto" value="${editing ? escapeAttr(editing.contacto||'') : ''}" placeholder="Ej: Marta (mamá)" autocomplete="off">
+    </div>
+
+    <label for="f_tarifa">Tarifa por hora</label>
+    ${tarifaInputHtml('f_tarifa', editing ? editing.tarifa : db.config.tarifaHabitual)}
+
+    <details class="more">
+      <summary>${ic('chevron-right')}Nivel, lugar y dirección</summary>
+      <label>Nivel</label>
+      <div class="pill-select compact" id="nivelBox">
+        ${NIVELES.map(n=>`<button type="button" data-nivel="${n.id}" class="${formNivel===n.id?'sel':''}" onclick="setFormNivel('${n.id}')">${n.corto}</button>`).join('')}
+      </div>
+      <label>¿Dónde son las clases?</label>
+      <div class="pill-select" id="modalidadAlumnoBox">${modalidadPillsHtml(formModalidad, 'setFormModalidad')}</div>
+      <label for="f_direccion">Dirección</label>
+      <input type="text" id="f_direccion" value="${editing ? escapeAttr(editing.direccion||'') : ''}" placeholder="Para el botón «Cómo llego»" autocomplete="off">
+    </details>
+
+    <details class="more">
+      <summary>${ic('chevron-right')}Temas a dar</summary>
+      <div id="temarioFormBox" style="margin-top:12px;"></div>
+      <div class="row2" style="margin-top:8px;">
+        <input type="text" id="f_temarioNuevo" placeholder="Ej: Perímetro y Área" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarTemarioForm();}">
+        <button type="button" class="btn secondary" onclick="agregarTemarioForm()" aria-label="Agregar tema">${ic('plus')}</button>
+      </div>
+    </details>
+
+    <details class="more">
+      <summary>${ic('chevron-right')}Materias y color</summary>
+      <label>Materias que le das</label>
+      <div class="dias-chips" id="temasChipsBox">${temasChipsPickerHtml(editing ? editing.temasIds : [])}</div>
+      <div class="row2" style="margin-top:8px;">
+        <input type="text" id="f_temaNuevoInline" placeholder="Nueva materia (ej: Biología)" autocomplete="off">
+        <button type="button" class="btn secondary" onclick="crearTemaInlineDesdeAlumno()" aria-label="Crear materia">${ic('plus')}</button>
+      </div>
+      <label>Color en la agenda</label>
+      <div class="swatches" id="swatchPicker">${swatchesHtml}<input type="color" id="f_color" value="${colorInicial}" aria-label="Otro color"></div>
+    </details>
+
+    <div class="sheet-footer">
+      ${editing ? `<button type="button" class="btn danger" onclick="eliminarAlumno('${editing.id}')" aria-label="Eliminar alumno">${ic('trash')}</button>` : ''}
+      <button type="button" class="btn primary" onclick="guardarAlumno(${editing ? `'${editing.id}'` : 'null'})">${editing ? 'Guardar cambios' : 'Agregar alumno'}</button>
+    </div>
+  `);
+
+  renderFormTemario();
+  document.querySelectorAll('#swatchPicker .swatch').forEach(sw=>{
+    sw.addEventListener('click', ()=>{
+      document.getElementById('f_color').value = sw.dataset.color;
+      document.querySelectorAll('#swatchPicker .swatch').forEach(s=>s.classList.remove('sel'));
+      sw.classList.add('sel');
+    });
+  });
+  if(!editing) enfocarSiLibre('f_nombre');
+}
+
+
+function escapeAttr(s){
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+function jsArg(s){
+  return escapeAttr(String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"));
+}
+function escapeHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function guardarAlumno(id){
+  const nombre = document.getElementById('f_nombre').value.trim();
+  const tarifa = parseFloat(document.getElementById('f_tarifa').value) || 0;
+  const tipo = document.getElementById('f_tipo').value;
+  const contacto = document.getElementById('f_contacto').value.trim();
+  const telefono = document.getElementById('f_telefono').value.trim();
+  const direccion = document.getElementById('f_direccion').value.trim();
+  const color = document.getElementById('f_color').value;
+  const temasIds = leerTemasSeleccionadosForm();
+
+  if(!nombre){ showToast('Poné un nombre'); return; }
+
+  if(id){
+    const a = getAlumno(id);
+    // si cambió dónde son las clases, se actualizan sus próximas clases sin cobrar
+    if(a.modalidad!==formModalidad) cambiarLugarProximasClases(id, formModalidad);
+    a.nombre = nombre; a.tarifa = tarifa; a.tipo = tipo; a.contacto = contacto; a.telefono = telefono; a.direccion = direccion; a.color = color; a.temasIds = temasIds;
+    a.nivel = formNivel; a.modalidad = formModalidad; a.temario = formTemario;
+    a.porCompletar = [];   // ya vio todos los datos: no hace falta la tarjeta "Completá la ficha"
+  }else{
+    db.alumnos.push({id: uid(), nombre, tarifa, tipo, contacto, telefono, direccion, mensajes:[], color, temasIds, activo:true,
+      nivel: formNivel, modalidad: formModalidad, temario: formTemario});
+  }
+  saveDB();
+  closeSheet();
+  renderAll();
+  showToast('Alumno guardado');
+}
+
+/** Las próximas clases sin cobrar de un alumno pasan a otro lugar (y suman o no el extra a domicilio). */
+function cambiarLugarProximasClases(alumnoId, modalidad){
+  const ahora = new Date();
+  db.clases.forEach(c=>{
+    if(c.alumnoId===alumnoId && !c.pagada && !claseYaOcurrida(c, ahora)){
+      c.modalidad = modalidad;
+      c.viatico = viaticoPorModalidad(modalidad);
+    }
+  });
+}
+
+async function eliminarAlumno(id){
+  const al = getAlumno(id);
+  if(!al) return;
+  const tieneClases = db.clases.some(c=>c.alumnoId===id);
+  const ok = await confirmar({
+    titulo:`¿Eliminar a ${al.nombre}?`,
+    mensaje: tieneClases ? 'También se borran sus clases y tareas. No se puede deshacer.' : 'No se puede deshacer.',
+    ok:'Eliminar', peligro:true
+  });
+  if(!ok) return;
+  const eraElAbierto = currentAlumnoDetalleId === id;
+  const getAlumnoNombreCache = alumnoNombre(id);
+  if(al.aulaId && window.nube && nube.usuario()) nube.borrarAula(al.aulaId).catch(e=>console.error(e));
+  db.tps = db.tps.filter(t=>t.alumnoId!==id);
+  db.alumnos = db.alumnos.filter(a=>a.id!==id);
+  db.clases = db.clases.filter(c=>c.alumnoId!==id);
+  db.tareas = db.tareas.filter(t=>t.alumnoId!==id);
+  db.pagos = db.pagos.filter(p=>p.alumnoId!==id || (p.trabajoIds||[]).length>0);
+  db.pagos.forEach(p=>{ if(p.alumnoId===id){ p.claseIds = []; p.alumnoId = null; p.cliente = p.cliente || getAlumnoNombreCache; } });
+  db.trabajos.forEach(t=>{ if(t.alumnoId===id){ t.alumnoId = null; t.cliente = t.cliente || getAlumnoNombreCache; } });
+  saveDB();
+  closeSheet();
+  if(eraElAbierto){ goTo('alumnos'); } else { renderAll(); }
+  showToast('Alumno eliminado');
+}
+
+function renderMensajesAlumnoForm(alumno){
+  const msgs = alumno.mensajes || [];
+  if(msgs.length===0) return '<div class="empty-msg">Todavía no guardaste mensajes.</div>';
+  return msgs.map(m=>`
+    <div class="list-item">
+      <div class="item-main">
+        <div class="item-title">${escapeHtml(m.label)}</div>
+        <div class="msg-preview">${escapeHtml(m.text)}</div>
+      </div>
+      <button type="button" class="icon-btn sm danger" onclick="eliminarMensajeAlumno('${alumno.id}','${m.id}')" aria-label="Eliminar mensaje">${ic('trash')}</button>
+    </div>
+  `).join('');
+}
+
+function agregarMensajeAlumno(alumnoId){
+  const label = document.getElementById('f_msgLabel').value.trim();
+  const text = document.getElementById('f_msgText').value.trim();
+  if(!label || !text){ showToast('Completá título y texto del mensaje'); return; }
+  const a = getAlumno(alumnoId);
+  if(!Array.isArray(a.mensajes)) a.mensajes = [];
+  a.mensajes.push({id: uid(), label, text});
+  saveDB();
+  document.getElementById('f_msgLabel').value = '';
+  document.getElementById('f_msgText').value = '';
+  refrescarListasMensajes(a);
+}
+
+function eliminarMensajeAlumno(alumnoId, msgId){
+  const a = getAlumno(alumnoId);
+  if(!a) return;
+  a.mensajes = (a.mensajes||[]).filter(m=>m.id!==msgId);
+  saveDB();
+  refrescarListasMensajes(a);
+}
+
+function renderMensajesDetalle(alumno){
+  const msgs = alumno.mensajes || [];
+  if(!msgs.length) return '<div class="empty-msg" style="padding-bottom:12px;">Guardá mensajes que mandás seguido (ej: «Llego en 5 min») y enviálos con un toque.</div>';
+  return msgs.map(m=>`
+    <div class="list-item tap" onclick="enviarMensajePlantilla('${alumno.id}','${m.id}')">
+      <div class="row-ic">${ic('message')}</div>
+      <div class="item-main">
+        <div class="item-title">${escapeHtml(m.label)}</div>
+        <div class="msg-preview">${escapeHtml(m.text)}</div>
+      </div>
+      ${ic('send','chev')}
+    </div>`).join('');
+}
+function refrescarListasMensajes(alumno){
+  const sheetBox = document.getElementById('mensajesListBox');
+  if(sheetBox) sheetBox.innerHTML = renderMensajesAlumnoForm(alumno);
+  const detalleBox = document.getElementById('detalleMensajes');
+  if(detalleBox) detalleBox.innerHTML = renderMensajesDetalle(alumno);
+}
+
+function abrirGestionMensajes(alumnoId){
+  const a = getAlumno(alumnoId);
+  if(!a) return;
+  openSheet(`
+    <h3>Mensajes guardados</h3>
+    <p class="sheet-sub">Plantillas de WhatsApp para ${escapeHtml(a.nombre)}. Aparecen al tocar «WhatsApp».</p>
+    <div id="mensajesListBox">${renderMensajesAlumnoForm(a)}</div>
+    <div class="form-section">Nuevo mensaje</div>
+    <label for="f_msgLabel">Título</label>
+    <input type="text" id="f_msgLabel" placeholder="Ej: Llego en 5 min" autocomplete="off">
+    <label for="f_msgText">Texto</label>
+    <textarea id="f_msgText" placeholder="Hola! Estoy llegando en 5 minutos 😊"></textarea>
+    <div class="sheet-footer">
+      <button type="button" class="btn secondary grow" onclick="closeSheet()">Listo</button>
+      <button type="button" class="btn primary" onclick="agregarMensajeAlumno('${a.id}')">${ic('plus')}Guardar mensaje</button>
+    </div>
+  `);
+}
+
+function opcionLista(icono, titulo, sub, onclick){
+  return `<div class="list-item tap" onclick="${onclick}">
+    <div class="row-ic">${ic(icono)}</div>
+    <div class="item-main"><div class="item-title">${titulo}</div>${sub ? `<div class="msg-preview">${sub}</div>` : ''}</div>
+    ${ic('chevron-right','chev')}
+  </div>`;
+}
+function abrirWhatsappAlumno(alumnoId, claseId){
+  const a = getAlumno(alumnoId);
+  if(!a) return;
+  const clase = claseId ? db.clases.find(c=>c.id===claseId) : null;
+  const msgs = a.mensajes || [];
+  const deuda = sumaPendiente(a.id);
+  const destinatario = (a.tipo!=='adulto' && a.contacto) ? a.contacto : a.nombre;
+  openSheet(`
+    <h3>WhatsApp a ${escapeHtml(destinatario)}</h3>
+    ${!a.telefono ? `<p class="sheet-sub">No tiene número cargado: vas a elegir el contacto dentro de WhatsApp.</p>` : '<p class="sheet-sub">Elegí qué mensaje mandar.</p>'}
+    <div>
+      ${clase ? opcionLista('receipt','Resumen y cobro de la clase', `${formatDuracion(clase.duracionMin)} · ${money(totalClase(clase))}`, `enviarResumenClase('${a.id}','${clase.id}')`) : ''}
+      ${deuda>0 ? opcionLista('cash','Resumen de lo que debe', money(deuda), `enviarResumenDeuda('${keyAlumno(a.id)}')`) : ''}
+      ${msgs.map(m=>opcionLista('message', escapeHtml(m.label), escapeHtml(m.text), `enviarMensajePlantilla('${a.id}','${m.id}')`)).join('')}
+      ${opcionLista('star','Pedir una reseña','Le llega un formulario cortito', `pedirResena('${a.id}')`)}
+      ${opcionLista('send','Abrir chat vacío','', `enviarMensajePlantilla('${a.id}', null)`)}
+    </div>
+    <button type="button" class="btn ghost" onclick="abrirGestionMensajes('${a.id}')">${ic('edit')}Editar mensajes guardados</button>
+  `);
+}
+
+function textoResumenClase(c){
+  const extra = c.viatico>0 ? ` (clase ${money(c.monto)} + extra a domicilio ${money(c.viatico)})` : '';
+  return `Tuvimos ${formatDuracionTexto(c.duracionMin)} de clase y el total es ${money(totalClase(c))}${extra}.`;
+}
+
+function enviarResumenClase(alumnoId, claseId){
+  const a = getAlumno(alumnoId);
+  const c = db.clases.find(x=>x.id===claseId);
+  if(!a || !c) return;
+  window.open(waUrl(a.telefono, textoResumenClase(c)), '_blank');
+  closeSheet();
+}
+
+function enviarMensajePlantilla(alumnoId, msgId){
+  const a = getAlumno(alumnoId);
+  if(!a) return;
+  const m = msgId ? (a.mensajes||[]).find(m=>m.id===msgId) : null;
+  window.open(waUrl(a.telefono, m ? m.text : ''), '_blank');
+  closeSheet();
+}
+
+function abrirComoLlego(alumnoId){
+  const a = getAlumno(alumnoId);
+  if(!a || !a.direccion) return;
+  window.open(mapsUrl(a.direccion), '_blank');
+}
+
+let filtroNivelAlumnos = 'todos';
+function setFiltroNivel(n){ filtroNivelAlumnos = n; renderAlumnos(); }
+
+function renderAlumnos(){
+  const cont = document.getElementById('listaAlumnos');
+  renderResenasResumen();
+  const filtroBox = document.getElementById('filtroNivelAlumnos');
+  const searchBox = document.getElementById('buscarAlumnoBox');
+  if(db.alumnos.length===0){
+    filtroBox.innerHTML = '';
+    searchBox.hidden = true;
+    cont.innerHTML = emptyState('users', 'Todavía no tenés alumnos', 'Con el nombre alcanza: lo demás lo completás después. Si tenés varios, los cargás todos juntos.', 'Agregar alumnos', 'abrirCargaRapida()');
+    return;
+  }
+  searchBox.hidden = db.alumnos.length < 5;
+  const q = searchBox.hidden ? '' : (document.getElementById('buscarAlumno').value||'').trim().toLowerCase();
+  const opciones = [{id:'todos', label:'Todos'}].concat(NIVELES);
+  const conNivel = db.alumnos.some(a=>a.nivel);
+  filtroBox.innerHTML = conNivel ? opciones.map(n=>{
+    const cant = n.id==='todos' ? db.alumnos.length : db.alumnos.filter(a=>a.nivel===n.id).length;
+    if(n.id!=='todos' && !cant) return '';
+    return `<button class="filter-chip ${filtroNivelAlumnos===n.id?'active':''}" onclick="setFiltroNivel('${n.id}')">${n.label} · ${cant}</button>`;
+  }).join('') : '';
+  let lista = (filtroNivelAlumnos==='todos' || !conNivel) ? db.alumnos.slice() : db.alumnos.filter(a=>a.nivel===filtroNivelAlumnos);
+  if(q) lista = lista.filter(a=>(a.nombre+' '+(a.contacto||'')).toLowerCase().includes(q));
+  lista.sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'));
+  if(lista.length===0){
+    cont.innerHTML = `<div class="card"><div class="empty-msg">${q ? 'No hay alumnos con ese nombre.' : 'No tenés alumnos de este nivel.'}</div></div>`;
+    return;
+  }
+  const ahora = new Date();
+  cont.innerHTML = '<div class="card list">' + lista.map(a=>{
+    const deuda = sumaPendiente(a.id);
+    const proxima = db.clases
+      .filter(c=>c.alumnoId===a.id && fechaHoraClase(c) >= ahora)
+      .sort((x,y)=> fechaHoraClase(x)-fechaHoraClase(y))[0];
+    return `
+    <div class="list-item tap" onclick="abrirDetalleAlumno('${a.id}')">
+      ${avatarHtml(a)}
+      <div class="item-main">
+        <div class="item-title">${escapeHtml(a.nombre)} ${nivelBadge(a.nivel)}</div>
+        <div class="item-sub">${proxima ? `Próxima: ${fechaCorta(proxima.fecha)} · ${proxima.horaEntrada}` : 'Sin clases agendadas'}</div>
+      </div>
+      ${deuda>0 ? `<div class="item-right warn">${money(deuda)}<div class="item-sub">debe</div></div>` : ''}
+      ${ic('chevron-right','chev')}
+    </div>`;
+  }).join('') + '</div>';
+}
+
+function sumaPendiente(alumnoId){
+  const ahora = new Date();
+  return db.clases
+    .filter(c=>c.alumnoId===alumnoId && !c.pagada && claseYaOcurrida(c, ahora))
+    .reduce((s,c)=>s+totalClase(c),0)
+    + db.trabajos.filter(t=>t.alumnoId===alumnoId && !t.cobrado).reduce((s,t)=>s+totalTrabajo(t),0);
+}
+
+function esMesActual(fechaStr){
+  const [y,m] = fechaStr.split('-').map(Number);
+  const hoy = new Date();
+  return y===hoy.getFullYear() && (m-1)===hoy.getMonth();
+}
+
+function sumaPendienteMesActual(alumnoId, hoySinHora){
+  return db.clases
+    .filter(c=>{
+      if(c.alumnoId!==alumnoId || c.pagada || !esMesActual(c.fecha)) return false;
+      return new Date(c.fecha+'T00:00:00') < hoySinHora;
+    })
+    .reduce((s,c)=>s+totalClase(c),0);
+}
+
+function nombreDiaFecha(fechaStr){
+  const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const f = new Date(fechaStr+'T00:00:00');
+  return `${dias[f.getDay()]} ${f.getDate()}`;
+}
+
+/* =========================================================
+   TEMAS (catálogo global del profesor)
+   ========================================================= */
+function temaNombre(id){
+  const t = db.temas.find(t=>t.id===id);
+  return t ? t.nombre : '';
+}
+
+function temasDeAlumno(alumnoId){
+  const a = getAlumno(alumnoId);
+  if(!a || !Array.isArray(a.temasIds)) return [];
+  return db.temas.filter(t=>a.temasIds.includes(t.id));
+}
+
+function temasChipsPickerHtml(seleccionados){
+  const sel = seleccionados || [];
+  if(db.temas.length===0){
+    return '<span class="hint" style="margin:0;">Todavía no creaste materias. Escribí una abajo.</span>';
+  }
+  return db.temas.map(t=>`
+    <label class="dia-chip ${sel.includes(t.id)?'sel':''}">
+      <input type="checkbox" value="${t.id}" ${sel.includes(t.id)?'checked':''} onchange="this.parentElement.classList.toggle('sel', this.checked)">
+      ${escapeHtml(t.nombre)}
+    </label>
+  `).join('');
+}
+
+function leerTemasSeleccionadosForm(){
+  return Array.from(document.querySelectorAll('#temasChipsBox input:checked')).map(el=>el.value);
+}
+
+function crearTemaInlineDesdeAlumno(){
+  const input = document.getElementById('f_temaNuevoInline');
+  const nombre = input.value.trim();
+  if(!nombre){ showToast('Escribí un nombre de tema'); return; }
+  const nuevo = agregarMateria(nombre);
+  saveDB();
+  input.value = '';
+  const seleccionados = leerTemasSeleccionadosForm();
+  if(nuevo && !seleccionados.includes(nuevo.id)) seleccionados.push(nuevo.id);
+  document.getElementById('temasChipsBox').innerHTML = temasChipsPickerHtml(seleccionados);
+}
+
+/* =========================================================
+   CLASES
+   ========================================================= */
+const DIAS_SEMANA = [
+  {v:1,l:'Lunes'},{v:2,l:'Martes'},{v:3,l:'Miércoles'},{v:4,l:'Jueves'},
+  {v:5,l:'Viernes'},{v:6,l:'Sábado'},{v:0,l:'Domingo'}
+];
+
+function alumnoOptionsHtml(selectedId){
+  if(db.alumnos.length===0) return '<option value="">-- Cargá un alumno primero --</option>';
+  return db.alumnos.map(a=>`<option value="${a.id}" ${a.id===selectedId?'selected':''}>${escapeHtml(a.nombre)}</option>`).join('');
+}
+
+const DURACIONES_PRESET = [30,60,90,120,150,180,210,240];
+function labelDuracionPreset(min){
+  const h = Math.floor(min/60), m = min%60;
+  const partes = [];
+  if(h>0) partes.push(`${h} hora${h!==1?'s':''}`);
+  if(m>0) partes.push(`${m} minutos`);
+  return partes.join(' ');
+}
+
+let repeatDiasHoras = {};
+
+const HORA_MIN_FORM = 7, HORA_MAX_FORM = 22;
+let formClaseModalidad = 'casa_mia';
+let formClaseTemario = [];
+
+const DUR_PILLS = [30,60,90,120];
+function opcionesHoraClase(selected){
+  let html = '';
+  const sel = selected || '16:00';
+  let min = HORA_MIN_FORM*60, max = HORA_MAX_FORM*60+45;
+  const selMin = horaAMin(sel);
+  if(selMin < min) min = Math.floor(selMin/60)*60;
+  if(selMin > max) max = selMin;
+  for(let m=min; m<=max; m+=15){
+    const h = minAHora(m);
+    html += `<option value="${h}" ${h===sel?'selected':''}>${h}</option>`;
+  }
+  if(!html.includes(`value="${sel}"`)) html = `<option value="${sel}" selected>${sel}</option>` + html;
+  return html;
+}
+function setDuracionForm(v){
+  document.getElementById('f_duracionPreset').value = v;
+  document.querySelectorAll('#durPills button').forEach(b=>b.classList.toggle('sel', b.dataset.min===String(v)));
+  onCambioDuracionPreset();
+  recalcularMontoForm();
+}
+async function openClaseForm(id, fechaPreset, horaPreset, alumnoPreset){
+  if(db.alumnos.length===0){
+    const ok = await confirmar({titulo:'Primero agregá un alumno', mensaje:'Para agendar una clase necesitás tener al menos un alumno cargado.', ok:'Agregar alumno'});
+    if(ok) openAlumnoForm();
+    return;
+  }
+  const editing = id ? db.clases.find(c=>c.id===id) : null;
+  const today = fechaPreset || hoyIso();
+  repeatDiasHoras = {};
+
+  const ahoraH = Math.min(HORA_MAX_FORM, Math.max(HORA_MIN_FORM, new Date().getHours()+1));
+  const horaInicial = editing ? editing.horaEntrada : (horaPreset || (String(ahoraH).padStart(2,'0')+':00'));
+  const alumnoInicialId = editing ? editing.alumnoId : (alumnoPreset || db.alumnos.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'))[0].id);
+  const alumnoInicial = getAlumno(alumnoInicialId);
+  formClaseModalidad = editing ? (editing.modalidad||'casa_mia') : ((alumnoInicial && alumnoInicial.modalidad) || 'casa_mia');
+  formClaseTemario = editing ? (editing.temarioIds||[]).slice() : [];
+  formClaseEditando = editing;
+
+  let presetInicial = '60', customInicial = 60;
+  if(editing){
+    if(DUR_PILLS.includes(editing.duracionMin)) presetInicial = String(editing.duracionMin);
+    else if(editing.duracionMin>0){ presetInicial = 'custom'; customInicial = editing.duracionMin; }
+  }
+  const alumnosOrdenados = db.alumnos.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'));
+
+  openSheet(`
+    <h3 ${editing ? `data-clase-id="${editing.id}"` : ''}>${editing ? 'Editar clase' : 'Nueva clase'}</h3>
+
+    <label for="f_alumnoId">Alumno</label>
+    <select id="f_alumnoId" onchange="onCambioAlumnoClaseForm()">${alumnosOrdenados.map(a=>`<option value="${a.id}" ${a.id===alumnoInicialId?'selected':''}>${escapeHtml(a.nombre)}</option>`).join('')}</select>
+
+    <div class="field-row">
+      <div>
+        <label for="f_fecha">Fecha</label>
+        <input type="date" id="f_fecha" value="${editing ? editing.fecha : today}">
+      </div>
+      <div style="flex:0 0 112px;">
+        <label for="f_horaEntrada">Hora</label>
+        <select id="f_horaEntrada">${opcionesHoraClase(horaInicial)}</select>
+      </div>
+    </div>
+
+    <label>Duración</label>
+    <div class="pill-select compact" id="durPills">
+      ${DUR_PILLS.map(m=>`<button type="button" data-min="${m}" class="${presetInicial===String(m)?'sel':''}" onclick="setDuracionForm('${m}')">${({30:'30m',60:'1h',90:'1h30',120:'2h'})[m]}</button>`).join('')}
+      <button type="button" data-min="custom" class="${presetInicial==='custom'?'sel':''}" onclick="setDuracionForm('custom')">Otra</button>
+    </div>
+    <input type="hidden" id="f_duracionPreset" value="${presetInicial}">
+    <div id="duracionCustomBox" style="display:${presetInicial==='custom'?'block':'none'};">
+      <label for="f_duracionCustom">Duración en minutos</label>
+      <input type="number" id="f_duracionCustom" min="15" step="15" value="${customInicial}" oninput="recalcularMontoForm()" inputmode="numeric">
+    </div>
+
+    <label for="f_monto">Precio de la clase</label>
+    ${tarifaInputHtml('f_monto', 0, 'oninput="renderTotalClaseForm()"')}
+
+    <label>Lugar</label>
+    <div class="pill-select" id="modalidadClaseBox">${modalidadPillsHtml(formClaseModalidad, 'setModalidadClaseForm')}</div>
+    <div class="total-box" id="totalClaseForm"></div>
+
+    <label class="switch-row">
+      <span>Ya está pagada</span>
+      <input type="checkbox" class="switch" id="f_pagada" ${editing && editing.pagada ? 'checked':''}>
+    </label>
+
+    ${!editing ? `
+    <label class="switch-row">
+      <span>Repetir todas las semanas<small>Se crea en los días y horarios que elijas</small></span>
+      <input type="checkbox" class="switch" id="f_recurrente" onchange="toggleRecurrenciaPanel()">
+    </label>
+    <div id="recurrenciaPanel" style="display:none;">
+      <label>Días</label>
+      <div class="dias-chips" id="diasSemanaChips">${DIAS_SEMANA.map(d=>`
+        <label class="dia-chip" data-dia="${d.v}">
+          <input type="checkbox" value="${d.v}" onchange="onToggleDiaRecurrente(${d.v}, this.checked); this.parentElement.classList.toggle('sel', this.checked)">
+          ${d.l.slice(0,3)}
+        </label>`).join('')}
+      </div>
+      <div id="diasHorariosBox"></div>
+      <label for="f_semanas">Durante cuántas semanas</label>
+      <input type="number" id="f_semanas" min="1" max="52" value="8" inputmode="numeric">
+    </div>` : ''}
+
+    <details class="more" ${editing && (editing.resumen || (editing.links||[]).length) ? 'open' : ''}>
+      <summary>${ic('chevron-right')}Resumen, temas y notas</summary>
+      <label for="f_resumen">Resumen para el alumno</label>
+      <textarea id="f_resumen" placeholder="Qué vimos y qué repasar. Lo ve en su app, si la usa">${editing ? escapeHtml(editing.resumen||'') : ''}</textarea>
+      <label>Material de la clase</label>
+      ${editorLinksHtml('clase')}
+      <label>Temas de esta clase</label>
+      <div class="dias-chips" id="temarioClaseBox"></div>
+      <div class="row2" style="margin-top:8px;">
+        <input type="text" id="f_temarioClaseNuevo" placeholder="Agregar tema al temario" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarTemarioDesdeClase();}">
+        <button type="button" class="btn secondary" onclick="agregarTemarioDesdeClase()" aria-label="Agregar tema">${ic('plus')}</button>
+      </div>
+      <label for="f_notas">Notas privadas</label>
+      <textarea id="f_notas" placeholder="Observaciones para vos (el alumno no las ve)">${editing ? escapeHtml(editing.notas||'') : ''}</textarea>
+    </details>
+
+    ${editing ? pizarraClaseHtml(editing) : ''}
+
+    ${editing ? `<button type="button" class="btn outline" onclick="enviarWhatsappDesdeForm()">${ic('message')}Enviar resumen y cobro por WhatsApp</button>` : ''}
+
+    <div class="sheet-footer">
+      ${editing ? `<button type="button" class="btn danger" onclick="eliminarClase('${editing.id}')" aria-label="Eliminar clase">${ic('trash')}</button>` : ''}
+      <button type="button" class="btn primary" onclick="guardarClase(${editing ? `'${editing.id}'` : 'null'})">${editing ? 'Guardar cambios' : 'Agendar clase'}</button>
+    </div>
+  `);
+
+  const montoInicial = editing ? editing.monto : null;
+  recalcularMontoForm(montoInicial);
+  renderTemarioClaseForm();
+  editorLinks.clase = editing ? JSON.parse(JSON.stringify(editing.links || [])) : [];
+  pintarLinks('clase');
+}
+
+let formClaseEditando = null;
+// lo que se suma a la clase por ir a domicilio: el de la clase si ya lo tenía, o el de Ajustes
+function viaticoFormActual(){
+  const e = formClaseEditando;
+  if(e && e.modalidad===formClaseModalidad) return Number(e.viatico)||0;
+  return viaticoPorModalidad(formClaseModalidad);
+}
+
+function renderTotalClaseForm(){
+  const box = document.getElementById('totalClaseForm');
+  if(!box) return;
+  const monto = parseFloat(document.getElementById('f_monto').value)||0;
+  const viatico = viaticoFormActual();
+  box.innerHTML = `<span>Total a cobrar${viatico>0 ? `<br><small>clase ${money(monto)} + extra a domicilio ${money(viatico)}</small>` : ''}</span><b>${money(monto+viatico)}</b>`;
+  box.style.display = viatico>0 ? '' : 'none';
+}
+
+function setModalidadClaseForm(m){
+  formClaseModalidad = m;
+  document.querySelectorAll('#modalidadClaseBox button').forEach(b=>b.classList.toggle('sel', b.dataset.mod===m));
+  renderTotalClaseForm();
+}
+
+function onCambioAlumnoClaseForm(){
+  const a = getAlumno(document.getElementById('f_alumnoId').value);
+  if(a) setModalidadClaseForm(a.modalidad||'casa_mia');
+  formClaseTemario = [];
+  recalcularMontoForm();
+  renderTemarioClaseForm();
+}
+
+function renderTemarioClaseForm(){
+  const box = document.getElementById('temarioClaseBox');
+  if(!box) return;
+  const a = getAlumno(document.getElementById('f_alumnoId').value);
+  const items = (a && a.temario || []).filter(t=>!t.dado || formClaseTemario.includes(t.id));
+  box.innerHTML = items.length ? items.map(t=>`
+    <label class="dia-chip ${formClaseTemario.includes(t.id)?'sel':''}">
+      <input type="checkbox" ${formClaseTemario.includes(t.id)?'checked':''} onchange="toggleTemarioClaseForm('${t.id}', this)">
+      ${escapeHtml(t.texto)}
+    </label>`).join('')
+    : '<span class="hint" style="margin:0;">Este alumno no tiene temas pendientes. Agregá uno abajo.</span>';
+}
+function toggleTemarioClaseForm(temaId, el){
+  const i = formClaseTemario.indexOf(temaId);
+  if(el.checked && i<0) formClaseTemario.push(temaId);
+  if(!el.checked && i>=0) formClaseTemario.splice(i,1);
+  el.parentElement.classList.toggle('sel', el.checked);
+}
+function agregarTemarioDesdeClase(){
+  const input = document.getElementById('f_temarioClaseNuevo');
+  const texto = input.value.trim();
+  const a = getAlumno(document.getElementById('f_alumnoId').value);
+  if(!texto || !a) return;
+  const nuevo = {id: uid(), texto, dado:false};
+  a.temario.push(nuevo);
+  formClaseTemario.push(nuevo.id);
+  saveDB();
+  input.value = '';
+  renderTemarioClaseForm();
+}
+
+function onToggleDiaRecurrente(dia, checked){
+  if(checked){
+    repeatDiasHoras[dia] = document.getElementById('f_horaEntrada').value || '16:00';
+  }else{
+    delete repeatDiasHoras[dia];
+  }
+  renderDiasHorarios();
+}
+
+function renderDiasHorarios(){
+  const box = document.getElementById('diasHorariosBox');
+  if(!box) return;
+  const orden = d => d===0 ? 7 : d;
+  const dias = Object.keys(repeatDiasHoras).map(Number).sort((a,b)=>orden(a)-orden(b));
+  box.innerHTML = dias.map(dv=>{
+    const nombre = DIAS_SEMANA.find(d=>d.v===dv).l;
+    return `
+    <div class="row2" style="align-items:center;margin-top:8px;">
+      <span style="font-size:14px;font-weight:600;">${nombre}</span>
+      <select style="flex:0 0 112px;" onchange="repeatDiasHoras[${dv}] = this.value">${opcionesHoraClase(repeatDiasHoras[dv])}</select>
+    </div>`;
+  }).join('');
+}
+
+function actualizarHoraDia(dia, h, m){
+  const [ch,cm] = (repeatDiasHoras[dia]||'09:00').split(':');
+  repeatDiasHoras[dia] = (h||ch) + ':' + (m||cm);
+}
+
+function toggleRecurrenciaPanel(){
+  const panel = document.getElementById('recurrenciaPanel');
+  const chk = document.getElementById('f_recurrente');
+  panel.style.display = chk.checked ? 'block' : 'none';
+}
+
+function onCambioDuracionPreset(){
+  const val = document.getElementById('f_duracionPreset').value;
+  document.getElementById('duracionCustomBox').style.display = val==='custom' ? 'block' : 'none';
+}
+
+function leerDuracionPreset(){
+  const val = document.getElementById('f_duracionPreset').value;
+  if(val==='custom') return parseInt(document.getElementById('f_duracionCustom').value)||0;
+  return parseInt(val)||0;
+}
+
+function redondearA100(n){
+  return Math.max(0, Math.round(n/100)*100);
+}
+
+function recalcularMontoForm(montoActual){
+  const alumnoId = document.getElementById('f_alumnoId').value;
+  const a = getAlumno(alumnoId);
+  const tarifa = a ? Number(a.tarifa)||0 : 0;
+  const durMin = leerDuracionPreset();
+  const montoSel = document.getElementById('f_monto');
+  montoSel.value = (montoActual!=null) ? Math.round(montoActual) : redondearA100(tarifa*(durMin/60));
+  renderTotalClaseForm();
+}
+
+function guardarClase(id){
+  const alumnoId = document.getElementById('f_alumnoId').value;
+  const fecha = document.getElementById('f_fecha').value;
+  const horaEntrada = document.getElementById('f_horaEntrada').value;
+  const monto = parseFloat(document.getElementById('f_monto').value)||0;
+  const notas = document.getElementById('f_notas').value.trim();
+  const resumen = document.getElementById('f_resumen').value.trim();
+  const links = leerLinks('clase');
+  const pagada = document.getElementById('f_pagada').checked;
+  const duracionMin = leerDuracionPreset();
+  const modalidad = formClaseModalidad;
+  const viatico = viaticoFormActual();
+  const temarioIds = formClaseTemario.slice();
+
+  if(!alumnoId){ showToast('Elegí un alumno'); return; }
+  if(!fecha){ showToast('Elegí una fecha'); return; }
+  if(duracionMin<=0){ showToast('Elegí una duración válida'); return; }
+
+  if(id){
+    const c = db.clases.find(c=>c.id===id);
+    const estabaPagada = c.pagada;
+    if(resumen && resumen !== (c.resumen||'')) notificarAlumno(alumnoId, '📒 Resumen de la clase', `Ya está el resumen de la clase del ${nombreDiaFecha(fecha)}.`, {tipo:'resumen'});
+    Object.assign(c, {alumnoId, fecha, horaEntrada, horaSalida: sumarMinutos(horaEntrada, duracionMin), duracionMin, monto, viatico, modalidad, temarioIds, notas, resumen, links});
+    if(pagada && !estabaPagada) registrarPago({alumnoId, claseIds:[c.id], fecha: hoyIso()});
+    else if(!pagada && estabaPagada) quitarClaseDePago(c);
+    else if(pagada && c.pagoId) recalcularPago(c.pagoId);
+    saveDB();
+    closeSheet();
+    renderAll();
+    showToast('Clase guardada');
+    return;
+  }
+
+  const recurrenteChk = document.getElementById('f_recurrente');
+  if(recurrenteChk && recurrenteChk.checked){
+    const dias = Object.keys(repeatDiasHoras).map(Number);
+    if(dias.length===0){ showToast('Elegí al menos un día para repetir'); return; }
+    const semanas = Math.max(1, parseInt(document.getElementById('f_semanas').value)||1);
+    const ocurrencias = generarOcurrenciasRecurrentes(fecha, repeatDiasHoras, semanas);
+    const serieId = uid();
+    ocurrencias.forEach(o=>{
+      db.clases.push({id: uid(), serieId, alumnoId, fecha:o.fecha, horaEntrada:o.horaEntrada, horaSalida: sumarMinutos(o.horaEntrada, duracionMin), duracionMin, monto, viatico, modalidad, temarioIds:[], notas, resumen:'', links: links.slice(), pizarra:null, pagada:false, pagoId:null});
+    });
+    saveDB();
+    closeSheet();
+    renderAll();
+    showToast(`Se crearon ${ocurrencias.length} clases`);
+    return;
+  }
+
+  const nueva = {id: uid(), serieId:null, alumnoId, fecha, horaEntrada, horaSalida: sumarMinutos(horaEntrada, duracionMin), duracionMin, monto, viatico, modalidad, temarioIds, notas, resumen, links, pizarra:null, pagada:false, pagoId:null};
+  db.clases.push(nueva);
+  if(pagada) registrarPago({alumnoId, claseIds:[nueva.id], fecha: hoyIso()});
+  saveDB();
+  closeSheet();
+  renderAll();
+  showToast('Clase guardada');
+}
+
+function generarOcurrenciasRecurrentes(fechaInicioStr, diasConHora, semanas){
+  const ocurrencias = [];
+  const inicio = new Date(fechaInicioStr+'T00:00:00');
+  const inicioSemana = getMonday(inicio);
+  const dias = Object.keys(diasConHora).map(Number);
+  for(let w=0; w<semanas; w++){
+    dias.forEach(dv=>{
+      const offset = dv===0 ? 6 : dv-1; // lunes=0 ... domingo=6
+      const occ = new Date(inicioSemana);
+      occ.setDate(occ.getDate() + w*7 + offset);
+      const occStr = toIsoCalendario(occ);
+      if(occStr < fechaInicioStr) return;
+      ocurrencias.push({fecha: occStr, horaEntrada: diasConHora[dv]});
+    });
+  }
+  return ocurrencias;
+}
+
+function enviarWhatsappDesdeForm(){
+  const alumnoId = document.getElementById('f_alumnoId').value;
+  const durMin = leerDuracionPreset();
+  const viatico = viaticoFormActual();
+  const monto = (parseFloat(document.getElementById('f_monto').value)||0) + viatico;
+
+  if(durMin<=0){ showToast('Elegí una duración válida'); return; }
+
+  const a = getAlumno(alumnoId);
+  const horasTexto = formatDuracionTexto(durMin);
+  const extraPasajes = viatico>0 ? ` (incluye ${money(viatico)} de traslado)` : '';
+  let msg;
+  if(a.tipo === 'adulto'){
+    msg = `Hola ${a.nombre}, ¿cómo estás?\nYa terminamos de estudiar por hoy, estuvimos ${horasTexto} y el total es ${money(monto)}${extraPasajes}. Cualquier cosa estoy atenta, muchas gracias!`;
+  }else{
+    const contacto = a.contacto ? a.contacto.trim() : '';
+    const saludo = contacto ? `Hola ${contacto}, ¿cómo estás?` : 'Hola, ¿cómo estás?';
+    msg = `${saludo}\nYa terminamos de estudiar con ${a.nombre} por hoy, estuvimos ${horasTexto} y el total es ${money(monto)}${extraPasajes}. Cualquier cosa estoy atenta, muchas gracias!`;
+  }
+  window.open(waUrl(a.telefono, msg), '_blank');
+}
+
+async function eliminarClase(id){
+  const c = db.clases.find(c=>c.id===id);
+  const ok = await confirmar({titulo:'¿Eliminar esta clase?', mensaje: c && c.pagada ? 'También se quita del historial de pagos.' : 'No se puede deshacer.', ok:'Eliminar', peligro:true});
+  if(!ok) return;
+  if(c && c.pagada) quitarClaseDePago(c);
+  db.tareas.forEach(t=>{ if(t.claseId===id) t.claseId = null; });
+  db.clases = db.clases.filter(c=>c.id!==id);
+  saveDB();
+  closeSheet();
+  renderAll();
+  showToast('Clase eliminada');
+}
+
+function togglePagada(id, ev){
+  if(ev) ev.stopPropagation();
+  const c = db.clases.find(c=>c.id===id);
+  if(!c) return;
+  if(c.pagada) quitarClaseDePago(c);
+  else registrarPago({alumnoId:c.alumnoId, claseIds:[c.id], fecha: hoyIso()});
+  saveDB();
+  renderAll();
+  showToast(c.pagada ? `Pago de ${money(totalClase(c))} registrado` : 'Marcada como pendiente');
+}
+
+let calendarioFecha = new Date();
+let calendarioModo = 'semana'; // 'mes' | 'semana'
+let calendarioSemanaInicio = getMonday(new Date());
+let calendarioSelectedDate = hoyIso();
+
+function renderClases(){
+  renderCalendario();
+}
+
+function setCalendarioModo(modo){
+  calendarioModo = modo;
+  const sel = new Date(calendarioSelectedDate+'T00:00:00');
+  if(modo==='mes') calendarioFecha = new Date(sel.getFullYear(), sel.getMonth(), 1);
+  else calendarioSemanaInicio = getMonday(sel);
+  renderCalendario();
+}
+
+function cambiarMesCalendario(delta){
+  calendarioFecha = new Date(calendarioFecha.getFullYear(), calendarioFecha.getMonth()+delta, 1);
+  const hoy = new Date();
+  calendarioSelectedDate = (hoy.getFullYear()===calendarioFecha.getFullYear() && hoy.getMonth()===calendarioFecha.getMonth())
+    ? hoyIso() : toIsoCalendario(calendarioFecha);
+  renderCalendario();
+}
+
+function cambiarSemanaCalendario(delta){
+  calendarioSemanaInicio = addDiasCalendario(calendarioSemanaInicio, 7*delta);
+  const sel = new Date(calendarioSelectedDate+'T00:00:00');
+  const offset = (sel.getDay()+6)%7;
+  calendarioSelectedDate = toIsoCalendario(addDiasCalendario(calendarioSemanaInicio, offset));
+  renderCalendario();
+}
+
+function cambiarPeriodoCalendario(delta){
+  if(calendarioModo==='mes') cambiarMesCalendario(delta);
+  else cambiarSemanaCalendario(delta);
+}
+
+function irAHoyCalendario(){
+  const hoy = new Date();
+  calendarioFecha = new Date();
+  calendarioSemanaInicio = getMonday(new Date());
+  calendarioSelectedDate = hoyIso();
+  renderCalendario();
+}
+
+function formatoFechaLarga(fechaStr){
+  const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const f = new Date(fechaStr+'T00:00:00');
+  return `${dias[f.getDay()]} ${f.getDate()} de ${meses[f.getMonth()]}`;
+}
+
+function labelSemana(inicio){
+  const fin = addDiasCalendario(inicio, 6);
+  if(inicio.getMonth()===fin.getMonth()) return capitalizar(inicio.toLocaleDateString('es-AR',{month:'long'})) + ' ' + inicio.getFullYear();
+  const corto = d=>capitalizar(d.toLocaleDateString('es-AR',{month:'short'}).replace('.',''));
+  return `${corto(inicio)} – ${corto(fin)} ${fin.getFullYear()}`;
+}
+function renderCalendario(){
+  document.querySelectorAll('#calendarioModoToggle button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.modo===calendarioModo);
+  });
+  const label = document.getElementById('calendarioMesLabel');
+  if(calendarioModo==='semana'){
+    label.textContent = labelSemana(calendarioSemanaInicio);
+    renderCalendarioSemana();
+  }else{
+    label.textContent = capitalizar(calendarioFecha.toLocaleDateString('es-AR', {month:'long'})) + ' ' + calendarioFecha.getFullYear();
+    renderCalendarioMes();
+  }
+  renderDayDetail();
+}
+
+/* ---------- disponibilidad horaria ---------- */
+function horaAMin(h){ const [hh,mm] = h.split(':').map(Number); return hh*60+mm; }
+function minAHora(m){ return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); }
+function dispDelDia(fechaStr){
+  const dow = new Date(fechaStr+'T00:00:00').getDay();
+  const d = (db.config.disponibilidad||{})[dow];
+  if(!d || !d.activo) return null;
+  return {desde:horaAMin(d.desde), hasta:horaAMin(d.hasta)};
+}
+function clasesDelDia(fechaStr){
+  return db.clases.filter(c=>c.fecha===fechaStr).sort((a,b)=>a.horaEntrada.localeCompare(b.horaEntrada));
+}
+function finClaseMin(c){ return horaAMin(c.horaEntrada) + (c.duracionMin||60); }
+// rangos libres [desde,hasta) en minutos para un día, según disponibilidad menos clases y lo que ya pasó
+function rangosLibresDia(fechaStr){
+  const disp = dispDelDia(fechaStr);
+  if(!disp) return [];
+  let desde = disp.desde;
+  if(fechaStr===hoyIso()){
+    const ahora = new Date();
+    const nowMin = Math.ceil((ahora.getHours()*60+ahora.getMinutes())/30)*30;
+    desde = Math.max(desde, nowMin);
+  }else if(fechaStr < hoyIso()) return [];
+  let rangos = [[desde, disp.hasta]];
+  clasesDelDia(fechaStr).forEach(c=>{
+    const ci = horaAMin(c.horaEntrada), cf = finClaseMin(c);
+    const nuevos = [];
+    rangos.forEach(([a,b])=>{
+      if(cf<=a || ci>=b){ nuevos.push([a,b]); return; }
+      if(ci>a) nuevos.push([a,ci]);
+      if(cf<b) nuevos.push([cf,b]);
+    });
+    rangos = nuevos;
+  });
+  return rangos.filter(([a,b])=>b-a>=30);
+}
+
+function renderCalendarioMes(){
+  const y = calendarioFecha.getFullYear(), m = calendarioFecha.getMonth();
+  document.getElementById('calendarioLeyenda').innerHTML = '';
+
+  const porDia = {};
+  db.clases.forEach(c=>{ (porDia[c.fecha] = porDia[c.fecha] || []).push(c); });
+
+  const primerDiaMes = new Date(y, m, 1);
+  const diasEnMes = new Date(y, m+1, 0).getDate();
+  const offsetInicio = (primerDiaMes.getDay()+6)%7; // 0=Lunes
+  const hoyStr = hoyIso();
+
+  let celdas = '<div class="month-wrap"><div class="month-grid">';
+  ['L','M','M','J','V','S','D'].forEach(d=>{ celdas += `<div class="mg-dow">${d}</div>`; });
+  for(let i=0;i<offsetInicio;i++) celdas += `<div class="month-cell other-month"></div>`;
+  for(let dia=1; dia<=diasEnMes; dia++){
+    const fechaStr = `${y}-${String(m+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+    const clasesDia = (porDia[fechaStr] || []).slice().sort((a,b)=>a.horaEntrada.localeCompare(b.horaEntrada));
+    const seleccionado = fechaStr===calendarioSelectedDate;
+    const dots = clasesDia.slice(0,4).map(c=>`<span class="mc-dot" style="background:${seleccionado?'#fff':alumnoColor(c.alumnoId)}"></span>`).join('');
+    const evs = clasesDia.slice(0,3).map(c=>`<span class="mc-ev" style="--c:${alumnoColor(c.alumnoId)}">${c.horaEntrada} ${escapeHtml(alumnoNombre(c.alumnoId).split(' ')[0])}</span>`).join('')
+      + (clasesDia.length>3 ? `<span class="mc-more">+${clasesDia.length-3} más</span>` : '');
+    celdas += `
+      <button type="button" class="month-cell ${fechaStr===hoyStr?'today':''} ${fechaStr<hoyStr?'past':''} ${seleccionado?'selected':''}" onclick="abrirDiaCalendario('${fechaStr}')">
+        <span class="mc-num">${dia}</span>
+        <span class="mc-dots">${dots}</span>
+        <span class="mc-evs">${evs}</span>
+      </button>`;
+  }
+  const sobrantes = (7 - (offsetInicio + diasEnMes) % 7) % 7;
+  for(let i=0;i<sobrantes;i++) celdas += `<div class="month-cell other-month"></div>`;
+  celdas += '</div></div>';
+  document.getElementById('calendarioGrid').innerHTML = celdas;
+}
+
+function renderCalendarioSemana(){
+  const inicio = calendarioSemanaInicio;
+  const fechas = [];
+  for(let i=0;i<7;i++) fechas.push(toIsoCalendario(addDiasCalendario(inicio, i)));
+
+  // rango de horas visible: disponibilidad + clases de la semana (mínimo 8 a 21)
+  let hMin = 8*60, hMax = 21*60;
+  fechas.forEach(f=>{
+    const d = dispDelDia(f);
+    if(d){ hMin = Math.min(hMin, d.desde); hMax = Math.max(hMax, d.hasta); }
+    clasesDelDia(f).forEach(c=>{ hMin = Math.min(hMin, horaAMin(c.horaEntrada)); hMax = Math.max(hMax, finClaseMin(c)); });
+  });
+  hMin = Math.floor(hMin/60)*60; hMax = Math.min(24*60, Math.ceil(hMax/60)*60);
+  const hourH = esDesktop() ? 54 : 44, pxPorMin = hourH/60;
+
+  const hoyStr = hoyIso();
+  const ahora = new Date();
+  const ahoraMin = ahora.getHours()*60 + ahora.getMinutes();
+  const dows = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+
+  let head = '<div class="wk-head"><div></div>';
+  fechas.forEach((f,i)=>{
+    const d = new Date(f+'T00:00:00');
+    head += `<button type="button" class="wk-hcell ${f===hoyStr?'today':''} ${f===calendarioSelectedDate?'selected':''}" onclick="abrirDiaCalendario('${f}')">
+      <span class="dow">${dows[i]}</span><span class="dnum">${d.getDate()}</span></button>`;
+  });
+  head += '</div>';
+
+  let times = '<div class="wk-times">';
+  for(let m=hMin; m<hMax; m+=60) times += `<div class="wk-time"><span>${m/60}</span></div>`;
+  times += '</div>';
+
+  let cols = '';
+  fechas.forEach(f=>{
+    const disp = dispDelDia(f);
+    const clases = clasesDelDia(f);
+    let slots = '';
+    for(let m=hMin; m<hMax; m+=30){
+      const ocupado = clases.some(c=>horaAMin(c.horaEntrada) < m+30 && finClaseMin(c) > m);
+      const pasado = f<hoyStr || (f===hoyStr && m+30<=ahoraMin);
+      const dentro = disp && m>=disp.desde && m+30<=disp.hasta;
+      let cls = pasado ? 'pasado' : (dentro ? (ocupado ? '' : 'libre') : 'nodisp');
+      if((m+30)%60===0) cls += ' hr';
+      slots += `<div class="wk-slot ${cls}" onclick="tocarSlot('${f}','${minAHora(m)}')"></div>`;
+    }
+    const carriles = [];
+    const pos = clases.map(c=>{
+      const ini = horaAMin(c.horaEntrada), finM = finClaseMin(c);
+      let lane = carriles.findIndex(finLane=>finLane<=ini);
+      if(lane<0){ lane = carriles.length; carriles.push(finM); } else carriles[lane] = finM;
+      return {c, ini, finM, lane};
+    });
+    const nLanes = Math.max(1, carriles.length);
+    const eventos = pos.map(({c,ini,finM,lane})=>{
+      const color = alumnoColor(c.alumnoId);
+      const top = (ini-hMin)*pxPorMin, h = Math.max(18, (finM-ini)*pxPorMin - 2);
+      const w = 100/nLanes;
+      const nombre = esDesktop() ? alumnoNombre(c.alumnoId) : alumnoNombre(c.alumnoId).split(' ')[0];
+      return `<div class="wk-ev ${c.pagada?'pagada':''}" style="top:${top}px;height:${h}px;left:calc(${lane*w}% + 1px);width:calc(${w}% - 3px);border-left-color:${color};background:color-mix(in srgb, ${color} 22%, var(--card));"
+        onclick="event.stopPropagation();openClaseForm('${c.id}')" title="${escapeAttr(alumnoNombre(c.alumnoId))} · ${c.horaEntrada}–${c.horaSalida||''}">${escapeHtml(nombre)}${h>30?`<div class="h">${c.horaEntrada}${esDesktop() && c.horaSalida ? '–'+c.horaSalida : ''}</div>`:''}</div>`;
+    }).join('');
+    const nowLine = (f===hoyStr && ahoraMin>=hMin && ahoraMin<hMax) ? `<div class="wk-now" style="top:${(ahoraMin-hMin)*pxPorMin}px"></div>` : '';
+    cols += `<div class="wk-col">${slots}${eventos}${nowLine}</div>`;
+  });
+
+  document.getElementById('calendarioGrid').innerHTML =
+    `<div class="wk" style="--hour-h:${hourH}px">${head}<div class="wk-body">${times}${cols}</div></div>`;
+  document.getElementById('calendarioLeyenda').innerHTML = `
+    <div class="wk-legend">
+      <span><i class="libre"></i>Libre</span>
+      <span><i class="nodisp"></i>Fuera de tu horario</span>
+      <span>Tocá un hueco para agendar</span>
+    </div>
+    <div class="cal-links">
+      <button type="button" class="link-btn" onclick="compartirHorariosLibres()">${ic('share')}Compartir horarios libres</button>
+      <button type="button" class="link-btn" onclick="abrirDisponibilidad()">${ic('clock')}Mis horarios</button>
+    </div>`;
+}
+
+function tocarSlot(fechaStr, hora){
+  calendarioSelectedDate = fechaStr;
+  if(db.alumnos.length===0){ showToast('Primero agregá un alumno'); renderCalendario(); return; }
+  openClaseForm(null, fechaStr, hora);
+}
+
+function textoHorariosLibres(){
+  const lineas = [];
+  for(let i=0;i<7;i++){
+    const f = toIsoCalendario(addDiasCalendario(calendarioSemanaInicio, i));
+    const rangos = rangosLibresDia(f);
+    if(rangos.length) lineas.push(`• ${nombreDiaFecha(f)}: ${rangos.map(([a,b])=>`${minAHora(a)} a ${minAHora(b)}`).join(', ')}`);
+  }
+  if(!lineas.length) return '';
+  return `¡Hola! Estos son mis horarios libres para clases esta semana:\n${lineas.join('\n')}\n\nAvisame cuál te queda mejor 😊`;
+}
+
+function compartirHorariosLibres(){
+  const texto = textoHorariosLibres();
+  if(!texto){ showToast('No te quedan horarios libres esta semana'); return; }
+  openSheet(`
+    <h3>Horarios libres</h3>
+    <p class="sheet-sub">Mandáselo a quien quiera agendar una clase. Podés editar el texto antes.</p>
+    <textarea id="f_textoLibres" style="min-height:190px;margin-top:8px;">${escapeHtml(texto)}</textarea>
+    <div class="sheet-footer">
+      <button type="button" class="btn secondary grow" onclick="copiarTexto(document.getElementById('f_textoLibres').value)">${ic('copy')}Copiar</button>
+      <button type="button" class="btn whatsapp grow" style="flex:1;" onclick="window.open(waUrl('', document.getElementById('f_textoLibres').value), '_blank')">${ic('message')}WhatsApp</button>
+    </div>
+  `);
+}
+
+function copiarTexto(texto){
+  const ok = ()=>showToast('Copiado ✓');
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(texto).then(ok).catch(()=>fallbackCopiar(texto, ok));
+  }else fallbackCopiar(texto, ok);
+}
+function fallbackCopiar(texto, ok){
+  const ta = document.createElement('textarea');
+  ta.value = texto; document.body.appendChild(ta); ta.select();
+  try{ document.execCommand('copy'); ok(); }catch(e){ showToast('No se pudo copiar'); }
+  document.body.removeChild(ta);
+}
+
+const DIAS_ORDEN = [1,2,3,4,5,6,0];
+const DIAS_NOMBRE = {0:'Domingo',1:'Lunes',2:'Martes',3:'Miércoles',4:'Jueves',5:'Viernes',6:'Sábado'};
+function opcionesHoraCompleta(selected){
+  let html = '';
+  for(let m=6*60; m<=23*60; m+=30){ const h = minAHora(m); html += `<option value="${h}" ${h===selected?'selected':''}>${h}</option>`; }
+  return html;
+}
+function abrirDisponibilidad(){
+  const disp = db.config.disponibilidad;
+  openSheet(`
+    <h3>Mis horarios disponibles</h3>
+    <p class="sheet-sub">Los huecos libres dentro de estos horarios se pintan de verde en la semana y se pueden compartir.</p>
+    <div class="set-group" style="margin-top:12px;">
+    ${DIAS_ORDEN.map(d=>{
+      const x = disp[d] || {activo:false, desde:'14:00', hasta:'20:00'};
+      return `
+      <div class="set-pad">
+        <label class="switch-row" style="margin:0;padding:0;border:none;background:none;">
+          <span style="font-weight:600;">${DIAS_NOMBRE[d]}</span>
+          <input type="checkbox" class="switch disp-activo" data-dia="${d}" ${x.activo?'checked':''} onchange="this.closest('.set-pad').querySelector('.disp-horas').style.display = this.checked ? 'flex' : 'none'">
+        </label>
+        <div class="row2 disp-horas" style="display:${x.activo?'flex':'none'};margin-top:10px;align-items:center;">
+          <select class="disp-desde" data-dia="${d}">${opcionesHoraCompleta(x.desde)}</select>
+          <span style="flex:0 0 auto;color:var(--text-dim);font-size:14px;">a</span>
+          <select class="disp-hasta" data-dia="${d}">${opcionesHoraCompleta(x.hasta)}</select>
+        </div>
+      </div>`;
+    }).join('')}
+    </div>
+    <div class="sheet-footer"><button type="button" class="btn primary" onclick="guardarDisponibilidad()">Guardar horarios</button></div>
+  `);
+}
+function guardarDisponibilidad(){
+  const nueva = {};
+  for(const d of DIAS_ORDEN){
+    const activo = document.querySelector(`.disp-activo[data-dia="${d}"]`).checked;
+    const desde = document.querySelector(`.disp-desde[data-dia="${d}"]`).value;
+    const hasta = document.querySelector(`.disp-hasta[data-dia="${d}"]`).value;
+    if(activo && horaAMin(hasta)<=horaAMin(desde)){ showToast(`${DIAS_NOMBRE[d]}: el "hasta" tiene que ser después del "desde"`); return; }
+    nueva[d] = {activo, desde, hasta};
+  }
+  db.config.disponibilidad = nueva;
+  saveDB();
+  closeSheet();
+  renderAll();
+  showToast('Horarios guardados');
+}
+
+function addDiasCalendario(d, n){ const r = new Date(d); r.setDate(r.getDate()+n); return r; }
+function toIsoCalendario(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+function abrirDiaCalendario(fechaStr){
+  calendarioSelectedDate = fechaStr;
+  renderCalendario();
+}
+
+function renderDayDetail(){
+  const container = document.getElementById('calendarioDayDetail');
+  if(!container) return;
+  const fechaStr = calendarioSelectedDate;
+  const hoyStr = hoyIso();
+  const clasesDia = clasesDelDia(fechaStr);
+
+  let html = `<div class="day-detail-head">
+      <span class="title">${formatoFechaLarga(fechaStr)}</span>
+      ${fechaStr===hoyStr ? '<span class="badge-today">Hoy</span>' : ''}
+    </div>`;
+
+  const libres = rangosLibresDia(fechaStr);
+  if(libres.length){
+    html += `<div class="free-row"><span>Libre:</span>${libres.map(([a,b])=>`<button type="button" class="free-chip" onclick="openClaseForm(null,'${fechaStr}','${minAHora(a)}')">${minAHora(a)} – ${minAHora(b)}</button>`).join('')}</div>`;
+  }
+  if(clasesDia.length===0){
+    html += `<div class="day-empty">${fechaStr<hoyStr ? 'No hubo clases este día.' : 'No tenés clases este día.'}</div>`;
+  }
+  const ahora = new Date();
+  clasesDia.forEach(c=>{
+    const alumnoC = getAlumno(c.alumnoId);
+    const tareasClase = db.tareas.filter(t=>t.claseId===c.id);
+    const temasClase = (c.temarioIds||[]).map(tid=>(alumnoC && alumnoC.temario||[]).find(t=>t.id===tid)).filter(Boolean);
+    const extras = temasClase.map(t=>`
+        <label class="checkbox-line compact ${t.dado?'done':''}">
+          <input type="checkbox" ${t.dado?'checked':''} onclick="toggleTemarioDado('${c.alumnoId}','${t.id}')">
+          <span>${escapeHtml(t.texto)}</span>
+        </label>`).join('') + tareasClase.map(t=>`
+        <label class="checkbox-line compact ${t.hecha?'done':''}">
+          <input type="checkbox" ${t.hecha?'checked':''} onclick="toggleTarea('${t.id}', event)">
+          <span>${t.temaId ? `<b>${escapeHtml(temaNombre(t.temaId))}:</b> ` : ''}${escapeHtml(t.texto)}</span>
+        </label>`).join('');
+    const ocurrio = claseYaOcurrida(c, ahora);
+    const estado = c.pagada
+      ? `<button type="button" class="badge pagada" style="border:none;cursor:pointer;" onclick="togglePagada('${c.id}', event)">${ic('check')}Pagada</button>`
+      : (ocurrio
+          ? `<button type="button" class="badge pendiente" style="border:none;cursor:pointer;" onclick="togglePagada('${c.id}', event)" title="Tocá para marcar como pagada">Sin pagar</button>`
+          : `<span class="badge neutral">Agendada</span>`);
+    html += `
+    <div class="class-row">
+      <div style="flex:1;min-width:0;">
+        <div class="cr-main" onclick="openClaseForm('${c.id}')">
+          <div class="t"><b>${c.horaEntrada}</b><span>${c.horaSalida||''}</span></div>
+          <div class="bar" style="background:${alumnoColor(c.alumnoId)}"></div>
+          <div class="info">
+            <div class="item-title">${escapeHtml(alumnoNombre(c.alumnoId))} ${alumnoC ? nivelBadge(alumnoC.nivel) : ''}</div>
+            <div class="meta">
+              <span class="amount">${money(totalClase(c))}</span>
+              ${c.modalidad && c.modalidad!=='casa_mia' ? `<span class="badge neutral">${ic(ICONO_LUGAR[c.modalidad]||'bus')}${textoLugar(c.modalidad)}</span>` : ''}
+              ${c.serieId ? `<span class="badge neutral">${ic('repeat')}Semanal</span>` : ''}
+              ${estado}
+            </div>
+          </div>
+        </div>
+        ${extras ? `<div class="class-extra">${extras}</div>` : ''}
+      </div>
+    </div>`;
+  });
+  html += `<button class="day-add-btn" onclick="openClaseForm(null, '${fechaStr}')">${ic('plus')}Agregar clase este día</button>`;
+  container.innerHTML = html;
+}
+
+/* =========================================================
+   PENDIENTES DEL PROFE (en los datos: db.tareas). Lo que hace el alumno son las
+   tareas de js/profe-aula.js (en los datos: db.tps)
+   ========================================================= */
+let filtroTareasAlumno = 'todos';
+
+function temaOptionsHtml(alumnoId, selectedId){
+  const temas = temasDeAlumno(alumnoId);
+  let html = `<option value="">Sin materia</option>`;
+  html += temas.map(t=>`<option value="${t.id}" ${t.id===selectedId?'selected':''}>${escapeHtml(t.nombre)}</option>`).join('');
+  html += `<option value="__nuevo__">+ Nueva materia…</option>`;
+  return html;
+}
+function claseOptionsHtmlParaAlumno(alumnoId, selectedId){
+  const ahora = new Date();
+  const clases = db.clases
+    .filter(c=>c.alumnoId===alumnoId && (fechaHoraClase(c) >= ahora || c.id===selectedId))
+    .sort((a,b)=> fechaHoraClase(a)-fechaHoraClase(b));
+  let html = `<option value="">Ninguna en particular</option>`;
+  html += clases.map(c=>`<option value="${c.id}" ${c.id===selectedId?'selected':''}>${fechaCorta(c.fecha)} · ${c.horaEntrada}</option>`).join('');
+  return html;
+}
+
+function openTareaForm(id, alumnoIdPreset){
+  const editing = id ? db.tareas.find(t=>t.id===id) : null;
+  const alumnoIdInicial = editing ? (editing.alumnoId||'') : (alumnoIdPreset || (filtroTareasAlumno!=='todos'?filtroTareasAlumno:''));
+  const opciones = `<option value="">General (sin alumno)</option>` + alumnoOptionsHtml(alumnoIdInicial);
+
+  openSheet(`
+    <h3>${editing ? 'Editar pendiente' : 'Nuevo pendiente'}</h3>
+    <p class="sheet-sub">Algo que tenés que preparar o revisar. Solo lo ves vos; cuando esté listo, lo tachás o se lo mandás al alumno como tarea.</p>
+    <label for="f_t_texto">¿Qué tenés que preparar?</label>
+    <textarea id="f_t_texto" placeholder="Ej: ejercicios de fracciones para Sofi">${editing ? escapeHtml(editing.texto) : ''}</textarea>
+
+    <label for="f_t_alumnoId">Para quién</label>
+    <select id="f_t_alumnoId" onchange="actualizarTemaYClaseForm()">${opciones}</select>
+
+    <details class="more" ${editing && (editing.temaId || editing.claseId) ? 'open' : ''}>
+      <summary>${ic('chevron-right')}Materia y clase</summary>
+      <div id="temaBox" style="display:${alumnoIdInicial?'block':'none'};">
+        <label for="f_t_temaId">Materia</label>
+        <select id="f_t_temaId" onchange="onCambioTema()">${temaOptionsHtml(alumnoIdInicial, editing?editing.temaId:null)}</select>
+        <div id="temaNuevoBox" style="display:none;">
+          <label for="f_t_temaNuevo">Nombre de la nueva materia</label>
+          <input type="text" id="f_t_temaNuevo" placeholder="Ej: Matemáticas">
+        </div>
+      </div>
+      <div id="claseBox" style="display:${alumnoIdInicial?'block':'none'};">
+        <label for="f_t_claseId">Para qué clase</label>
+        <select id="f_t_claseId">${claseOptionsHtmlParaAlumno(alumnoIdInicial, editing?editing.claseId:null)}</select>
+      </div>
+      <div class="hint" id="temaClaseVacio" style="display:${alumnoIdInicial?'none':'block'};">Elegí un alumno para poder asociarlo a una materia o a una clase.</div>
+    </details>
+
+    <div class="sheet-footer">
+      ${editing ? `<button type="button" class="btn danger" onclick="eliminarTarea('${editing.id}')" aria-label="Eliminar pendiente">${ic('trash')}</button>` : ''}
+      <button type="button" class="btn primary" onclick="guardarTarea(${editing ? `'${editing.id}'` : 'null'})">${editing ? 'Guardar cambios' : 'Agregar pendiente'}</button>
+    </div>
+  `);
+  if(!editing) enfocarSiLibre('f_t_texto');
+}
+
+function actualizarTemaYClaseForm(){
+  const alumnoId = document.getElementById('f_t_alumnoId').value;
+  document.getElementById('temaBox').style.display = alumnoId ? 'block' : 'none';
+  document.getElementById('claseBox').style.display = alumnoId ? 'block' : 'none';
+  document.getElementById('temaClaseVacio').style.display = alumnoId ? 'none' : 'block';
+  if(alumnoId){
+    document.getElementById('f_t_temaId').innerHTML = temaOptionsHtml(alumnoId, null);
+    document.getElementById('temaNuevoBox').style.display = 'none';
+    document.getElementById('f_t_claseId').innerHTML = claseOptionsHtmlParaAlumno(alumnoId, null);
+  }
+}
+
+function onCambioTema(){
+  const val = document.getElementById('f_t_temaId').value;
+  document.getElementById('temaNuevoBox').style.display = val==='__nuevo__' ? 'block' : 'none';
+}
+
+function guardarTarea(id){
+  const alumnoId = document.getElementById('f_t_alumnoId').value || null;
+  const texto = document.getElementById('f_t_texto').value.trim();
+  if(!texto){ showToast('Escribí una descripción'); return; }
+
+  let temaId = null;
+  let claseId = null;
+  if(alumnoId){
+    const temaSelVal = document.getElementById('f_t_temaId').value;
+    if(temaSelVal==='__nuevo__'){
+      const nombreNuevo = document.getElementById('f_t_temaNuevo').value.trim();
+      if(!nombreNuevo){ showToast('Escribí el nombre del nuevo tema'); return; }
+      const nuevoTema = agregarMateria(nombreNuevo);
+      const alumno = getAlumno(alumnoId);
+      if(alumno){
+        if(!Array.isArray(alumno.temasIds)) alumno.temasIds = [];
+        alumno.temasIds.push(nuevoTema.id);
+      }
+      temaId = nuevoTema.id;
+    }else if(temaSelVal){
+      temaId = temaSelVal;
+    }
+    claseId = document.getElementById('f_t_claseId').value || null;
+  }
+
+  if(id){
+    const t = db.tareas.find(t=>t.id===id);
+    t.alumnoId = alumnoId; t.temaId = temaId; t.claseId = claseId; t.texto = texto;
+  }else{
+    db.tareas.push({id: uid(), alumnoId, temaId, claseId, texto, hecha:false});
+  }
+  saveDB();
+  closeSheet();
+  renderAll();
+  showToast('Pendiente guardado');
+}
+
+async function eliminarTarea(id){
+  const ok = await confirmar({titulo:'¿Eliminar este pendiente?', ok:'Eliminar', peligro:true});
+  if(!ok) return;
+  db.tareas = db.tareas.filter(t=>t.id!==id);
+  saveDB();
+  closeSheet();
+  renderAll();
+  showToast('Pendiente eliminado');
+}
+
+function toggleTarea(id, ev){
+  if(ev) ev.stopPropagation();
+  const t = db.tareas.find(t=>t.id===id);
+  t.hecha = !t.hecha;
+  saveDB();
+  renderAll();
+}
+
+let filtroTareasEstado = 'pendientes';
+function setEstadoTareas(v){ filtroTareasEstado = v; renderTareas(); }
+function renderFiltroTareas(){
+  const cont = document.getElementById('filtroAlumnoTareas');
+  const alumnosConTareas = db.alumnos.filter(a=>db.tareas.some(t=>t.alumnoId===a.id));
+  if(!alumnosConTareas.length){ cont.innerHTML = ''; return; }
+  if(filtroTareasAlumno!=='todos' && !alumnosConTareas.some(a=>a.id===filtroTareasAlumno)) filtroTareasAlumno = 'todos';
+  let chips = `<button class="filter-chip ${filtroTareasAlumno==='todos'?'active':''}" onclick="setFiltroTareas('todos')">Todos</button>`;
+  chips += alumnosConTareas.map(a=>`<button class="filter-chip ${filtroTareasAlumno===a.id?'active':''}" onclick="setFiltroTareas('${a.id}')">${escapeHtml(a.nombre.split(' ')[0])}</button>`).join('');
+  cont.innerHTML = chips;
+}
+function setFiltroTareas(v){ filtroTareasAlumno = v; renderAll(); }
+
+function renderTareas(){
+  renderFiltroTareas();
+  const cont = document.getElementById('listaTareas');
+  const toggle = document.getElementById('tareasEstadoToggle');
+  const materias = document.getElementById('materiasRow');
+  materias.innerHTML = `<div class="list-item tap" onclick="abrirGestionTemas()">
+    <div class="row-ic">${ic('book')}</div>
+    <div class="item-main"><div class="item-title">Materias</div>
+      <div class="item-sub">${db.temas.length ? db.temas.slice(0,4).map(t=>escapeHtml(t.nombre)).join(', ') + (db.temas.length>4?'…':'') : 'Matemáticas, Biología… las vinculás a cada alumno'}</div></div>
+    ${ic('chevron-right','chev')}
+  </div>`;
+
+  if(db.tareas.length===0){
+    toggle.hidden = true;
+    cont.innerHTML = emptyState('list', 'Sin pendientes', 'Anotá lo que tenés que prepararle a cada alumno. Cuando esté listo, lo tachás o se lo mandás como tarea.', 'Agregar pendiente', 'openTareaForm()');
+    return;
+  }
+  toggle.hidden = false;
+  const pend = db.tareas.filter(t=>!t.hecha).length, hechas = db.tareas.length - pend;
+  toggle.innerHTML = `
+    <button type="button" class="${filtroTareasEstado==='pendientes'?'active':''}" onclick="setEstadoTareas('pendientes')">Pendientes · ${pend}</button>
+    <button type="button" class="${filtroTareasEstado==='hechas'?'active':''}" onclick="setEstadoTareas('hechas')">Hechas · ${hechas}</button>`;
+
+  let lista = db.tareas.filter(t=> filtroTareasEstado==='hechas' ? t.hecha : !t.hecha);
+  if(filtroTareasAlumno!=='todos') lista = lista.filter(t=>t.alumnoId===filtroTareasAlumno);
+
+  if(lista.length===0){
+    cont.innerHTML = `<div class="card"><div class="empty-msg">${filtroTareasEstado==='pendientes' ? '¡No tenés nada pendiente! 🎉' : 'Todavía no terminaste ningún pendiente.'}</div></div>`;
+    return;
+  }
+
+  cont.innerHTML = '<div class="card list"><div class="card-head"><h2>Mis pendientes</h2></div>' + lista.map(t=>{
+    const claseInfo = t.claseId ? db.clases.find(c=>c.id===t.claseId) : null;
+    const partesSub = [];
+    if(t.alumnoId) partesSub.push(escapeHtml(alumnoNombre(t.alumnoId)));
+    if(t.temaId) partesSub.push(escapeHtml(temaNombre(t.temaId)));
+    if(claseInfo) partesSub.push(`Clase: ${fechaCorta(claseInfo.fecha)}`);
+    return `
+    <div class="list-item checkbox-line ${t.hecha?'done':''}" style="padding-top:12px;padding-bottom:12px;">
+      <input type="checkbox" ${t.hecha?'checked':''} onclick="toggleTarea('${t.id}', event)" aria-label="Marcar como hecha">
+      <div class="item-main" onclick="openTareaForm('${t.id}')">
+        <div class="item-title">${escapeHtml(t.texto)}</div>
+        ${partesSub.length ? `<div class="item-sub">${partesSub.join(' · ')}</div>` : ''}
+      </div>
+      ${botonMandarPendiente(t)}
+    </div>`;
+  }).join('') + '</div>';
+}
+
+/* =========================================================
+   DETALLE DE ALUMNO
+   ========================================================= */
+let currentAlumnoDetalleId = null;
+
+function abrirDetalleAlumno(alumnoId){
+  if(!currentAlumnoDetalleId) vistaAntesDeDetalle = vistaActual;
+  currentAlumnoDetalleId = alumnoId;
+  views.forEach(v=>document.getElementById('view-'+v).classList.remove('active'));
+  document.getElementById('view-alumno-detalle').classList.add('active');
+  document.querySelectorAll('[data-nav] button[data-view]').forEach(b=>b.classList.toggle('active', b.dataset.view===vistaAntesDeDetalle));
+  document.getElementById('backBtn').style.display = 'inline-flex';
+  if(overlay.classList.contains('show')) closeSheet();
+  renderDetalleAlumno();
+  actualizarHeader();
+  actualizarFab();
+  window.scrollTo(0,0);
+}
+
+function irADiaEnCalendario(fechaStr){
+  const [y,m] = fechaStr.split('-').map(Number);
+  calendarioFecha = new Date(y, m-1, 1);
+  calendarioSemanaInicio = getMonday(new Date(fechaStr+'T00:00:00'));
+  goTo('clases');
+  abrirDiaCalendario(fechaStr);
+}
+
+function tareaLineHtml(t){
+  return `
+    <div class="checkbox-line ${t.hecha?'done':''}" style="border-bottom:1px solid var(--border);">
+      <input type="checkbox" ${t.hecha?'checked':''} onclick="toggleTarea('${t.id}', event)" aria-label="Marcar como hecha">
+      <div class="item-main" onclick="openTareaForm('${t.id}')">
+        <div class="item-title" style="font-size:14.5px;font-weight:500;">${escapeHtml(t.texto)}</div>
+      </div>
+      ${botonMandarPendiente(t)}
+    </div>`;
+}
+
+function renderDetalleTemas(alumnoId){
+  const alumno = getAlumno(alumnoId);
+  const cont = document.getElementById('detalleTemas');
+  if(!cont) return;
+  const chips = db.temas.map(t=>{
+    const linkado = alumno.temasIds.includes(t.id);
+    return `<button type="button" class="dia-chip ${linkado?'sel':''}" onclick="toggleTemaAlumno('${alumnoId}','${t.id}')">${linkado ? ic('check') : ''}${escapeHtml(t.nombre)}</button>`;
+  }).join('');
+  cont.innerHTML = `
+    <div class="dias-chips">${chips || '<span class="hint" style="margin:0;">Todavía no creaste materias.</span>'}</div>
+    <div class="row2" style="margin-top:10px;">
+      <input type="text" id="f_nuevoTemaDetalle" placeholder="Nueva materia" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();crearTemaDesdeDetalle('${alumnoId}');}">
+      <button type="button" class="btn secondary" onclick="crearTemaDesdeDetalle('${alumnoId}')" aria-label="Crear materia">${ic('plus')}</button>
+    </div>
+  `;
+}
+
+function toggleTemaAlumno(alumnoId, temaId){
+  const alumno = getAlumno(alumnoId);
+  if(!Array.isArray(alumno.temasIds)) alumno.temasIds = [];
+  const idx = alumno.temasIds.indexOf(temaId);
+  if(idx>=0) alumno.temasIds.splice(idx,1); else alumno.temasIds.push(temaId);
+  saveDB();
+  renderDetalleAlumno();
+}
+
+function crearTemaDesdeDetalle(alumnoId){
+  const input = document.getElementById('f_nuevoTemaDetalle');
+  const nombre = input.value.trim();
+  if(!nombre){ showToast('Escribí un nombre de tema'); return; }
+  const nuevo = agregarMateria(nombre);
+  const alumno = getAlumno(alumnoId);
+  if(!Array.isArray(alumno.temasIds)) alumno.temasIds = [];
+  if(nuevo && !alumno.temasIds.includes(nuevo.id)) alumno.temasIds.push(nuevo.id);
+  saveDB();
+  renderDetalleAlumno();
+}
+
+/* ---------- temario (temas puntuales a dar por alumno) ---------- */
+function toggleTemarioDado(alumnoId, temaId){
+  const a = getAlumno(alumnoId);
+  const t = a && (a.temario||[]).find(x=>x.id===temaId);
+  if(!t) return;
+  t.dado = !t.dado;
+  saveDB();
+  renderAll();
+}
+function agregarTemarioDetalle(alumnoId){
+  const input = document.getElementById('f_temarioDetalle');
+  const texto = input.value.trim();
+  if(!texto){ showToast('Escribí un tema'); return; }
+  const a = getAlumno(alumnoId);
+  a.temario.push({id: uid(), texto, dado:false});
+  saveDB();
+  renderDetalleAlumno();
+  const nuevoInput = document.getElementById('f_temarioDetalle');
+  if(nuevoInput) nuevoInput.focus();
+}
+function eliminarTemarioItem(alumnoId, temaId){
+  const a = getAlumno(alumnoId);
+  if(!a) return;
+  a.temario = a.temario.filter(t=>t.id!==temaId);
+  db.clases.forEach(c=>{ if(c.alumnoId===alumnoId) c.temarioIds = (c.temarioIds||[]).filter(id=>id!==temaId); });
+  saveDB();
+  renderDetalleAlumno();
+}
+function renderDetalleTemario(alumno){
+  const cont = document.getElementById('detalleTemario');
+  if(!cont) return;
+  const items = alumno.temario || [];
+  const pendientes = items.filter(t=>!t.dado), dados = items.filter(t=>t.dado);
+  const linea = t => {
+    const clase = db.clases.filter(c=>c.alumnoId===alumno.id && (c.temarioIds||[]).includes(t.id))
+      .sort((a,b)=>fechaHoraClase(a)-fechaHoraClase(b))[0];
+    return `
+    <div class="checkbox-line ${t.dado?'done':''}" style="border-bottom:1px solid var(--border);">
+      <input type="checkbox" ${t.dado?'checked':''} onclick="toggleTemarioDado('${alumno.id}','${t.id}')" aria-label="Marcar como dado">
+      <div class="item-main">
+        <div class="item-title" style="font-size:14.5px;font-weight:500;">${escapeHtml(t.texto)}</div>
+        ${clase ? `<div class="item-sub">Clase: ${fechaCorta(clase.fecha)} · ${clase.horaEntrada}</div>` : ''}
+      </div>
+      <button type="button" class="icon-btn sm" style="color:var(--text-mute);" onclick="eliminarTemarioItem('${alumno.id}','${t.id}')" aria-label="Quitar tema">${ic('x')}</button>
+    </div>`;
+  };
+  const total = items.length;
+  cont.innerHTML = `
+    ${total ? `<div class="item-sub" style="margin:-2px 0 6px;">${dados.length} de ${total} temas dados</div><div class="progress"><span style="width:${Math.round(dados.length/total*100)}%"></span></div>` : '<div class="hint" style="margin:0 0 4px;">Cargá los temas que tenés que darle (ej: Perímetro y Área) y tachalos a medida que los das.</div>'}
+    ${pendientes.map(linea).join('')}${dados.map(linea).join('')}
+    <div class="row2" style="margin-top:10px;">
+      <input type="text" id="f_temarioDetalle" placeholder="Nuevo tema a dar" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarTemarioDetalle('${alumno.id}');}">
+      <button type="button" class="btn secondary" onclick="agregarTemarioDetalle('${alumno.id}')" aria-label="Agregar tema">${ic('plus')}</button>
+    </div>`;
+}
+
+function renderDetalleAlumno(){
+  if(!currentAlumnoDetalleId) return;
+  const alumno = getAlumno(currentAlumnoDetalleId);
+  if(!alumno){ goTo('alumnos'); return; }
+  const id = alumno.id;
+  const deuda = sumaPendiente(id);
+
+  const acciones = [
+    {ic:'message', label:'WhatsApp', cls:'wa', fn:`abrirWhatsappAlumno('${id}')`},
+    {ic:'calendar-plus', label:'Agendar', fn:`openClaseForm(null, null, null, '${id}')`},
+    alumno.direccion ? {ic:'map-pin', label:'Cómo llego', fn:`abrirComoLlego('${id}')`} : {ic:'star', label:'Reseña', fn:`pedirResena('${id}')`},
+    {ic:'edit', label:'Editar', fn:`openAlumnoForm('${id}')`}
+  ];
+  const contactoTxt = alumno.tipo==='adulto' ? '' : (alumno.contacto ? alumno.contacto : '');
+  document.getElementById('detalleAlumnoHeader').innerHTML = `
+    ${avatarHtml(alumno, 'lg')}
+    <div class="p-name">${escapeHtml(alumno.nombre)}</div>
+    <div class="p-badges">${nivelBadge(alumno.nivel)}<span class="badge neutral">${alumno.tipo==='adulto'?'Adulto':'Niño/a'}</span></div>
+    <div class="p-info">
+      <span>${ic('cash')}${money(alumno.tarifa)}/h</span>
+      <span>${ic(ICONO_LUGAR[alumno.modalidad]||'home')}${textoLugar(alumno.modalidad)}</span>
+      ${contactoTxt ? `<span>${ic('user')}${escapeHtml(contactoTxt)}</span>` : ''}
+    </div>
+    <div class="quick-actions">
+      ${acciones.map(a=>`<button type="button" class="qa ${a.cls||''}" onclick="${a.fn}"><span class="qa-ic">${ic(a.ic)}</span>${a.label}</button>`).join('')}
+    </div>
+    ${deuda>0 ? `
+    <button type="button" class="debt-banner" onclick="abrirCobro('${keyAlumno(id)}')">
+      <div class="item-main"><div style="font-size:12.5px;font-weight:600;">Te debe</div><b>${money(deuda)}</b></div>
+      <span class="btn sm">Cobrar</span>
+    </button>` : ''}
+  `;
+
+  document.getElementById('detalleMensajes').innerHTML = renderMensajesDetalle(alumno);
+
+  const ahora = new Date();
+  const proximas = db.clases
+    .filter(c=>c.alumnoId===id && fechaHoraClase(c) >= ahora)
+    .sort((a,b)=> fechaHoraClase(a)-fechaHoraClase(b))
+    .slice(0,4);
+  document.getElementById('detalleProximasClases').innerHTML = proximas.length ? proximas.map(c=>`
+    <div class="list-item tap" onclick="irADiaEnCalendario('${c.fecha}')">
+      <div class="row-ic">${ic('calendar')}</div>
+      <div class="item-main">
+        <div class="item-title">${fechaCorta(c.fecha)} · ${c.horaEntrada}</div>
+        <div class="item-sub">${formatDuracion(c.duracionMin)} · ${money(totalClase(c))}</div>
+      </div>
+      ${ic('chevron-right','chev')}
+    </div>`).join('') : '<div class="empty-msg" style="padding-bottom:12px;">No tiene clases agendadas.</div>';
+
+  renderDetalleTemas(id);
+  renderDetalleTemario(alumno);
+
+  const tareasAlumno = db.tareas.filter(t=>t.alumnoId===id);
+  const temasAlumno = temasDeAlumno(id);
+  let html = '';
+  temasAlumno.forEach(tema=>{
+    const tareasTema = tareasAlumno.filter(t=>t.temaId===tema.id);
+    if(!tareasTema.length) return;
+    html += `<div class="tema-grupo"><div class="tema-grupo-titulo">${escapeHtml(tema.nombre)}</div>${tareasTema.map(tareaLineHtml).join('')}</div>`;
+  });
+  const tareasSinTema = tareasAlumno.filter(t=>!t.temaId || !temasAlumno.some(x=>x.id===t.temaId));
+  if(tareasSinTema.length){
+    html += `<div class="tema-grupo">${html ? '<div class="tema-grupo-titulo">General</div>' : ''}${tareasSinTema.map(tareaLineHtml).join('')}</div>`;
+  }
+  document.getElementById('detalleTareasPorTema').innerHTML = html || '<div class="empty-msg">No hay tareas para este alumno.</div>';
+
+  renderCompletarFicha(alumno);
+  renderDetalleAula(alumno);
+  renderDetalleTps(alumno);
+}
+
+/* =========================================================
+   DASHBOARD
+   ========================================================= */
+function formatCuentaRegresiva(ms){
+  if(ms<=0) return '¡Es ahora!';
+  const totalMin = Math.round(ms/60000);
+  const dias = Math.floor(totalMin/1440);
+  const horas = Math.floor((totalMin%1440)/60);
+  const mins = totalMin%60;
+  if(dias>0) return `${dias} día${dias!==1?'s':''} y ${horas} hora${horas!==1?'s':''}`;
+  if(horas>0) return `${horas} hora${horas!==1?'s':''} y ${mins} min`;
+  return `${mins} min`;
+}
+
+function claseEnCursoAhora(ahora){
+  return db.clases.find(c=>{
+    if(!c.horaSalida) return false;
+    const inicio = fechaHoraClase(c);
+    const fin = new Date(`${c.fecha}T${c.horaSalida}`);
+    return ahora>=inicio && ahora<fin;
+  });
+}
+
+function agregarTiempoClase(claseId, minutos){
+  const c = db.clases.find(c=>c.id===claseId);
+  if(!c) return;
+  const a = getAlumno(c.alumnoId);
+  const tarifa = a ? Number(a.tarifa)||0 : 0;
+  c.duracionMin += minutos;
+  c.horaSalida = sumarMinutos(c.horaEntrada, c.duracionMin);
+  c.monto = Number(c.monto||0) + redondearA1000(tarifa*(minutos/60));
+  saveDB();
+  renderAll();
+  showToast(`+${formatDuracionTexto(minutos)} agregados a la clase`);
+}
+
+function abrirAgregarTiempo(claseId){
+  openSheet(`
+    <h3>Extender la clase</h3>
+    <p class="sheet-sub">Se suma el tiempo y se recalcula el monto según su tarifa.</p>
+    <div class="btn-stack" style="margin-top:12px;">
+      <button type="button" class="btn outline" onclick="agregarTiempoClase('${claseId}',15); closeSheet();">${ic('clock')}+15 minutos</button>
+      <button type="button" class="btn outline" onclick="agregarTiempoClase('${claseId}',30); closeSheet();">${ic('clock')}+30 minutos</button>
+      <button type="button" class="btn outline" onclick="agregarTiempoClase('${claseId}',60); closeSheet();">${ic('clock')}+1 hora</button>
+    </div>
+  `);
+}
+
+function renderProximaClaseCountdown(c, ahora, enCurso){
+  const card = document.getElementById('nextClassCard');
+  if(!c){ card.hidden = true; return; }
+  card.hidden = false;
+  document.getElementById('nextClassEyebrow').innerHTML = enCurso ? '<span class="live"></span>Clase en curso' : `${ic('clock')}Próxima clase`;
+  if(enCurso){
+    const fin = new Date(`${c.fecha}T${c.horaSalida}`);
+    document.getElementById('nextClassCountdown').textContent = 'Termina en ' + duracionCorta(fin-ahora);
+  }else{
+    const ms = fechaHoraClase(c)-ahora;
+    document.getElementById('nextClassCountdown').textContent = ms<=60000 ? 'Ahora' : 'En ' + duracionCorta(ms);
+  }
+  document.getElementById('nextClassHora').textContent = c.horaEntrada;
+  document.getElementById('nextClassAlumno').textContent = alumnoNombre(c.alumnoId);
+  document.getElementById('nextClassCuando').textContent = enCurso
+    ? `Hasta las ${c.horaSalida} · ${money(totalClase(c))}`
+    : `${fechaCorta(c.fecha)} · ${formatDuracion(c.duracionMin)}${c.modalidad && c.modalidad!=='casa_mia' ? ' · ' + textoLugar(c.modalidad).toLowerCase() : ''}`;
+
+  const alumno = getAlumno(c.alumnoId);
+  const acciones = [];
+  if(alumno){
+    acciones.push(`<button type="button" onclick="abrirWhatsappAlumno('${alumno.id}','${c.id}')">${ic('message')}WhatsApp</button>`);
+    if(alumno.direccion) acciones.push(`<button type="button" onclick="abrirComoLlego('${alumno.id}')">${ic('map-pin')}Cómo llego</button>`);
+  }
+  if(enCurso) acciones.push(`<button type="button" onclick="abrirAgregarTiempo('${c.id}')">${ic('plus')}Tiempo</button>`);
+  acciones.push(`<button type="button" onclick="abrirPizarraClase('${c.id}')">${ic('pen')}Pizarra</button>`);
+  acciones.push(`<button type="button" onclick="openClaseForm('${c.id}')">${ic('file')}Ver</button>`);
+  document.getElementById('nextClassActions').innerHTML = acciones.join('');
+}
+
+function renderBannerYStats(){
+  const ahora = new Date();
+  const hoySinHora = new Date(ahora);
+  hoySinHora.setHours(0,0,0,0);
+
+  // Clase en curso ahora mismo, si no hay ninguna se muestra la próxima (banner global, visible en cualquier tab)
+  const enCurso = claseEnCursoAhora(ahora);
+  if(enCurso){
+    renderProximaClaseCountdown(enCurso, ahora, true);
+  }else{
+    const proxima = db.clases
+      .filter(c => fechaHoraClase(c) >= ahora)
+      .sort((a,b)=> fechaHoraClase(a) - fechaHoraClase(b))[0];
+    renderProximaClaseCountdown(proxima, ahora, false);
+  }
+
+  // Lo que falta cobrar este mes según las clases agendadas
+  const resto = agendadoRestoMes();
+  document.getElementById('statRestoMes').textContent = money(resto.total);
+
+  // Total por cobrar (clases dadas sin pagar + TPs sin cobrar)
+  document.getElementById('statPendienteMonto').textContent = money(totalPorCobrar());
+
+  // Tareas pendientes
+  const nTareas = db.tareas.filter(t=>!t.hecha).length;
+  document.getElementById('statTareas').innerHTML = `${nTareas} <small>pend.</small>`;
+}
+
+/* =========================================================
+   ESTADÍSTICAS
+   ========================================================= */
+let statsFecha = new Date();
+let historialCompleto = false;
+
+function cambiarMesStats(delta){
+  statsFecha = new Date(statsFecha.getFullYear(), statsFecha.getMonth()+delta, 1);
+  renderStats();
+}
+
+function claseYaOcurrida(c, ahora){
+  const horaRef = c.horaSalida || c.horaEntrada;
+  return new Date(`${c.fecha}T${horaRef}`) <= ahora;
+}
+
+/* ---------- pagos ---------- */
+function registrarPago({alumnoId=null, cliente='', claseIds=[], trabajoIds=[], fecha}){
+  const p = {id: uid(), fecha: fecha || hoyIso(), alumnoId, cliente, monto:0, claseIds:[], trabajoIds:[]};
+  claseIds.forEach(id=>{
+    const c = db.clases.find(x=>x.id===id);
+    if(!c) return;
+    if(c.pagada && c.pagoId) quitarClaseDePago(c);
+    c.pagada = true; c.pagoId = p.id; p.claseIds.push(id);
+  });
+  trabajoIds.forEach(id=>{
+    const t = db.trabajos.find(x=>x.id===id);
+    if(!t) return;
+    if(t.cobrado && t.pagoId) quitarTrabajoDePago(t);
+    t.cobrado = true; t.pagoId = p.id; p.trabajoIds.push(id);
+  });
+  db.pagos.push(p);
+  recalcularPago(p.id);
+  return p;
+}
+function recalcularPago(pagoId){
+  const p = db.pagos.find(x=>x.id===pagoId);
+  if(!p) return;
+  p.claseIds = p.claseIds.filter(id=>db.clases.some(c=>c.id===id));
+  p.trabajoIds = (p.trabajoIds||[]).filter(id=>db.trabajos.some(t=>t.id===id));
+  if(p.claseIds.length===0 && p.trabajoIds.length===0){
+    db.pagos = db.pagos.filter(x=>x.id!==pagoId);
+    return;
+  }
+  p.monto = p.claseIds.reduce((s,id)=>s+totalClase(db.clases.find(c=>c.id===id)),0)
+          + p.trabajoIds.reduce((s,id)=>s+totalTrabajo(db.trabajos.find(t=>t.id===id)),0);
+}
+function quitarClaseDePago(c){
+  const pagoId = c.pagoId;
+  c.pagada = false; c.pagoId = null;
+  const p = db.pagos.find(x=>x.id===pagoId);
+  if(p){ p.claseIds = p.claseIds.filter(id=>id!==c.id); recalcularPago(pagoId); }
+}
+function quitarTrabajoDePago(t){
+  const pagoId = t.pagoId;
+  t.cobrado = false; t.pagoId = null;
+  const p = db.pagos.find(x=>x.id===pagoId);
+  if(p){ p.trabajoIds = p.trabajoIds.filter(id=>id!==t.id); recalcularPago(pagoId); }
+}
+async function anularPago(pagoId){
+  const p = db.pagos.find(x=>x.id===pagoId);
+  if(!p) return;
+  const ok = await confirmar({titulo:'¿Anular este pago?', mensaje:'Lo que incluía vuelve a quedar pendiente de cobro.', ok:'Anular pago', peligro:true});
+  if(!ok) return;
+  p.claseIds.forEach(id=>{ const c = db.clases.find(x=>x.id===id); if(c){ c.pagada=false; c.pagoId=null; } });
+  (p.trabajoIds||[]).forEach(id=>{ const t = db.trabajos.find(x=>x.id===id); if(t){ t.cobrado=false; t.pagoId=null; } });
+  db.pagos = db.pagos.filter(x=>x.id!==pagoId);
+  saveDB();
+  closeSheet();
+  renderAll();
+  showToast('Pago anulado');
+}
+function nombrePagador(p){
+  if(p.alumnoId && getAlumno(p.alumnoId)) return alumnoNombre(p.alumnoId);
+  return p.cliente || 'Sin nombre';
+}
+function conceptoPago(p){
+  const partes = [];
+  const nc = p.claseIds.length, nt = (p.trabajoIds||[]).length;
+  if(nc) partes.push(`${nc} clase${nc!==1?'s':''}`);
+  if(nt===1){ const t = db.trabajos.find(x=>x.id===p.trabajoIds[0]); partes.push(t?t.titulo:'otro cobro'); }
+  else if(nt>1) partes.push(`${nt} cobros más`);
+  return partes.join(' + ');
+}
+
+/* ---------- deudas (lo que falta cobrar) ---------- */
+function keyAlumno(id){ return 'a:'+id; }
+function itemsPendientes(key){
+  const ahora = new Date();
+  if(key.startsWith('a:')){
+    const id = key.slice(2);
+    return {
+      clases: db.clases.filter(c=>c.alumnoId===id && !c.pagada && claseYaOcurrida(c, ahora)).sort((a,b)=>a.fecha.localeCompare(b.fecha)),
+      trabajos: db.trabajos.filter(t=>t.alumnoId===id && !t.cobrado)
+    };
+  }
+  const cliente = key.slice(2);
+  return {clases:[], trabajos: db.trabajos.filter(t=>!t.alumnoId && !t.cobrado && (t.cliente||'Sin nombre')===cliente)};
+}
+function deudores(){
+  const keys = new Set();
+  const ahora = new Date();
+  db.clases.forEach(c=>{ if(!c.pagada && claseYaOcurrida(c, ahora) && getAlumno(c.alumnoId)) keys.add(keyAlumno(c.alumnoId)); });
+  db.trabajos.forEach(t=>{ if(!t.cobrado) keys.add(t.alumnoId && getAlumno(t.alumnoId) ? keyAlumno(t.alumnoId) : 'c:'+(t.cliente||'Sin nombre')); });
+  return Array.from(keys).map(key=>{
+    const it = itemsPendientes(key);
+    const total = it.clases.reduce((s,c)=>s+totalClase(c),0) + it.trabajos.reduce((s,t)=>s+totalTrabajo(t),0);
+    const esAlumno = key.startsWith('a:');
+    return {key, total, it,
+      nombre: esAlumno ? alumnoNombre(key.slice(2)) : key.slice(2),
+      color: esAlumno ? alumnoColor(key.slice(2)) : 'var(--text-dim)'};
+  }).filter(d=>d.total>0).sort((a,b)=>b.total-a.total);
+}
+// Clases agendadas de acá a fin de mes que todavía no se dieron ni se cobraron
+function agendadoRestoMes(){
+  const ahora = new Date();
+  const y = ahora.getFullYear(), m = ahora.getMonth();
+  const clases = db.clases.filter(c=>{
+    const [cy,cm] = c.fecha.split('-').map(Number);
+    return cy===y && (cm-1)===m && !c.pagada && !claseYaOcurrida(c, ahora);
+  });
+  return {clases, total: clases.reduce((s,c)=>s+totalClase(c),0)};
+}
+function totalPorCobrar(){ return deudores().reduce((s,d)=>s+d.total,0); }
+
+function detalleItemsTexto(it){
+  const lineas = it.clases.map(c=>`• ${nombreDiaFecha(c.fecha)}/${c.fecha.slice(5,7)}: ${formatDuracion(c.duracionMin)} de clase${c.viatico>0?' + traslado':''} → ${money(totalClase(c))}`);
+  it.trabajos.forEach(t=>lineas.push(`• TP "${t.titulo}" (${formatDuracion(t.minutos||0)}) → ${money(totalTrabajo(t))}`));
+  return lineas.join('\n');
+}
+function enviarResumenDeuda(key){
+  const it = itemsPendientes(key);
+  const total = it.clases.reduce((s,c)=>s+totalClase(c),0) + it.trabajos.reduce((s,t)=>s+totalTrabajo(t),0);
+  let tel = '', saludo = 'Hola, ¿cómo estás?';
+  if(key.startsWith('a:')){
+    const a = getAlumno(key.slice(2));
+    tel = a.telefono;
+    if(a.tipo!=='adulto' && a.contacto) saludo = `Hola ${a.contacto}, ¿cómo estás?`;
+    else if(a.tipo==='adulto') saludo = `Hola ${a.nombre}, ¿cómo estás?`;
+  }
+  const msg = `${saludo}\nTe paso el resumen de lo pendiente:\n${detalleItemsTexto(it)}\n\nTotal: ${money(total)}. ¡Muchas gracias!`;
+  window.open(waUrl(tel, msg), '_blank');
+}
+
+function abrirCobro(key){
+  const it = itemsPendientes(key);
+  const nombre = key.startsWith('a:') ? alumnoNombre(key.slice(2)) : key.slice(2);
+  if(!it.clases.length && !it.trabajos.length){ showToast('No hay nada pendiente'); return; }
+  const fila = (tipo, id, monto, titulo, sub) => `
+    <label class="list-item checkbox-line" style="cursor:pointer;">
+      <input type="checkbox" checked data-tipo="${tipo}" data-id="${id}" data-monto="${monto}" onchange="actualizarTotalCobro()">
+      <div class="item-main"><div class="item-title" style="font-size:14.5px;">${titulo}</div><div class="item-sub">${sub}</div></div>
+      <div class="item-right">${money(monto)}</div>
+    </label>`;
+  openSheet(`
+    <h3>Cobrar a ${escapeHtml(nombre)}</h3>
+    <p class="sheet-sub">Destildá lo que no te pagó. Queda registrado en el historial.</p>
+    <div id="cobroItems" style="margin-top:6px;">
+      ${it.clases.map(c=>fila('clase', c.id, totalClase(c), `Clase · ${fechaCorta(c.fecha)}`, `${formatDuracion(c.duracionMin)}${c.viatico>0?` · incluye ${money(c.viatico)} de traslado`:''}`)).join('')}
+      ${it.trabajos.map(t=>fila('trabajo', t.id, totalTrabajo(t), escapeHtml(t.titulo), `Trabajo práctico · ${formatDuracion(t.minutos||0)}`)).join('')}
+    </div>
+    <label for="f_fechaPago">Fecha del pago</label>
+    <input type="date" id="f_fechaPago" value="${hoyIso()}">
+    <button type="button" class="btn outline" onclick="enviarResumenDeuda('${jsArg(key)}')">${ic('message')}Mandar resumen por WhatsApp</button>
+    <div class="sheet-footer">
+      <button type="button" class="btn primary" id="btnConfirmarCobro" onclick="confirmarCobro('${jsArg(key)}')"></button>
+    </div>
+  `);
+  actualizarTotalCobro();
+}
+function actualizarTotalCobro(){
+  const sel = Array.from(document.querySelectorAll('#cobroItems input:checked'));
+  const total = sel.reduce((s,el)=>s+Number(el.dataset.monto),0);
+  const btn = document.getElementById('btnConfirmarCobro');
+  if(btn){
+    btn.innerHTML = sel.length ? `${ic('check')}Registrar pago de ${money(total)}` : 'Marcá qué te pagó';
+    btn.disabled = !sel.length;
+    btn.style.opacity = sel.length ? '' : '.5';
+  }
+}
+function confirmarCobro(key){
+  const sel = Array.from(document.querySelectorAll('#cobroItems input:checked'));
+  if(!sel.length){ showToast('Marcá al menos una cosa'); return; }
+  const fecha = document.getElementById('f_fechaPago').value || hoyIso();
+  const esAlumno = key.startsWith('a:');
+  const p = registrarPago({
+    alumnoId: esAlumno ? key.slice(2) : null,
+    cliente: esAlumno ? '' : key.slice(2),
+    claseIds: sel.filter(el=>el.dataset.tipo==='clase').map(el=>el.dataset.id),
+    trabajoIds: sel.filter(el=>el.dataset.tipo==='trabajo').map(el=>el.dataset.id),
+    fecha
+  });
+  saveDB();
+  closeSheet();
+  renderAll();
+  showToast(`Pago de ${money(p.monto)} registrado ✓`);
+}
+
+function abrirPagoDetalle(pagoId){
+  const p = db.pagos.find(x=>x.id===pagoId);
+  if(!p) return;
+  const clases = p.claseIds.map(id=>db.clases.find(c=>c.id===id)).filter(Boolean);
+  const trabajos = (p.trabajoIds||[]).map(id=>db.trabajos.find(t=>t.id===id)).filter(Boolean);
+  openSheet(`
+    <h3>Pago de ${escapeHtml(nombrePagador(p))}</h3>
+    <p class="sheet-sub">Recibido el ${formatoFechaLarga(p.fecha).toLowerCase()}</p>
+    <div style="margin-top:6px;">
+    ${clases.map(c=>`<div class="list-item"><div class="item-main"><div class="item-title" style="font-size:14.5px;">Clase · ${fechaCorta(c.fecha)}</div><div class="item-sub">${formatDuracion(c.duracionMin)}${c.viatico>0?` · traslado ${money(c.viatico)}`:''}</div></div><div class="item-right">${money(totalClase(c))}</div></div>`).join('')}
+    ${trabajos.map(t=>`<div class="list-item"><div class="item-main"><div class="item-title" style="font-size:14.5px;">${escapeHtml(t.titulo)}</div><div class="item-sub">Trabajo práctico · ${formatDuracion(t.minutos||0)}</div></div><div class="item-right">${money(totalTrabajo(t))}</div></div>`).join('')}
+    <div class="list-item"><div class="item-main"><b>Total</b></div><div class="item-right ok" style="font-size:17px;">${money(p.monto)}</div></div>
+    </div>
+    <div class="sheet-footer">
+      <button type="button" class="btn danger grow" style="flex:1;" onclick="anularPago('${p.id}')">Anular pago</button>
+      <button type="button" class="btn primary" onclick="closeSheet()">Listo</button>
+    </div>
+  `);
+}
+
+function toggleHistorialCompleto(){ historialCompleto = !historialCompleto; renderStats(); }
+
+function renderHistorialPagos(){
+  const cont = document.getElementById('historialPagos');
+  const pagos = db.pagos.slice().sort((a,b)=> b.fecha.localeCompare(a.fecha));
+  if(!pagos.length){
+    cont.innerHTML = '<div class="empty-msg" style="padding-bottom:14px;">Todavía no registraste pagos. Cuando te paguen, tocá «Cobrar».</div>';
+    return;
+  }
+  const lista = historialCompleto ? pagos : pagos.slice(0,6);
+  let html = '', fechaAnt = null;
+  lista.forEach(p=>{
+    if(p.fecha!==fechaAnt){ html += `<div class="pago-fecha">${formatoFechaLarga(p.fecha)}</div>`; fechaAnt = p.fecha; }
+    const a = p.alumnoId ? getAlumno(p.alumnoId) : null;
+    html += `
+      <div class="list-item tap" onclick="abrirPagoDetalle('${p.id}')">
+        ${a ? avatarHtml(a) : `<div class="row-ic">${ic('file')}</div>`}
+        <div class="item-main">
+          <div class="item-title">${escapeHtml(nombrePagador(p))}</div>
+          <div class="item-sub">${escapeHtml(conceptoPago(p))}</div>
+        </div>
+        <div class="item-right ok">+${money(p.monto)}</div>
+      </div>`;
+  });
+  if(pagos.length>6){
+    html += `<div style="padding:4px 0 12px;"><button type="button" class="link-btn" onclick="toggleHistorialCompleto()">${historialCompleto?'Ver menos':`Ver todos (${pagos.length})`}</button></div>`;
+  }
+  cont.innerHTML = html;
+}
+
+/* ---------- otros cobros (db.trabajos): material preparado, un trabajo aparte, etc. ---------- */
+function openTrabajoForm(id){
+  const editing = id ? db.trabajos.find(t=>t.id===id) : null;
+  const ordenados = db.alumnos.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'));
+  const alumnoSel = editing ? (editing.alumnoId || '__otro__') : (currentAlumnoDetalleId || (ordenados[0] ? ordenados[0].id : '__otro__'));
+  openSheet(`
+    <h3>${editing ? 'Editar cobro' : 'Otro cobro'}</h3>
+    <p class="sheet-sub">Algo que cobrás aparte de las clases, como preparar material. Se suma a lo que te deben.</p>
+
+    <label for="f_tp_titulo">¿Qué es?</label>
+    <input type="text" id="f_tp_titulo" value="${editing ? escapeAttr(editing.titulo) : ''}" placeholder="Ej: Material para el examen de Física" autocomplete="off">
+
+    <label for="f_tp_alumno">¿Quién lo paga?</label>
+    <select id="f_tp_alumno" onchange="document.getElementById('tpClienteBox').style.display = this.value==='__otro__' ? 'block':'none';">
+      ${ordenados.map(a=>`<option value="${a.id}" ${a.id===alumnoSel?'selected':''}>${escapeHtml(a.nombre)}</option>`).join('')}
+      <option value="__otro__" ${alumnoSel==='__otro__'?'selected':''}>Otra persona…</option>
+    </select>
+    <div id="tpClienteBox" style="display:${alumnoSel==='__otro__'?'block':'none'};">
+      <label for="f_tp_cliente">Nombre</label>
+      <input type="text" id="f_tp_cliente" value="${editing ? escapeAttr(editing.cliente||'') : ''}" placeholder="Ej: Sofi (prima de Juan)" autocomplete="off">
+    </div>
+
+    <div class="field-row">
+      <div>
+        <label for="f_tp_monto">Monto</label>
+        <input type="number" id="f_tp_monto" min="0" step="500" inputmode="numeric" value="${editing ? editing.monto : ''}" placeholder="${db.config.tarifaHabitual||''}">
+      </div>
+      <div>
+        <label for="f_tp_fecha">Fecha</label>
+        <input type="date" id="f_tp_fecha" value="${editing ? editing.fecha : hoyIso()}">
+      </div>
+    </div>
+
+    <label class="switch-row">
+      <span>Ya lo cobré</span>
+      <input type="checkbox" class="switch" id="f_tp_cobrado" ${editing && editing.cobrado ? 'checked':''}>
+    </label>
+
+    <details class="more">
+      <summary>${ic('chevron-right')}Notas</summary>
+      <textarea id="f_tp_notas" style="margin-top:10px;" placeholder="Detalles…">${editing ? escapeHtml(editing.notas||'') : ''}</textarea>
+    </details>
+
+    <div class="sheet-footer">
+      ${editing ? `<button type="button" class="btn danger" onclick="eliminarTrabajo('${editing.id}')" aria-label="Eliminar cobro">${ic('trash')}</button>` : ''}
+      <button type="button" class="btn primary" onclick="guardarTrabajo(${editing ? `'${editing.id}'` : 'null'})">${editing ? 'Guardar cambios' : 'Agregar'}</button>
+    </div>
+  `);
+  if(!editing) enfocarSiLibre('f_tp_titulo');
+}
+function guardarTrabajo(id){
+  const titulo = document.getElementById('f_tp_titulo').value.trim();
+  const sel = document.getElementById('f_tp_alumno').value;
+  const alumnoId = sel==='__otro__' ? null : sel;
+  const cliente = alumnoId ? '' : document.getElementById('f_tp_cliente').value.trim();
+  const fecha = document.getElementById('f_tp_fecha').value || hoyIso();
+  const monto = parseFloat(document.getElementById('f_tp_monto').value)||0;
+  const notas = document.getElementById('f_tp_notas').value.trim();
+  const cobrado = document.getElementById('f_tp_cobrado').checked;
+  if(!titulo){ showToast('Poné qué es'); return; }
+  if(!alumnoId && !cliente){ showToast('Poné quién lo paga'); return; }
+  if(monto<=0){ showToast('Poné el monto'); return; }
+
+  let t;
+  if(id){
+    t = db.trabajos.find(x=>x.id===id);
+    Object.assign(t, {titulo, alumnoId, cliente, fecha, monto, notas});
+  }else{
+    t = {id: uid(), titulo, alumnoId, cliente, fecha, minutos:0, tarifaHora:0, monto, notas, cobrado:false, pagoId:null};
+    db.trabajos.push(t);
+  }
+  if(cobrado && !t.cobrado) registrarPago({alumnoId, cliente, trabajoIds:[t.id], fecha});
+  else if(!cobrado && t.cobrado) quitarTrabajoDePago(t);
+  else if(cobrado && t.pagoId) recalcularPago(t.pagoId);
+  saveDB();
+  closeSheet();
+  renderAll();
+  showToast('Cobro guardado');
+}
+async function eliminarTrabajo(id){
+  const ok = await confirmar({titulo:'¿Eliminar este cobro?', mensaje:'Si estaba cobrado, también se quita del historial de pagos.', ok:'Eliminar', peligro:true});
+  if(!ok) return;
+  const t = db.trabajos.find(x=>x.id===id);
+  if(t && t.cobrado) quitarTrabajoDePago(t);
+  db.trabajos = db.trabajos.filter(x=>x.id!==id);
+  saveDB();
+  closeSheet();
+  renderAll();
+  showToast('Cobro eliminado');
+}
+
+/* ---------- render billetera ---------- */
+function renderStats(){
+  const ahora = new Date();
+
+  // saldo por cobrar (todo lo adeudado, de cualquier mes)
+  const ds = deudores();
+  const total = ds.reduce((s,d)=>s+d.total,0);
+  const nClases = ds.reduce((s,d)=>s+d.it.clases.length,0), nTPs = ds.reduce((s,d)=>s+d.it.trabajos.length,0);
+  document.getElementById('billeteraPorCobrar').textContent = money(total);
+  document.getElementById('billeteraPorCobrarSub').textContent = total>0
+    ? [nClases?`${nClases} clase${nClases!==1?'s':''}`:'', nTPs?`${nTPs} cobro${nTPs!==1?"s":""} más`:''].filter(Boolean).join(' y ') + ' sin cobrar'
+    : 'Estás al día';
+  const resto = agendadoRestoMes();
+  const mesActual = new Date().toLocaleDateString('es-AR',{month:'long'});
+  document.getElementById('billeteraProximoLbl').textContent = 'Resto de ' + mesActual;
+  document.getElementById('billeteraProximo').textContent = money(resto.total);
+  document.getElementById('billeteraProximoSub').textContent = resto.clases.length
+    ? `${resto.clases.length} clase${resto.clases.length!==1?'s':''} agendada${resto.clases.length!==1?'s':''}`
+    : 'Sin clases agendadas';
+  document.getElementById('billeteraTotalLbl').textContent = `Total por cobrar en ${mesActual}`;
+  document.getElementById('billeteraTotal').textContent = money(total + resto.total);
+  document.getElementById('billeteraDeudoresCard').hidden = !ds.length;
+  document.getElementById('billeteraDeudores').innerHTML = ds.map(d=>{
+    const a = d.key.startsWith('a:') ? getAlumno(d.key.slice(2)) : null;
+    const detalle = [d.it.clases.length?`${d.it.clases.length} clase${d.it.clases.length!==1?'s':''}`:'', d.it.trabajos.length?`${d.it.trabajos.length} cobro${d.it.trabajos.length!==1?'s':''} más`:''].filter(Boolean).join(' + ');
+    return `
+    <div class="list-item">
+      ${a ? avatarHtml(a) : `<div class="row-ic">${ic('user')}</div>`}
+      <div class="item-main" style="cursor:pointer;" onclick="${a ? `abrirDetalleAlumno('${a.id}')` : `abrirCobro('${jsArg(d.key)}')`}">
+        <div class="item-title">${escapeHtml(d.nombre)}</div>
+        <div class="item-sub">${detalle}</div>
+      </div>
+      <div class="item-right warn" style="margin-right:4px;">${money(d.total)}</div>
+      <button type="button" class="btn primary sm" onclick="abrirCobro('${jsArg(d.key)}')">Cobrar</button>
+    </div>`;
+  }).join('');
+
+  // mes seleccionado
+  const y = statsFecha.getFullYear(), m = statsFecha.getMonth();
+  document.getElementById('statsMesLabel').textContent = capitalizar(statsFecha.toLocaleDateString('es-AR', {month:'long'})) + ' ' + y;
+  const enMes = f => { const [fy,fm] = f.split('-').map(Number); return fy===y && (fm-1)===m; };
+
+  const clasesMes = db.clases.filter(c=>enMes(c.fecha));
+  const clasesDadas = clasesMes.filter(c=>claseYaOcurrida(c, ahora));
+  const tpsMes = db.trabajos.filter(t=>enMes(t.fecha));
+
+  const minutos = clasesDadas.reduce((s,c)=>s+(c.duracionMin||0),0) + tpsMes.reduce((s,t)=>s+(t.minutos||0),0);
+  const montoClases = clasesDadas.reduce((s,c)=>s+Number(c.monto||0),0);
+  const montoPasajes = clasesDadas.reduce((s,c)=>s+Number(c.viatico||0),0);
+  const montoTPs = tpsMes.reduce((s,t)=>s+totalTrabajo(t),0);
+  const generado = montoClases + montoPasajes + montoTPs;
+  const cobradoMes = db.pagos.filter(p=>enMes(p.fecha)).reduce((s,p)=>s+Number(p.monto||0),0);
+  const pendienteMes = clasesDadas.filter(c=>!c.pagada).reduce((s,c)=>s+totalClase(c),0) + tpsMes.filter(t=>!t.cobrado).reduce((s,t)=>s+totalTrabajo(t),0);
+  const esperado = clasesMes.reduce((s,c)=>s+totalClase(c),0) + montoTPs;
+  const faltanDar = clasesMes.filter(c=>!claseYaOcurrida(c, ahora));
+  const montoFaltan = faltanDar.reduce((s,c)=>s+totalClase(c),0);
+
+  document.getElementById('statsHoras').textContent = fmt1(minutos/60) + ' h';
+  document.getElementById('statsMonto').textContent = money(generado);
+  document.getElementById('statsCobrado').textContent = money(cobradoMes);
+  document.getElementById('statsPendiente').textContent = money(pendienteMes);
+  const filaBd = (label, val) => `<div class="bd-row"><span>${label}</span><b>${money(val)}</b></div>`;
+  document.getElementById('statsDesglose').innerHTML =
+    (generado>0 ? filaBd(`Clases dadas (${clasesDadas.length})`, montoClases) + (montoPasajes ? filaBd('Extra a domicilio', montoPasajes) : '') + (tpsMes.length ? filaBd(`Otros cobros (${tpsMes.length})`, montoTPs) : '') : '')
+    + (faltanDar.length ? `<div class="bd-row" style="color:var(--accent);"><span>Agendadas que faltan dar (${faltanDar.length})</span><b style="color:var(--accent);">${money(montoFaltan)}</b></div>` : '');
+  const esperadoEl = document.getElementById('statsEsperado');
+  esperadoEl.hidden = !faltanDar.length;
+  esperadoEl.innerHTML = `${ic('info')}<span>Si das todas las clases agendadas, este mes generás <b>${money(esperado)}</b> en total.</span>`;
+
+  renderHistorialPagos();
+
+  document.getElementById('listaTrabajos').innerHTML = tpsMes.length ? tpsMes.sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(t=>`
+    <div class="list-item tap" onclick="openTrabajoForm('${t.id}')">
+      <div class="row-ic">${ic('file')}</div>
+      <div class="item-main">
+        <div class="item-title">${escapeHtml(t.titulo)}</div>
+        <div class="item-sub">${escapeHtml(t.alumnoId ? alumnoNombre(t.alumnoId) : (t.cliente||''))} · ${fechaCorta(t.fecha)}</div>
+      </div>
+      <div class="item-right">
+        ${money(totalTrabajo(t))}
+        <div style="margin-top:3px;"><span class="badge ${t.cobrado?'pagada':'pendiente'}">${t.cobrado?'Cobrado':'Sin cobrar'}</span></div>
+      </div>
+    </div>`).join('') : '<div class="empty-msg" style="padding-bottom:14px;">Si cobrás algo aparte de las clases (como preparar material), cargalo acá.</div>';
+
+  const porAlumno = db.alumnos.map(a=>{
+    const cs = clasesDadas.filter(c=>c.alumnoId===a.id);
+    const ts = tpsMes.filter(t=>t.alumnoId===a.id);
+    const h = (cs.reduce((s,c)=>s+(c.duracionMin||0),0) + ts.reduce((s,t)=>s+(t.minutos||0),0))/60;
+    const mo = cs.reduce((s,c)=>s+totalClase(c),0) + ts.reduce((s,t)=>s+totalTrabajo(t),0);
+    return {alumno:a, horas:h, monto:mo, cantidad:cs.length, tps:ts.length};
+  }).filter(x=>x.cantidad>0 || x.tps>0).sort((a,b)=>b.monto-a.monto);
+
+  document.getElementById('statsPorAlumno').innerHTML = porAlumno.length ? porAlumno.map(x=>`
+    <div class="list-item tap" onclick="abrirDetalleAlumno('${x.alumno.id}')">
+      ${avatarHtml(x.alumno,'sm')}
+      <div class="item-main">
+        <div class="item-title">${escapeHtml(x.alumno.nombre)}</div>
+        <div class="item-sub">${[x.cantidad ? `${x.cantidad} clase${x.cantidad!==1?'s':''}` : '', x.tps ? `${x.tps} TP` : '', `${fmt1(x.horas)} h`].filter(Boolean).join(' · ')}</div>
+      </div>
+      <div class="item-right">${money(x.monto)}</div>
+    </div>
+  `).join('') : '<div class="empty-msg" style="padding-bottom:14px;">Sin clases dadas este mes todavía.</div>';
+}
+
+/* =========================================================
+   RENDER GENERAL
+   ========================================================= */
+function renderAll(){
+  renderBannerYStats();
+  renderAlumnos();
+  renderClases();
+  renderTareas();
+  renderTps();
+  renderStats();
+  if(document.getElementById('view-alumno-detalle').classList.contains('active')) renderDetalleAlumno();
+  actualizarHeader();
+}
+
+/* =========================================================
+   AJUSTES: EXPORTAR / IMPORTAR
+   ========================================================= */
+const PALETTES = [
+  {id:'lila', label:'Lila', swatch:'#7a5bc4'},
+  {id:'azul', label:'Azul y oro', swatch:'#1f4fa3'},
+  {id:'rojo', label:'Rojo y blanco', swatch:'#cf2a3d'},
+  {id:'verde', label:'Verde', swatch:'#3a8150'},
+  {id:'celeste', label:'Celeste y blanco', swatch:'#4a9fd8'}
+];
+
+function aplicarPaleta(){
+  const paleta = db.config.paleta || 'lila';
+  document.documentElement.setAttribute('data-palette', paleta);
+  try{ localStorage.setItem('estudiantes_palette_v1', paleta); }catch(e){}
+  actualizarColorBarras();
+}
+// Las barras del sistema del celular (arriba y abajo) toman el color de theme-color.
+// Sigue la paleta y el modo claro/oscuro.
+function actualizarColorBarras(){
+  const metaTheme = document.querySelector('meta[name="theme-color"]');
+  if(!metaTheme) return;
+  const color = getComputedStyle(document.documentElement).getPropertyValue('--card').trim();
+  if(color) metaTheme.setAttribute('content', color);
+}
+if(window.matchMedia){
+  const mq = window.matchMedia('(prefers-color-scheme: dark)');
+  if(mq.addEventListener) mq.addEventListener('change', actualizarColorBarras);
+}
+
+function elegirPaleta(key){
+  db.config.paleta = key;
+  saveDB();
+  try{ localStorage.setItem('estudiantes_palette_v1', key); }catch(e){}
+  aplicarPaleta();
+  renderThemeSwitch();
+}
+
+function renderThemeSwitch(){
+  const cont = document.getElementById('themeSwitchAjustes');
+  if(cont){
+    const current = db.config.paleta || 'lila';
+    cont.innerHTML = PALETTES.map(p=>
+      `<button type="button" class="${p.id===current?'active':''}" onclick="elegirPaleta('${p.id}')"><i style="background:${p.swatch}"></i>${p.label}</button>`
+    ).join('');
+  }
+  const modo = document.getElementById('modoSwitchAjustes');
+  if(modo){
+    const tema = db.config.tema || 'auto';
+    modo.innerHTML = [['auto','Automático'],['light','Claro'],['dark','Oscuro']].map(([v,l])=>
+      `<button type="button" class="${tema===v?'active':''}" onclick="setTema('${v}'); renderThemeSwitch();">${l}</button>`).join('');
+  }
+}
+
+const TEMA_ICONS = {auto:'🌓', light:'☀️', dark:'🌙'};
+function aplicarModoOscuro(){
+  const tema = db.config.tema || 'auto';
+  if(tema==='auto') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', tema);
+  try{ localStorage.setItem('estudiantes_theme_v1', tema); }catch(e){}
+  actualizarColorBarras();
+}
+function setTema(tema){
+  db.config.tema = tema;
+  saveDB();
+  try{ localStorage.setItem('estudiantes_theme_v1', tema); }catch(e){}
+  aplicarModoOscuro();
+}
+
+function cuentaHtml(){
+  if(firebaseUser){
+    return `<div class="set-row" style="cursor:default;">
+      <div class="row-ic ok">${ic('cloud')}</div>
+      <div class="item-main"><div class="item-title" style="font-weight:600;">Respaldo en la nube activo</div><div class="item-sub">${escapeHtml(firebaseUser.email||'')}</div></div>
+    </div>
+    <button type="button" class="set-row" onclick="cerrarSesionGoogle()">
+      <div class="row-ic">${ic('log-out')}</div><div class="item-main">Cerrar sesión</div>
+    </button>`;
+  }
+  return `<button type="button" class="set-row" onclick="iniciarSesionGoogle()">
+    <div class="row-ic">${ic('cloud')}</div>
+    <div class="item-main"><div class="item-title" style="font-weight:600;">Iniciar sesión con Google</div><div class="item-sub">Respaldá tus datos y usalos en otros dispositivos</div></div>
+    ${ic('chevron-right','chev')}
+  </button>`;
+}
+function volverAjustesHtml(){
+  return `<button type="button" class="link-btn sheet-back" onclick="abrirAjustes()">${ic('chevron-left')}Ajustes</button>`;
+}
+function abrirAjustes(){
+  const disp = db.config.disponibilidad || {};
+  const diasActivos = DIAS_ORDEN.filter(d=>disp[d] && disp[d].activo).map(d=>DIAS_NOMBRE[d].slice(0,3));
+  openSheet(`
+    <h3>Ajustes</h3>
+
+    <div class="section-label" style="margin-top:12px;">Cuenta</div>
+    <div class="set-group" id="ajustesCuenta">${cuentaHtml()}</div>
+
+    <div class="section-label">Apariencia</div>
+    <div class="set-group">
+      <div class="set-pad">
+        <div class="palette-opts" id="themeSwitchAjustes"></div>
+      </div>
+      <div class="set-pad">
+        <div class="segmented" id="modoSwitchAjustes" style="margin:0;"></div>
+      </div>
+    </div>
+
+    <div class="section-label">Clases</div>
+    <div class="set-group">
+      <button type="button" class="set-row" onclick="abrirDisponibilidad()">
+        <div class="row-ic">${ic('clock')}</div><div class="item-main">Horarios disponibles<div class="item-sub">${diasActivos.length ? diasActivos.join(', ') : 'Ninguno'}</div></div>${ic('chevron-right','chev')}
+      </button>
+      <button type="button" class="set-row" onclick="abrirAjustesPrecios()">
+        <div class="row-ic">${ic('dollar')}</div><div class="item-main">Precio por hora<div class="item-sub">${money(db.config.tarifaHabitual)}${extraDomicilio() ? ` · + ${money(extraDomicilio())} a domicilio` : ''}</div></div>${ic('chevron-right','chev')}
+      </button>
+      <button type="button" class="set-row" onclick="abrirPerfilPublico()">
+        <div class="row-ic">${ic('globe')}</div><div class="item-main">Tu perfil en Estudiemos<div class="item-sub">${textoEstadoPerfil()}</div></div>${ic('chevron-right','chev')}
+      </button>
+      <button type="button" class="set-row" onclick="abrirAjustesDatosProfe()">
+        <div class="row-ic">${ic('user')}</div><div class="item-main">Tus datos (nombre, WhatsApp, sobre vos)<div class="item-sub">${db.config.nombreProfe ? escapeHtml(db.config.nombreProfe) : 'Sin completar'}</div></div>${ic('chevron-right','chev')}
+      </button>
+    </div>
+
+    <div class="section-label">Tus alumnos en la app</div>
+    <div class="set-group">
+      <button type="button" class="set-row" onclick="abrirAjustesNotif()">
+        <div class="row-ic">${ic('bell')}</div><div class="item-main">Notificaciones y recordatorios<div class="item-sub">${db.config.notif.antesMin ? `Te avisa ${db.config.notif.antesMin} min antes de cada clase` : 'Sin recordatorios'}</div></div>${ic('chevron-right','chev')}
+      </button>
+      <button type="button" class="set-row" onclick="abrirPaginaResenas()">
+        <div class="row-ic">${ic('star')}</div><div class="item-main">Tu página de reseñas<div class="item-sub">Para el link de tu Instagram</div></div>${ic('chevron-right','chev')}
+      </button>
+    </div>
+
+    <div class="section-label">Datos</div>
+    <div class="set-group">
+      <button type="button" class="set-row" onclick="exportarDatos()">
+        <div class="row-ic">${ic('download')}</div><div class="item-main">Exportar respaldo (JSON)</div>
+      </button>
+      <button type="button" class="set-row" onclick="abrirAjustesImportar()">
+        <div class="row-ic">${ic('upload')}</div><div class="item-main">Importar respaldo</div>${ic('chevron-right','chev')}
+      </button>
+      <button type="button" class="set-row" onclick="closeSheet(); mostrarTutorial();">
+        <div class="row-ic">${ic('help')}</div><div class="item-main">Ver el tutorial otra vez</div>
+      </button>
+      <button type="button" class="set-row" style="color:var(--danger);" onclick="borrarTodo()">
+        <div class="row-ic" style="background:var(--danger-bg);color:var(--danger);">${ic('trash')}</div><div class="item-main">Borrar todos los datos</div>
+      </button>
+    </div>
+    <p class="hint" style="text-align:center;margin-top:14px;">${db.alumnos.length} alumnos · ${db.clases.length} clases · ${db.pagos.length} pagos · ${db.trabajos.length} otros cobros · ${db.resenas.length} reseñas</p>
+  `);
+  renderThemeSwitch();
+}
+function abrirAjustesPrecios(){
+  const extra = extraDomicilio();
+  openSheet(`
+    ${volverAjustesHtml()}
+    <h3>Precio por hora</h3>
+    <p class="sheet-sub">Es lo que se propone al agregar un alumno y lo que se muestra en tu perfil. Para cada alumno lo podés cambiar en su ficha.</p>
+    <label for="f_tarifaHabitual">Cuánto cobrás la hora</label>
+    ${tarifaInputHtml('f_tarifaHabitual', db.config.tarifaHabitual)}
+    <label class="switch-row">
+      <span>Sumar un extra cuando vas a domicilio<small>Por ejemplo, el pasaje. Se suma a cada clase a domicilio.</small></span>
+      <input type="checkbox" class="switch" id="f_extraOn" ${extra?'checked':''} onchange="document.getElementById('extraBox').hidden = !this.checked">
+    </label>
+    <div id="extraBox" ${extra?'':'hidden'}>
+      <label for="f_extraDomicilio">Extra por clase a domicilio</label>
+      ${tarifaInputHtml('f_extraDomicilio', extra || '', 'step="10"')}
+    </div>
+    <div class="sheet-footer"><button type="button" class="btn primary" onclick="guardarAjustesPrecios()">Guardar</button></div>
+  `);
+}
+function guardarAjustesPrecios(){
+  const tarifa = Math.round(parseFloat(document.getElementById('f_tarifaHabitual').value)||0);
+  const extra = document.getElementById('f_extraOn').checked ? Math.max(0, Math.round(parseFloat(document.getElementById('f_extraDomicilio').value)||0)) : 0;
+  if(!(tarifa>0)){ showToast('Poné cuánto cobrás la hora'); return; }
+  db.config.tarifaHabitual = tarifa;
+  const cambioExtra = extra !== extraDomicilio();
+  db.config.extraDomicilio = extra;
+  // el extra nuevo se aplica a las próximas clases a domicilio sin cobrar
+  let n = 0;
+  if(cambioExtra){
+    const ahora = new Date();
+    db.clases.forEach(c=>{
+      if(c.modalidad==='casa_alumno' && !c.pagada && !claseYaOcurrida(c, ahora)){ c.viatico = extra; n++; }
+    });
+  }
+  saveDB();
+  renderAll();
+  abrirAjustes();
+  showToast(n ? `Guardado · se actualizaron ${n} clase${n!==1?'s':''} a domicilio` : 'Guardado');
+}
+function abrirAjustesDatosProfe(){
+  openSheet(`
+    ${volverAjustesHtml()}
+    <h3>Tus datos</h3>
+    <p class="sheet-sub">Tu nombre aparece en el formulario de reseña, y las reseñas te llegan por WhatsApp a este número.</p>
+    <label for="f_nombreProfe">Tu nombre</label>
+    <input type="text" id="f_nombreProfe" value="${escapeAttr(db.config.nombreProfe||'')}" placeholder="Ej: Profe Juli" autocomplete="name">
+    <label for="f_telefonoProfe">Tu WhatsApp</label>
+    <input type="tel" id="f_telefonoProfe" inputmode="tel" value="${escapeAttr(db.config.telefonoProfe||'')}" placeholder="Ej: 5492611234567">
+    <div class="hint">Con código de país y área, sin el 0 ni el 15 (ej: 549 261 1234567).</div>
+    <label for="f_bioProfe">Sobre vos (aparece en tu página de reseñas)</label>
+    <textarea id="f_bioProfe" placeholder="Ej: Doy clases de matemática y física para secundaria">${escapeHtml(db.config.bioProfe||'')}</textarea>
+    <div class="sheet-footer"><button type="button" class="btn primary" onclick="guardarDatosProfe(); abrirAjustes();">Guardar</button></div>
+  `);
+}
+function abrirAjustesImportar(){
+  openSheet(`
+    ${volverAjustesHtml()}
+    <h3>Importar respaldo</h3>
+    <p class="sheet-sub">Elegí un archivo .json exportado desde Estudiemos (o EstudiAntes). Reemplaza todos los datos actuales.</p>
+    <input type="file" id="importFile" accept="application/json,.json" style="margin-top:12px;">
+    <div class="sheet-footer"><button type="button" class="btn primary" onclick="importarDatos()">${ic('upload')}Importar</button></div>
+  `);
+}
+
+let firebaseUser = null;
+
+function renderProfileIcon(){
+  const btn = document.getElementById('profileToggle');
+  if(!btn) return;
+  if(firebaseUser){
+    btn.textContent = '🟢';
+    btn.title = 'Sesión iniciada: ' + (firebaseUser.email||'');
+  }else{
+    btn.textContent = '👤';
+    btn.title = 'Perfil';
+  }
+}
+
+function iniciarSesionGoogle(){
+  if(!window.firebaseSignIn){ showToast('Todavía está cargando, esperá un momento'); return; }
+  window.firebaseSignIn();
+}
+
+function cerrarSesionGoogle(){
+  if(window.firebaseSignOutUser) window.firebaseSignOutUser();
+  closeSheet();
+  showToast('Sesión cerrada. Tus datos siguen en este dispositivo.');
+}
+
+window.onFirebaseAuthChange = async function(user){
+  firebaseUser = user;
+  renderProfileIcon();
+  const cuentaBox = document.getElementById('ajustesCuenta');
+  if(cuentaBox) cuentaBox.innerHTML = cuentaHtml();
+  alCambiarSesionProfe(user);
+  if(!user) return;
+  if(!window.firebaseFetchUserDoc) return;
+  try{
+    const cloudData = await window.firebaseFetchUserDoc(user.uid);
+    if(cloudData){
+      aplicarDatosCargados(cloudData);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+      aplicarPaleta();
+      aplicarModoOscuro();
+      renderThemeSwitch();
+          renderAll();
+      showToast('Datos sincronizados con tu cuenta de Google');
+    }else{
+      saveDB();
+      showToast('Sesión iniciada, respaldando tus datos en la nube');
+    }
+    alSincronizarProfe(user);
+  }catch(e){
+    console.error('Error sincronizando con Firestore', e);
+    showToast('No se pudo sincronizar con la nube');
+  }
+};
+
+function abrirPerfil(){ abrirAjustes(); }
+
+function guardarDatosProfe(){
+  db.config.nombreProfe = document.getElementById('f_nombreProfe').value.trim();
+  db.config.telefonoProfe = document.getElementById('f_telefonoProfe').value.replace(/[^\d]/g,'');
+  db.config.bioProfe = document.getElementById('f_bioProfe').value.trim().slice(0, 600);
+  saveDB();
+  showToast('Datos guardados');
+}
+
+
+function exportarDatos(){
+  const data = JSON.stringify(db, null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const fecha = hoyIso();
+  a.href = url;
+  a.download = `Estudiemos_backup_${fecha}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Datos exportados');
+}
+
+function importarDatos(){
+  const input = document.getElementById('importFile');
+  const file = input.files[0];
+  if(!file){ showToast('Elegí un archivo primero'); return; }
+  const reader = new FileReader();
+  reader.onload = async (e)=>{
+    try{
+      const parsed = JSON.parse(e.target.result);
+      if(!parsed || typeof parsed !== 'object') throw new Error('formato inválido');
+      const ok = await confirmar({titulo:'¿Reemplazar tus datos?', mensaje:'Se reemplazan TODOS tus datos actuales por los del archivo.', ok:'Reemplazar', peligro:true});
+      if(!ok) return;
+      aplicarDatosCargados(parsed);
+      saveDB();
+      aplicarPaleta();
+      aplicarModoOscuro();
+      renderThemeSwitch();
+          closeSheet();
+      renderAll();
+      showToast('Datos importados correctamente');
+    }catch(err){
+      showToast('Archivo inválido');
+    }
+  };
+  reader.readAsText(file);
+}
+
+async function borrarTodo(){
+  const ok1 = await confirmar({titulo:'¿Borrar todos los datos?', mensaje:'Se borran alumnos, clases, pagos, tareas y reseñas de este dispositivo.', ok:'Continuar', peligro:true});
+  if(!ok1) return;
+  const ok2 = await confirmar({titulo:'Última confirmación', mensaje:'Lo que no hayas exportado se pierde para siempre.', ok:'Borrar todo', peligro:true});
+  if(!ok2) return;
+  db.alumnos = []; db.clases = []; db.temas = []; db.tareas = []; db.trabajos = []; db.pagos = []; db.resenas = [];
+  saveDB();
+  closeSheet();
+  renderAll();
+  showToast('Datos borrados');
+}
+
+/* =========================================================
+   RESEÑAS
+   Flujo sin servidor: le mandás al alumno/familia un link a review.html,
+   completan estrellas + comentario y la reseña te llega por WhatsApp con un
+   link que, al abrirlo, la guarda en la app.
+   ========================================================= */
+function b64urlEncode(obj){
+  const json = JSON.stringify(obj);
+  const b64 = btoa(unescape(encodeURIComponent(json)));
+  return b64.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function b64urlDecode(str){
+  let b64 = str.replace(/-/g,'+').replace(/_/g,'/');
+  while(b64.length % 4) b64 += '=';
+  return JSON.parse(decodeURIComponent(escape(atob(b64))));
+}
+function linkResena(alumno){
+  const url = new URL('review.html', location.href);
+  if(db.config.nombreProfe) url.searchParams.set('p', db.config.nombreProfe);
+  if(db.config.telefonoProfe) url.searchParams.set('w', db.config.telefonoProfe);
+  if(alumno){
+    url.searchParams.set('a', alumno.nombre);
+    if(alumno.nivel) url.searchParams.set('n', alumno.nivel);
+  }
+  url.searchParams.set('c', db.config.paleta || 'lila');
+  return url.toString();
+}
+function pedirResena(alumnoId){
+  const a = getAlumno(alumnoId);
+  if(!a) return;
+  if(!db.config.telefonoProfe){
+    showToast('Primero cargá tu WhatsApp para recibir las reseñas');
+    abrirAjustesDatosProfe();
+    return;
+  }
+  const saludo = a.tipo==='adulto' ? `¡Hola ${a.nombre}!` : (a.contacto ? `¡Hola ${a.contacto}!` : '¡Hola!');
+  const sobre = a.tipo==='adulto' ? 'las clases' : `las clases con ${a.nombre}`;
+  const firma = db.config.nombreProfe ? `\n${db.config.nombreProfe}` : '';
+  const msg = `${saludo} ¿Me harías un favor? Si te gustaron ${sobre}, me ayudaría muchísimo que me dejes una reseña cortita (es 1 minuto) 🙏\n${linkResena(a)}\n\n¡Muchas gracias!${firma}`;
+  window.open(waUrl(a.telefono, msg), '_blank');
+  closeSheet();
+}
+
+function promedioResenas(){
+  if(!db.resenas.length) return 0;
+  return db.resenas.reduce((s,r)=>s+Number(r.estrellas||0),0)/db.resenas.length;
+}
+function estrellasTxt(n){ n = Math.round(n); return '★'.repeat(n) + '☆'.repeat(5-n); }
+
+function renderResenasResumen(){
+  const el = document.getElementById('resenasRow');
+  if(!el) return;
+  el.hidden = db.alumnos.length===0 && db.resenas.length===0;
+  const n = db.resenas.length;
+  el.innerHTML = `<div class="list-item tap" onclick="abrirResenas()">
+    <div class="row-ic">${ic('star')}</div>
+    <div class="item-main">
+      <div class="item-title">Reseñas</div>
+      <div class="item-sub">${n ? `<span class="stars">${estrellasTxt(promedioResenas())}</span> ${fmt1(promedioResenas())} · ${n} reseña${n!==1?'s':''}` : 'Pedí reseñas a las familias para tu CV o redes'}</div>
+    </div>
+    ${ic('chevron-right','chev')}
+  </div>`;
+}
+
+function firmaResena(r){
+  const nivel = NIVELES.find(n=>n.id===r.nivel);
+  if(r.publicar===false){
+    return `Familia de alumno/a${nivel?' de '+nivel.label.toLowerCase():''}`;
+  }
+  const rel = r.relacion ? `, ${r.relacion}${r.alumnoNombre && r.relacion!=='alumno/a' ? ' de '+r.alumnoNombre : ''}` : '';
+  return `${r.autor||'Anónimo'}${rel}`;
+}
+
+function abrirResenas(){
+  const lista = db.resenas.slice().sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+  openSheet(`
+    <h3>Reseñas</h3>
+    ${lista.length
+      ? `<p class="sheet-sub"><span class="stars">${estrellasTxt(promedioResenas())}</span> ${fmt1(promedioResenas())} de promedio en ${lista.length} reseña${lista.length!==1?'s':''}</p>`
+      : `<div class="empty" style="padding:16px 4px 4px;">
+          <div class="em-ic">${ic('star')}</div>
+          <h3 style="margin:0 0 4px;">Todavía no tenés reseñas</h3>
+          <p>Pedile a una familia: le llega un formulario cortito y la respuesta vuelve a tu WhatsApp para guardarla acá.</p>
+        </div>`}
+    <div style="margin-top:6px;">
+    ${lista.map(r=>`
+      <div class="resena">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">
+          <span class="stars">${estrellasTxt(r.estrellas)}</span>
+          <span class="who">${r.fecha ? fmtFecha(r.fecha) : ''}</span>
+        </div>
+        <div class="txt">«${escapeHtml(r.texto)}»</div>
+        <div class="who">— ${escapeHtml(firmaResena(r))}${r.publicar===false?' · sin nombre':''}</div>
+        <div style="display:flex;gap:6px 16px;margin-top:4px;flex-wrap:wrap;">
+          <button type="button" class="link-btn" onclick="copiarTexto(textoResenaParaCompartir('${r.id}'))">${ic('copy')}Copiar</button>
+          <button type="button" class="link-btn" onclick="compartirResena('${r.id}')">${ic('image')}Imagen</button>
+          ${r.privada ? '' : `<button type="button" class="link-btn" onclick="togglePublicarResena('${r.id}')">${ic(r.enPagina?'check':'globe')}${r.enPagina?'En tu página':'A tu página'}</button>`}
+          <button type="button" class="link-btn danger" onclick="eliminarResena('${r.id}')">${ic('trash')}Eliminar</button>
+        </div>
+      </div>`).join('')}
+    </div>
+    ${lista.length ? `<button type="button" class="btn outline" onclick="copiarTexto(textoTodasResenas())">${ic('copy')}Copiar todas (para CV, LinkedIn o redes)</button>` : ''}
+    <button type="button" class="btn ghost" onclick="abrirResenaManual()">${ic('plus')}Cargar una reseña a mano</button>
+    <div class="sheet-footer"><button type="button" class="btn primary" onclick="abrirPedirResenaElegir()">${ic('send')}Pedir una reseña</button></div>
+  `);
+}
+function textoResenaParaCompartir(id){
+  const r = db.resenas.find(x=>x.id===id);
+  return r ? `${estrellasTxt(r.estrellas)}\n"${r.texto}"\n— ${firmaResena(r)}` : '';
+}
+function textoTodasResenas(){
+  const nombre = db.config.nombreProfe ? ` — ${db.config.nombreProfe}` : '';
+  const lista = db.resenas.slice().sort((a,b)=>b.estrellas-a.estrellas || (b.fecha||'').localeCompare(a.fecha||''));
+  return `Clases particulares${nombre}\nOpiniones de alumnos y familias (${promedioResenas().toLocaleString('es-AR',{maximumFractionDigits:1})}/5 en ${lista.length} reseñas)\n\n`
+    + lista.map(r=>`${estrellasTxt(r.estrellas)} "${r.texto}"\n— ${firmaResena(r)}`).join('\n\n');
+}
+async function eliminarResena(id){
+  const ok = await confirmar({titulo:'¿Eliminar esta reseña?', ok:'Eliminar', peligro:true});
+  if(!ok) return;
+  // las que vinieron de la app se recuerdan, para no volver a traerlas
+  if(String(id).startsWith('app:')) (db.config.resenasOcultas = db.config.resenasOcultas || []).push(id);
+  db.resenas = db.resenas.filter(r=>r.id!==id);
+  saveDB();
+  renderAll();
+  abrirResenas();
+}
+function abrirPedirResenaElegir(){
+  if(!db.alumnos.length){ showToast('Primero agregá un alumno'); return; }
+  const ordenados = db.alumnos.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'));
+  openSheet(`
+    <h3>¿A quién le pedís la reseña?</h3>
+    <p class="sheet-sub">Se abre WhatsApp con el mensaje y el link al formulario.</p>
+    <div style="margin-top:6px;">
+    ${ordenados.map(a=>`
+      <div class="list-item tap" onclick="pedirResena('${a.id}')">
+        ${avatarHtml(a)}
+        <div class="item-main"><div class="item-title">${escapeHtml(a.nombre)} ${nivelBadge(a.nivel)}</div></div>
+        ${ic('send','chev')}
+      </div>`).join('')}
+    </div>
+    <button type="button" class="btn ghost" onclick="copiarTexto(linkResena(null))">${ic('copy')}Copiar link sin alumno</button>
+  `);
+}
+
+let resenaEstrellasForm = 5;
+function setEstrellasForm(n){
+  resenaEstrellasForm = n;
+  document.querySelectorAll('#starPickForm button').forEach((b,i)=>b.classList.toggle('on', i<n));
+}
+function abrirResenaManual(prefill){
+  const r = prefill || {};
+  resenaEstrellasForm = r.estrellas || 5;
+  const nombreBuscado = (r.alumnoNombre||'').trim().toLowerCase();
+  const alumnoMatch = nombreBuscado
+    ? (db.alumnos.find(a=>a.nombre.trim().toLowerCase()===nombreBuscado) || db.alumnos.find(a=>a.nombre.trim().toLowerCase().startsWith(nombreBuscado)))
+    : null;
+  openSheet(`
+    <h3>${prefill ? '¡Te llegó una reseña!' : 'Cargar reseña'}</h3>
+    ${prefill ? '<p class="sheet-sub">Revisala y guardala en tu lista.</p>' : ''}
+    <div class="star-pick" id="starPickForm">${[1,2,3,4,5].map(n=>`<button type="button" class="${n<=resenaEstrellasForm?'on':''}" onclick="setEstrellasForm(${n})" aria-label="${n} estrellas">★</button>`).join('')}</div>
+    <label for="f_rs_texto">Comentario</label>
+    <textarea id="f_rs_texto" style="min-height:96px;">${escapeHtml(r.texto||'')}</textarea>
+    <div class="field-row">
+      <div><label for="f_rs_autor">Quién la escribió</label><input type="text" id="f_rs_autor" value="${escapeAttr(r.autor||'')}" placeholder="Ej: Laura"></div>
+      <div style="flex:0 0 120px;"><label for="f_rs_relacion">Es…</label>
+        <select id="f_rs_relacion">${['mamá','papá','alumno/a','familiar','otro'].map(x=>`<option value="${x}" ${r.relacion===x?'selected':''}>${x}</option>`).join('')}</select>
+      </div>
+    </div>
+    <label for="f_rs_alumno">Alumno</label>
+    <select id="f_rs_alumno">
+      <option value="">Ninguno</option>
+      ${db.alumnos.map(a=>`<option value="${a.id}" ${alumnoMatch && alumnoMatch.id===a.id?'selected':''}>${escapeHtml(a.nombre)}</option>`).join('')}
+    </select>
+    <label class="switch-row">
+      <span>Mostrarla con su nombre<small>Si no, aparece como «Familia de alumno/a»</small></span>
+      <input type="checkbox" class="switch" id="f_rs_publicar" ${r.publicar===false?'':'checked'}>
+    </label>
+    <input type="hidden" id="f_rs_fecha" value="${escapeAttr(r.fecha||hoyIso())}">
+    <input type="hidden" id="f_rs_alumnoNombre" value="${escapeAttr(r.alumnoNombre||'')}">
+    <input type="hidden" id="f_rs_nivel" value="${escapeAttr(r.nivel||'')}">
+    <div class="sheet-footer"><button type="button" class="btn primary" onclick="guardarResena()">Guardar reseña</button></div>
+  `);
+}
+function guardarResena(){
+  const texto = document.getElementById('f_rs_texto').value.trim();
+  if(!texto){ showToast('Falta el comentario'); return; }
+  const alumnoId = document.getElementById('f_rs_alumno').value || null;
+  const alumno = alumnoId ? getAlumno(alumnoId) : null;
+  db.resenas.push({
+    id: uid(), alumnoId,
+    alumnoNombre: alumno ? alumno.nombre : document.getElementById('f_rs_alumnoNombre').value,
+    nivel: alumno ? alumno.nivel : document.getElementById('f_rs_nivel').value,
+    autor: document.getElementById('f_rs_autor').value.trim(),
+    relacion: document.getElementById('f_rs_relacion').value,
+    estrellas: resenaEstrellasForm,
+    texto,
+    fecha: document.getElementById('f_rs_fecha').value || hoyIso(),
+    publicar: document.getElementById('f_rs_publicar').checked
+  });
+  saveDB();
+  renderAll();
+  abrirResenas();
+  showToast('Reseña guardada ⭐');
+}
+// Si la app se abre desde el link que manda review.html (#resena=...), ofrecer guardarla
+function revisarResenaEnLink(){
+  const m = location.hash.match(/^#resena=(.+)$/);
+  if(!m) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  try{
+    const d = b64urlDecode(m[1]);
+    const ya = db.resenas.some(r=>r.texto===d.t && r.autor===d.n);
+    if(ya){ showToast('Esa reseña ya estaba guardada'); return; }
+    abrirResenaManual({texto:d.t||'', autor:d.n||'', relacion:d.r||'', estrellas:Number(d.s)||5, alumnoNombre:d.a||'', nivel:d.l||'', publicar:d.p!==false, fecha:d.f||hoyIso()});
+  }catch(e){
+    showToast('No se pudo leer la reseña del link');
+  }
+}
+
+/* =========================================================
+   TUTORIAL DE BIENVENIDA
+   ========================================================= */
+const TUTORIAL_PASOS = [
+  {icon:'sparkles', titulo:'Bienvenido/a a Estudiemos', desc:'Tus clases particulares en un solo lugar: alumnos, agenda, cobros y tareas. Movete con la barra de abajo.'},
+  {icon:'users', titulo:'Cargá tus alumnos', desc:'Con el nombre alcanza. Lo demás (contacto, nivel, si vas a su casa) te lo va preguntando la ficha de cada uno.'},
+  {icon:'calendar', titulo:'Tu semana de un vistazo', desc:'Lo verde es tiempo libre: tocalo para agendar una clase ahí. También podés compartir tus horarios libres por WhatsApp.'},
+  {icon:'wallet', titulo:'Cobrá sin olvidarte', desc:'En Billetera ves quién te debe, registrás pagos y ves cuánto podés llegar a cobrar este mes.'},
+  {icon:'list', titulo:'Pendientes y tareas', desc:'Anotá lo que tenés que prepararle a cada alumno. Cuando esté listo, lo tachás o se lo mandás como tarea, con preguntas si querés.'},
+  {icon:'book', titulo:'Tus alumnos, si quieren, también', desc:'Desde la ficha de un alumno lo invitás a la app: ve su semana, si debe alguna clase, los resúmenes, las pizarras y sus tareas. No es obligatorio.'},
+  {icon:'bell', titulo:'Te avisamos', desc:'Con tu cuenta de Google y las notificaciones activadas, te avisamos antes de cada clase y cuando un alumno hace una tarea o te deja una reseña.'},
+  {icon:'star', titulo:'Juntá reseñas', desc:'Pedile a las familias una reseña con un toque y usala en tu CV o redes. Todo lo configurás desde el botón de ajustes, arriba a la derecha.'}
+];
+let tutorialPasoActual = 0;
+
+function mostrarTutorial(){
+  tutorialPasoActual = 0;
+  renderTutorialPaso();
+  document.getElementById('tutorialOverlay').classList.add('show');
+}
+
+function renderTutorialPaso(){
+  const paso = TUTORIAL_PASOS[tutorialPasoActual];
+  document.getElementById('tutorialIcon').innerHTML = ic(paso.icon);
+  document.getElementById('tutorialTitle').textContent = paso.titulo;
+  document.getElementById('tutorialDesc').textContent = paso.desc;
+  document.getElementById('tutorialDots').innerHTML = TUTORIAL_PASOS.map((_,i)=>
+    `<div class="tutorial-dot ${i===tutorialPasoActual?'active':''}"></div>`
+  ).join('');
+  document.getElementById('tutorialBackBtn').style.visibility = tutorialPasoActual===0 ? 'hidden' : 'visible';
+  document.getElementById('tutorialNextBtn').textContent = tutorialPasoActual===TUTORIAL_PASOS.length-1 ? 'Empezar' : 'Siguiente';
+}
+
+function tutorialPaso(dir){
+  if(dir>0 && tutorialPasoActual===TUTORIAL_PASOS.length-1){ cerrarTutorial(); return; }
+  tutorialPasoActual = Math.min(TUTORIAL_PASOS.length-1, Math.max(0, tutorialPasoActual+dir));
+  renderTutorialPaso();
+}
+
+function cerrarTutorial(){
+  document.getElementById('tutorialOverlay').classList.remove('show');
+  db.config.tutorialVisto = true;
+  saveDB();
+}
+
+/* =========================================================
+   INIT
+   ========================================================= */
+loadDB();
+initIconos();
+aplicarPaleta();
+aplicarModoOscuro();
+renderThemeSwitch();
+renderProfileIcon();
+renderAll();
+actualizarFab();
+// al recargar, el navegador restauraba el scroll y lo corría al aparecer la tarjeta de próxima clase
+if('scrollRestoration' in history) history.scrollRestoration = 'manual';
+window.scrollTo(0,0);
+if(necesitaPrimerosPasos()) abrirPrimerosPasos();
+else if(!db.config.tutorialVisto) mostrarTutorial();
+revisarResenaEnLink();
+window.addEventListener('hashchange', revisarResenaEnLink);
+
+setInterval(()=>{
+  renderBannerYStats();
+  if(vistaActual==='clases' && calendarioModo==='semana' && !overlay.classList.contains('show')) renderCalendario();
+}, 60000);
+</script>
+
+<!-- =========================================================
+     FIREBASE: sesión con Google, respaldo, aulas de los alumnos, notificaciones y pizarra.
+     Puente hacia el script principal vía funciones en window (ver js/nube-profe.js),
+     porque los módulos no exponen sus funciones globalmente.
+     ========================================================= -->
+<script type="module" src="js/nube-profe.js"></script>
+</body>
+</html>

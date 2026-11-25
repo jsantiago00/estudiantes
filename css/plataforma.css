@@ -37,3 +37,91 @@ input.com-preg{margin-top:8px;min-height:38px;font-size:13.5px;padding:7px 10px;
 .devolucion.rehacer .nota{color:var(--warn);font-size:17px;display:flex;align-items:center;gap:6px;}
 .devolucion.rehacer .nota svg{width:18px;height:18px;}
 .reloj{font-variant-numeric:tabular-nums;font-weight:700;color:var(--warn);}
+
+/* ---------- Páginas públicas (buscador y perfil del profe) ---------- */
+body.publica{padding-bottom:30px;}
+.pub-header{display:flex;align-items:center;gap:10px;padding:calc(10px + env(safe-area-inset-top,0px)) 16px 10px;max-width:1180px;margin:0 auto;}
+.pub-marca{display:flex;align-items:center;gap:8px;font-weight:700;font-size:17px;color:var(--text);text-decoration:none;letter-spacing:-.02em;}
+.pub-nav{margin-left:auto;display:flex;gap:6px;}
+.pub-nav .btn{text-decoration:none;}
+.buscador-hero{max-width:1180px;margin:0 auto;padding:18px 16px 6px;}
+.buscador-hero h1{font-size:clamp(26px,6vw,38px);font-weight:700;letter-spacing:-.03em;line-height:1.1;margin:0 0 8px;}
+.buscador-hero p{color:var(--text-dim);font-size:15.5px;line-height:1.5;margin:0 0 16px;max-width:620px;}
+.search.grande input{min-height:52px;font-size:16.5px;padding-left:42px;border-radius:14px;background:var(--card);}
+.search input[type=search]{padding-left:38px;background:var(--card);width:100%;}
+main.buscador{max-width:1180px;padding-top:0;}
+.filtros{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:none;}
+.filtros::-webkit-scrollbar{display:none;}
+.filtros select{flex:0 0 auto;width:auto;min-height:40px;font-size:14px;padding:6px 32px 6px 12px;border-radius:999px;background-color:var(--card);}
+.buscador-barra{display:flex;align-items:center;gap:12px;margin:2px 0 12px;flex-wrap:wrap;}
+.buscador-barra .segmented{margin-left:auto !important;min-width:160px;}
+.buscador-barra .link-btn{display:inline-flex;align-items:center;gap:5px;}
+.buscador-barra .link-btn svg{width:16px;height:16px;}
+.buscador-barra .link-btn.activo{color:var(--ok);}
+.buscador-cuerpo[data-vista="lista"] .mapa-box{display:none;}
+.buscador-cuerpo[data-vista="mapa"] .profes-lista{display:none;}
+.buscador-cuerpo[data-vista="ambos"]{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:16px;align-items:start;}
+.buscador-cuerpo[data-vista="ambos"] .mapa-box{position:sticky;top:12px;}
+.mapa-box{border-radius:var(--radius-lg);overflow:hidden;border:1px solid var(--border);background:var(--surface);}
+#mapa{height:min(68vh,640px);width:100%;}
+.profes-lista{display:flex;flex-direction:column;gap:12px;}
+.profe-card{display:block;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px;color:var(--text);text-decoration:none;box-shadow:var(--shadow-sm);transition:border-color .15s;}
+.profe-card:hover{border-color:var(--border-strong);}
+.profe-top{display:flex;gap:12px;align-items:flex-start;}
+.profe-foto{width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0;background:var(--soft-tint-bg);}
+.profe-foto.ini{display:flex;align-items:center;justify-content:center;color:var(--accent);font-weight:700;font-size:19px;}
+.profe-datos{flex:1;min-width:0;}
+.profe-nombre{font-weight:700;font-size:16.5px;letter-spacing:-.01em;}
+.profe-sub{font-size:13px;color:var(--text-dim);margin-top:2px;display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
+.profe-sub svg{width:13px;height:13px;flex-shrink:0;}
+.profe-sub .stars{color:#e0a100;letter-spacing:1px;}
+.profe-sub .nuevo{background:var(--soft-tint-bg);color:var(--accent);border-radius:999px;padding:0 8px;font-weight:600;font-size:11.5px;}
+.profe-precio{text-align:right;font-weight:700;font-size:17px;line-height:1.1;white-space:nowrap;}
+.profe-precio small{display:block;font-weight:500;font-size:11px;color:var(--text-mute);}
+.profe-materias{display:flex;gap:5px;flex-wrap:wrap;margin-top:10px;}
+.profe-materias span{background:var(--soft-tint-bg);color:var(--accent);border-radius:999px;padding:3px 10px;font-size:12.5px;font-weight:600;}
+.profe-bio{font-size:14px;color:var(--text-dim);line-height:1.45;margin:8px 0 0;}
+.profe-pie{display:flex;gap:5px;flex-wrap:wrap;margin-top:10px;}
+.empty-pub{text-align:center;padding:28px 18px;}
+.empty-pub h3{margin:0 0 6px;}
+.empty-pub p{color:var(--text-dim);margin:0 0 12px;}
+.empty-pub .btn{width:auto;display:inline-flex;}
+.cta-profe{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-top:22px;}
+.cta-profe > div{flex:1;min-width:220px;}
+.cta-profe h2{margin:0 0 4px;font-size:18px;}
+.cta-profe p{margin:0;color:var(--text-dim);font-size:14px;line-height:1.45;}
+.cta-profe .btn{width:auto;text-decoration:none;}
+.pie-pub{text-align:center;color:var(--text-mute);font-size:12.5px;margin-top:18px;}
+/* marcadores del mapa */
+.pin-profe{border-radius:50%;}
+.pin-profe img,.pin-profe span{width:40px;height:40px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;
+  object-fit:cover;background:var(--primary);color:#fff;font-weight:700;font-size:14px;}
+.grupo-profes span{width:44px;height:44px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;
+  border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25);}
+.pop-profe .profe-card{border:0;box-shadow:none;padding:0;}
+.leaflet-popup-content{margin:12px;}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--card);color:var(--text);}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .leaflet-control-zoom a{background:var(--card);color:var(--text);} }
+:root[data-theme="dark"] .leaflet-control-zoom a{background:var(--card);color:var(--text);}
+@media (max-width:520px){
+  .buscador-barra .segmented{min-width:0;flex:1 1 100%;order:3;}
+  .profe-precio{font-size:15px;}
+}
+
+/* ---------- Perfil público del profe ---------- */
+.perfil-cab{display:flex;flex-direction:column;align-items:center;text-align:center;padding:8px 0 4px;}
+.perfil-cab .profe-foto{width:96px;height:96px;font-size:32px;margin-bottom:10px;}
+.perfil-cab h1{font-size:26px;letter-spacing:-.025em;margin:0 0 4px;}
+.perfil-cab .profe-sub{justify-content:center;font-size:14px;}
+.perfil-cab .profe-materias{justify-content:center;}
+.perfil-acciones{display:flex;flex-direction:column;gap:8px;margin:16px 0 6px;}
+.perfil-acciones .btn{margin:0;text-decoration:none;}
+.perfil-datos{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.perfil-dato{background:var(--surface);border-radius:var(--radius);padding:10px 12px;}
+.perfil-dato b{display:block;font-size:12px;color:var(--text-mute);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;}
+.perfil-dato span{font-size:14.5px;font-weight:600;}
+.semana-disp{display:flex;flex-direction:column;gap:4px;font-size:14px;}
+.semana-disp div{display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding:6px 0;}
+.semana-disp div:last-child{border-bottom:0;}
+.semana-disp span:last-child{color:var(--text-dim);}
+.link-sutil{color:var(--text-mute);font-size:12.5px;background:none;border:0;cursor:pointer;text-decoration:underline;font:inherit;font-size:12.5px;}

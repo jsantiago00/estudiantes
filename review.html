@@ -175,7 +175,7 @@
     err.textContent = '';
 
     const datos = {s:estrellas, t:texto, n:autor, r:relacion, a:alumno, l:nivel, p:publicar, f:hoyIso()};
-    const appUrl = new URL('index.html', location.href);
+    const appUrl = new URL('app.html', location.href);
     appUrl.search = '';
     appUrl.hash = 'resena=' + b64url(datos);
     const quien = relacion ? `${autor} (${relacion}${alumno && relacion!=='alumno/a' ? ' de '+alumno : ''})` : autor;
