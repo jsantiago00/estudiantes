@@ -150,11 +150,14 @@ window.nube = {
   },
   vivo: (aulaId)=>vivo[aulaId] || null,
 
-  guardarDevolucion(aulaId, tpId, devolucion, nota){
-    return updateDoc(doc(db, 'aulas', aulaId, 'entregas', tpId), {
-      devolucion: String(devolucion || '').slice(0, 4000), nota: String(nota || '').slice(0, 40),
-      estado: 'corregida', corregidaEn: serverTimestamp()
-    });
+  /** d: {devolucion, nota, comentarios: {preguntaId: texto}, correccion: {preguntaId: bool}|null, estado: 'corregida'|'rehacer'} */
+  guardarDevolucion(aulaId, tpId, d){
+    const datos = {
+      devolucion: String(d.devolucion || '').slice(0, 4000), nota: String(d.nota || '').slice(0, 40),
+      comentarios: d.comentarios || {}, estado: d.estado === 'rehacer' ? 'rehacer' : 'corregida', corregidaEn: serverTimestamp()
+    };
+    if(d.correccion) datos.correccion = d.correccion;
+    return updateDoc(doc(db, 'aulas', aulaId, 'entregas', tpId), datos);
   },
 
   /** Notifica a todos los miembros del aula (estudiante y familia). */

@@ -66,8 +66,20 @@ const ICONS = {
   sparkles:'<path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/>',
   repeat:'<path d="m17 2 3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/>',
   edit:'<path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17Z"/><path d="m14 8 2 2"/>',
-  book:'<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5Z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/>'
+  book:'<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5Z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/>',
+  star:'<path d="m12 3.2 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17.2l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z"/>',
+  image:'<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>',
+  globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  home:'<path d="M3.5 10.5 12 3.5l8.5 7V20a1 1 0 0 1-1 1H15v-6H9v6H4.5a1 1 0 0 1-1-1Z"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  trash:'<path d="M4 7h16M10 11v6M14 11v6M9 7V4.5h6V7M6 7l1 13h10l1-13"/>',
+  'map-pin':'<path d="M19 10c0 5.5-7 11.5-7 11.5S5 15.5 5 10a7 7 0 0 1 14 0Z"/><circle cx="12" cy="10" r="2.5"/>',
+  flag:'<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>'
 };
+const NOMBRE_TIPO = {ejercicio:'Ejercicio', tarea:'Tarea', tp:'Trabajo práctico', evaluacion:'Evaluación'};
+const ICONO_TIPO = {ejercicio:'repeat', tarea:'list', tp:'file', evaluacion:'star'};
+const tipoDe = tp => NOMBRE_TIPO[tp.tipo] ? tp.tipo : 'tarea';
 function ic(name, cls){ return `<svg class="ic ${cls||''}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]||''}</svg>`; }
 $('notifToggle').insertAdjacentHTML('afterbegin', ic('bell'));
 $('yoToggle').innerHTML = ic('user');
@@ -357,7 +369,8 @@ setInterval(()=>{ if(aula() && !$('overlay').classList.contains('show') && $('ju
 function estadoTarea(tp){
   const e = estado.entregas[tp.id];
   const conPreg = (tp.preguntas||[]).length > 0;
-  if(e && e.estado === 'corregida') return {clase:'pagada', texto:'Corregida', hecha:true};
+  if(e && e.estado === 'rehacer') return {clase:'pendiente', texto:'Para rehacer', hecha:false};
+  if(e && e.estado === 'corregida') return {clase:'pagada', texto: e.nota ? esc(e.nota) : 'Corregida', hecha:true};
   if(e) return {clase:'neutral', texto: conPreg ? 'Entregada' : 'Hecha', hecha:true};
   if(tp.fechaEntrega && tp.fechaEntrega < Comun.isoLocal(new Date())) return {clase:'pendiente', texto:'Atrasada', hecha:false};
   if(borrador(tp.id)) return {clase:'pendiente', texto:'A medias', hecha:false};
@@ -370,10 +383,10 @@ function tareaItemHtml(tp){
   const e = estado.entregas[tp.id];
   const nueva = e && e.estado === 'corregida' && !vistaDevolucion(tp.id, e);
   return `<div class="list-item tap" data-tp="${tp.id}">
-    <div class="row-ic ${est.hecha ? 'ok' : ''}">${ic(est.hecha ? 'check' : (n ? 'file' : 'list'))}</div>
+    <div class="row-ic ${est.hecha ? 'ok' : ''}">${ic(est.hecha ? 'check' : ICONO_TIPO[tipoDe(tp)])}</div>
     <div class="item-main">
       <div class="item-title">${esc(tp.titulo || Comun.tituloDeTexto(tp.consigna))}</div>
-      <div class="item-sub">${nueva ? '<b style="color:var(--ok);">Tu profe ya la corrigió</b>' : (est.hecha ? 'Hecha' : (n ? `${n} pregunta${n!==1?'s':''}` : 'Tocá cuando la termines'))}${tp.tema ? ' · ' + esc(tp.tema) : ''}</div>
+      <div class="item-sub">${NOMBRE_TIPO[tipoDe(tp)]} · ${nueva ? '<b style="color:var(--ok);">Tu profe ya la corrigió</b>' : (est.hecha ? 'Hecha' : (n ? `${n} pregunta${n!==1?'s':''}` : tipoDe(tp) === 'tp' ? 'Mandá texto, fotos o un link' : 'Tocá cuando la termines'))}${tp.tema ? ' · ' + esc(tp.tema) : ''}</div>
     </div>
     <span class="badge ${est.clase}">${est.texto}</span>
   </div>`;
@@ -667,32 +680,82 @@ function abrirTp(tpId){
   const tp = (a.tps||[]).find(t=>t.id===tpId);
   if(!tp) return;
   const e = estado.entregas[tpId];
-  if(e) verEntrega(tp, e);
+  if(e && e.estado === 'rehacer') portadaTp(tp, e);
+  else if(e) verEntrega(tp, e);
   else portadaTp(tp);
 }
 
-function portadaTp(tp){
+/* La devolución del profe: nota, comentario y lo que dijo de cada pregunta */
+function devolucionHtml(e){
+  if(!e || !(e.nota || e.devolucion) || !['corregida', 'rehacer'].includes(e.estado)) return '';
+  return `<div class="devolucion ${e.estado === 'rehacer' ? 'rehacer' : ''}">
+    ${e.estado === 'rehacer' ? `<div class="nota">${ic('repeat')}Para rehacer</div>` : e.nota ? `<div class="nota">${esc(e.nota)}</div>` : ''}
+    ${e.devolucion ? esc(e.devolucion) : ''}
+  </div>`;
+}
+
+function portadaTp(tp, rehacer){
   const b = borrador(tp.id);
   const n = (tp.preguntas||[]).length;
+  const tipo = tipoDe(tp);
   const titulo = tp.titulo || Comun.tituloDeTexto(tp.consigna);
+  const previo = rehacer ? {i: 0, respuestas: rehacer.respuestas || {}, comentario: ''} : b;
+  let cuerpo, boton;
+  if(tipo === 'tp' && !n){
+    const d = b || (rehacer ? {texto: rehacer.texto, link: rehacer.link, fotos: rehacer.fotos} : {});
+    cuerpo = `<label for="f_tp_texto">Tu respuesta</label>
+      <textarea id="f_tp_texto" placeholder="Escribí acá, o mandá fotos de la hoja">${esc(d.texto || '')}</textarea>
+      <label>Fotos <span style="font-weight:400;">(hasta 3)</span></label>
+      <div class="entrega-fotos" id="tpFotos"></div>
+      <label class="btn outline" style="margin-top:6px;">${ic('image')}Agregar una foto<input type="file" accept="image/*" id="f_tp_foto" hidden></label>
+      <label for="f_tp_link">Un link <span style="font-weight:400;">(opcional, por ejemplo de Drive)</span></label>
+      <input type="url" id="f_tp_link" value="${esc(d.link || '')}" placeholder="https://drive.google.com/…" autocomplete="off">`;
+    boton = `<button type="button" class="btn primary" id="btnMandarTp">${ic('send')}Mandárselo a mi profe</button>`;
+    estado.fotosTp = (d.fotos || []).slice(0, 3);
+  }else if(n){
+    const aviso = tipo === 'evaluacion'
+      ? `<div class="note">${ic('info')}<div>Es una evaluación: la hacés <b>una sola vez</b>${tp.tiempoMin ? ` y tenés <b>${tp.tiempoMin} minutos</b> desde que empezás` : ''}. Las respuestas las ves cuando tu profe la corrija.</div></div>`
+      : `<p class="hint">Son ${n} pregunta${n!==1?'s':''}. Te decimos al toque si está bien.</p>`;
+    cuerpo = aviso + (b && !rehacer && tipo !== 'evaluacion' ? '<button type="button" class="btn ghost" id="btnReiniciar">' + ic('repeat') + 'Empezar de cero</button>' : '');
+    boton = `<button type="button" class="btn primary" id="btnEmpezar">${rehacer ? 'Rehacerla' : b ? 'Seguir donde lo dejé' : 'Empezar'}</button>`;
+  }else{
+    cuerpo = `<label for="f_hecha_coment">¿Querés contarle algo a tu profe? <span style="font-weight:400;">(opcional)</span></label>
+      <textarea id="f_hecha_coment" placeholder="Ej: el 4 no me salió">${esc(b && b.comentario || '')}</textarea>`;
+    boton = `<button type="button" class="btn primary" id="btnHecha">${ic('check')}¡Listo, la hice!</button>`;
+  }
   abrirSheet(`
     <h3>${esc(titulo)}</h3>
-    <p class="sheet-sub">${tp.fechaEntrega ? 'Para el ' + fechaLarga(tp.fechaEntrega).toLowerCase() : 'Sin fecha'}${tp.tema ? ' · ' + esc(tp.tema) : ''}</p>
+    <p class="sheet-sub">${NOMBRE_TIPO[tipo]} · ${tp.fechaEntrega ? 'para el ' + fechaLarga(tp.fechaEntrega).toLowerCase() : 'sin fecha'}${tp.tema ? ' · ' + esc(tp.tema) : ''}</p>
+    ${devolucionHtml(rehacer)}
     ${tp.consigna && tp.consigna !== titulo ? `<div class="tp-consigna">${esc(tp.consigna)}</div>` : ''}
     ${(tp.links||[]).length ? `<div class="section-label" style="margin-top:14px;">Material</div><div class="clase-extras">${linksHtml(tp.links)}</div>` : ''}
-    ${n ? `<p class="hint">Son ${n} pregunta${n!==1?'s':''}. Te decimos al toque si está bien.</p>
-           ${b ? '<button type="button" class="btn ghost" id="btnReiniciar">' + ic('repeat') + 'Empezar de cero</button>' : ''}`
-        : `<label for="f_hecha_coment">¿Querés contarle algo a tu profe? <span style="font-weight:400;">(opcional)</span></label>
-           <textarea id="f_hecha_coment" placeholder="Ej: el 4 no me salió">${esc(b && b.comentario || '')}</textarea>`}
-    <div class="sheet-footer">
-      ${n ? `<button type="button" class="btn primary" id="btnEmpezar">${b ? 'Seguir donde lo dejé' : 'Empezar'}</button>`
-          : `<button type="button" class="btn primary" id="btnHecha">${ic('check')}¡Listo, la hice!</button>`}
-    </div>
+    ${cuerpo}
+    <div class="sheet-footer">${boton}</div>
   `);
   mate($('sheetContent'));
-  if(n){
-    $('btnEmpezar').addEventListener('click', ()=>{ cerrarSheet(); jugar(tp, b, true); });
-    if(b) $('btnReiniciar').addEventListener('click', ()=>{ borrarBorrador(tp.id); cerrarSheet(); jugar(tp, null, true); });
+  if(tipo === 'tp' && !n){
+    pintarFotosTp();
+    $('f_tp_foto').addEventListener('change', async ev=>{
+      const f = ev.target.files && ev.target.files[0];
+      ev.target.value = '';
+      if(!f) return;
+      if(estado.fotosTp.length >= 3){ toast('Hasta 3 fotos'); return; }
+      try{ estado.fotosTp.push(await comprimirFoto(f)); pintarFotosTp(); guardarTpBorrador(tp); }
+      catch(e){ console.error(e); toast('No se pudo cargar la foto'); }
+    });
+    ['f_tp_texto', 'f_tp_link'].forEach(id=>$(id).addEventListener('input', ()=>guardarTpBorrador(tp)));
+    $('btnMandarTp').addEventListener('click', async ()=>{
+      const texto = $('f_tp_texto').value.trim(), linkTxt = $('f_tp_link').value.trim();
+      const link = linkTxt ? Comun.normalizarLink(linkTxt) : '';
+      if(linkTxt && !link){ toast('Ese link no parece válido'); return; }
+      if(!texto && !estado.fotosTp.length && !link){ toast('Escribí algo, o mandá una foto o un link'); return; }
+      $('btnMandarTp').disabled = true;
+      const ok = await enviarEntrega(tp, {}, '', {texto, fotos: estado.fotosTp, link});
+      if(ok){ borrarBorrador(tp.id); cerrarSheet(); chispas(); } else $('btnMandarTp').disabled = false;
+    });
+  }else if(n){
+    $('btnEmpezar').addEventListener('click', ()=>{ cerrarSheet(); jugar(tp, previo, true); });
+    if($('btnReiniciar')) $('btnReiniciar').addEventListener('click', ()=>{ borrarBorrador(tp.id); cerrarSheet(); jugar(tp, null, true); });
   }else{
     $('btnHecha').addEventListener('click', async ()=>{
       const ok = await enviarEntrega(tp, {}, $('f_hecha_coment').value.trim());
@@ -701,12 +764,48 @@ function portadaTp(tp){
   }
 }
 
+function guardarTpBorrador(tp){
+  const t = $('f_tp_texto'), l = $('f_tp_link');
+  guardarBorrador(tp.id, {texto: t ? t.value : '', link: l ? l.value : '', fotos: estado.fotosTp});
+}
+function pintarFotosTp(){
+  const box = $('tpFotos');
+  if(!box) return;
+  box.innerHTML = estado.fotosTp.map((f, i)=>`<span class="foto-mini"><img src="${f}" alt="Foto ${i+1}"><button type="button" data-quitar="${i}" aria-label="Quitar">${ic('x')}</button></span>`).join('');
+  box.querySelectorAll('[data-quitar]').forEach(b=>b.addEventListener('click', ()=>{ estado.fotosTp.splice(Number(b.dataset.quitar), 1); pintarFotosTp(); }));
+}
+
+/** Achica una foto (lado mayor 1280 px, JPEG) para que entre en la entrega (menos de ~250 KB). */
+async function comprimirFoto(file){
+  const url = URL.createObjectURL(file);
+  try{
+    const img = await new Promise((res, rej)=>{ const i = new Image(); i.onload = ()=>res(i); i.onerror = rej; i.src = url; });
+    let lado = 1280, calidad = 0.75, out = '';
+    for(let intento = 0; intento < 6; intento++){
+      const k = Math.min(1, lado / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      out = c.toDataURL('image/jpeg', calidad);
+      if(out.length <= 250000) return out;
+      lado = Math.round(lado * 0.8); calidad = Math.max(0.5, calidad - 0.08);
+    }
+    if(out.length > 300000) throw new Error('foto-grande');
+    return out;
+  }finally{ URL.revokeObjectURL(url); }
+}
+
 /**
  * Pantalla de juego. paraEntregar=false es "practicar de nuevo" (no se manda nada).
  * Las de opción, V/F y numéricas se corrigen al tocar "Comprobar"; las escritas no.
  */
 function jugar(tp, previo, paraEntregar){
   const pregs = tp.preguntas || [];
+  const esEval = tipoDe(tp) === 'evaluacion';
+  // en las evaluaciones no hay corrección al toque (no tenemos las respuestas) y puede haber tiempo
+  if(esEval && paraEntregar && tp.tiempoMin && !(previo && previo.inicio)) previo = Object.assign({}, previo || {}, {inicio: Date.now()});
+  const limite = esEval && paraEntregar && tp.tiempoMin ? (previo.inicio + tp.tiempoMin * 60000) : 0;
+  let reloj = null;
   const st = {
     i: previo ? Math.min(previo.i || 0, pregs.length) : 0,
     respuestas: previo ? (previo.respuestas || {}) : {},
@@ -717,11 +816,21 @@ function jugar(tp, previo, paraEntregar){
   document.body.classList.add('jugando');
 
   const salirJuego = ()=>{
+    clearInterval(reloj);
     cont.hidden = true; cont.innerHTML = '';
     document.body.classList.remove('jugando');
     render();
   };
-  const guardar = ()=>{ if(paraEntregar) guardarBorrador(tp.id, {i: st.i, respuestas: st.respuestas}); };
+  const guardar = ()=>{ if(paraEntregar) guardarBorrador(tp.id, {i: st.i, respuestas: st.respuestas, inicio: previo && previo.inicio}); };
+  const tiempoRestante = ()=>limite ? Math.max(0, limite - Date.now()) : null;
+  if(limite){
+    reloj = setInterval(()=>{
+      const r = tiempoRestante();
+      const el = $('jugarReloj');
+      if(el) el.textContent = Math.floor(r / 60000) + ':' + String(Math.floor(r / 1000) % 60).padStart(2, '0');
+      if(r <= 0){ clearInterval(reloj); toast('¡Se terminó el tiempo!'); st.i = pregs.length; final(); }
+    }, 1000);
+  }
 
   const pintar = ()=>{
     if(st.i >= pregs.length){ final(); return; }
@@ -745,7 +854,7 @@ function jugar(tp, previo, paraEntregar){
       <div class="jugar-top">
         <button type="button" class="icon-btn filled" id="jugarCerrar" aria-label="Salir">${ic('x')}</button>
         <div class="barra"><div style="width:${progreso}%"></div></div>
-        <span class="jugar-num">${st.i+1}/${pregs.length}</span>
+        <span class="jugar-num">${limite ? `<span class="reloj" id="jugarReloj"></span> · ` : ''}${st.i+1}/${pregs.length}</span>
       </div>
       <div class="jugar-cuerpo">
         <div class="jugar-tipo">${({opcion:'Elegí la correcta', vf:'¿Verdadero o falso?', numero:'Escribí el resultado', texto:'Respondé con tus palabras'})[p.tipo]}</div>
@@ -754,7 +863,7 @@ function jugar(tp, previo, paraEntregar){
       </div>
       <div class="jugar-pie" id="jugarPie">
         ${st.i > 0 ? '<button type="button" class="btn secondary" id="jugarAtras" style="flex:0 0 auto;">Atrás</button>' : ''}
-        <button type="button" class="btn primary" id="jugarSeguir">${p.tipo==='texto' ? 'Siguiente' : 'Comprobar'}</button>
+        <button type="button" class="btn primary" id="jugarSeguir">${p.tipo==='texto' || esEval ? 'Siguiente' : 'Comprobar'}</button>
       </div>`;
     mate(cont);
     st.comprobada = false;
@@ -770,7 +879,7 @@ function jugar(tp, previo, paraEntregar){
     if(txt) txt.addEventListener('input', ()=>{ st.respuestas[p.id] = txt.value; });
     $('jugarSeguir').addEventListener('click', ()=>{
       const resp = st.respuestas[p.id];
-      if(p.tipo === 'texto'){ st.i++; guardar(); pintar(); return; }
+      if(p.tipo === 'texto' || esEval){ st.i++; guardar(); pintar(); return; }
       if(resp === undefined || resp === ''){ toast('Elegí o escribí una respuesta'); return; }
       st.comprobada = true;
       const ok = Comun.corregir(p, resp);
@@ -794,7 +903,8 @@ function jugar(tp, previo, paraEntregar){
   };
 
   const final = ()=>{
-    const pt = Comun.puntaje(pregs, st.respuestas);
+    const pt = esEval ? {ok: 0, total: 0, abiertas: 0} : Comun.puntaje(pregs, st.respuestas);
+    const sinTiempo = limite && tiempoRestante() <= 0;
     const sinResponder = pregs.filter(p=>st.respuestas[p.id] === undefined || st.respuestas[p.id] === '').length;
     const pct = pt.total ? pt.ok / pt.total : 1;
     cont.innerHTML = `
@@ -804,7 +914,8 @@ function jugar(tp, previo, paraEntregar){
       </div>
       <div class="jugar-cuerpo final">
         <div class="final-ic">${ic(pct >= .5 ? 'check' : 'sparkles')}</div>
-        <div class="jugar-enunciado" style="margin-bottom:6px;">${pct >= .8 ? '¡Muy bien!' : pct >= .5 ? '¡Bien ahí!' : '¡Terminaste!'}</div>
+        <div class="jugar-enunciado" style="margin-bottom:6px;">${esEval ? (sinTiempo ? 'Se terminó el tiempo' : '¡Terminaste!') : pct >= .8 ? '¡Muy bien!' : pct >= .5 ? '¡Bien ahí!' : '¡Terminaste!'}</div>
+        ${esEval ? '<p class="hint">Mandásela a tu profe: te avisamos cuando la corrija.</p>' : ''}
         ${pt.total ? `<div class="final-puntaje">${pt.ok} de ${pt.total} bien</div>` : ''}
         ${pt.abiertas ? `<p class="hint">${pt.abiertas} pregunta${pt.abiertas!==1?'s las corrige':' la corrige'} tu profe.</p>` : ''}
         ${sinResponder ? `<p class="hint" style="color:var(--warn);">Te quedaron ${sinResponder} sin responder.</p>` : ''}
@@ -813,12 +924,12 @@ function jugar(tp, previo, paraEntregar){
           <textarea id="f_comentario" placeholder="Ej: la 3 no la entendí">${esc(previo && previo.comentario || '')}</textarea>` : '<p class="hint">Fue una práctica: no se mandó nada.</p>'}
       </div>
       <div class="jugar-pie">
-        <button type="button" class="btn secondary" id="jugarRevisar">Revisar</button>
+        ${sinTiempo ? '' : '<button type="button" class="btn secondary" id="jugarRevisar">Revisar</button>'}
         ${paraEntregar ? '<button type="button" class="btn primary" id="jugarEnviar">Mandársela a mi profe</button>' : '<button type="button" class="btn primary" id="jugarListo">Listo</button>'}
       </div>`;
-    if(pct >= .8) chispas(true);
+    if(pct >= .8 && !esEval) chispas(true);
     $('jugarCerrar').addEventListener('click', ()=>{ guardar(); salirJuego(); });
-    $('jugarRevisar').addEventListener('click', ()=>{ st.i = 0; pintar(); });
+    if($('jugarRevisar')) $('jugarRevisar').addEventListener('click', ()=>{ st.i = 0; pintar(); });
     if(paraEntregar){
       $('jugarEnviar').addEventListener('click', async ()=>{
         const btn = $('jugarEnviar');
@@ -853,7 +964,7 @@ function chispas(muchas){
   }
 }
 
-async function enviarEntrega(tp, respuestas, comentario){
+async function enviarEntrega(tp, respuestas, comentario, extra){
   const a = aula();
   const u = usuarioActual();
   const limpias = {};
@@ -863,14 +974,22 @@ async function enviarEntrega(tp, respuestas, comentario){
   });
   const conPreg = (tp.preguntas||[]).length > 0;
   const titulo = tp.titulo || Comun.tituloDeTexto(tp.consigna);
+  const esEval = tipoDe(tp) === 'evaluacion';
+  const pt = esEval ? {ok: 0, total: 0, abiertas: 0} : Comun.puntaje(tp.preguntas, limpias);
+  const previa = estado.entregas[tp.id];
+  const x = extra || {};
+  const datos = {
+    respuestas: limpias, puntaje: esEval ? null : pt, comentario: (comentario || '').slice(0, 1500),
+    estado: 'enviada', enviadaEn: serverTimestamp(), por: u.uid, porNombre: (u.displayName || '').slice(0, 60),
+    intentos: (previa && previa.intentos || (previa ? 1 : 0)) + 1
+  };
+  if(x.texto !== undefined) datos.texto = String(x.texto || '').slice(0, 5000);
+  if(x.fotos !== undefined) datos.fotos = (x.fotos || []).slice(0, 3);
+  if(x.link !== undefined) datos.link = String(x.link || '').slice(0, 500);
   try{
-    await setDoc(doc(db, 'aulas', a.id, 'entregas', tp.id), {
-      respuestas: limpias, puntaje: Comun.puntaje(tp.preguntas, limpias), comentario: (comentario || '').slice(0, 1500),
-      estado: 'enviada', enviadaEn: serverTimestamp(), por: u.uid, porNombre: (u.displayName || '').slice(0, 60)
-    }, {merge: true});
-    const pt = Comun.puntaje(tp.preguntas, limpias);
-    notificar(a.id, [a.ownerUid], conPreg ? '📥 Entregó una tarea' : '✅ Hizo una tarea',
-      `${a.alumnoNombre}: "${titulo}"${pt.total ? ` · ${pt.ok}/${pt.total} bien` : ''}${comentario ? ' · te dejó un comentario' : ''}.`, 'index.html', {tipo:'entrega', tpId: tp.id});
+    await setDoc(doc(db, 'aulas', a.id, 'entregas', tp.id), datos, {merge: true});
+    notificar(a.id, [a.ownerUid], (previa ? '🔁 Volvió a entregar: ' : conPreg || x.texto !== undefined ? '📥 Entregó: ' : '✅ Hizo: ') + NOMBRE_TIPO[tipoDe(tp)].toLowerCase(),
+      `${a.alumnoNombre}: "${titulo}"${pt.total ? ` · ${pt.ok}/${pt.total} bien` : ''}${(x.fotos || []).length ? ` · ${x.fotos.length} foto${x.fotos.length!==1?'s':''}` : ''}${comentario ? ' · te dejó un comentario' : ''}.`, 'index.html', {tipo:'entrega', tpId: tp.id});
     toast(conPreg ? '¡Se la mandaste a tu profe!' : '¡Bien! Tu profe ya lo sabe');
     return true;
   }catch(e){
@@ -882,32 +1001,45 @@ async function enviarEntrega(tp, respuestas, comentario){
 
 function verEntrega(tp, e){
   const r = e.respuestas || {};
-  const pt = Comun.puntaje(tp.preguntas, r);
+  const tipo = tipoDe(tp);
+  const esEval = tipo === 'evaluacion';
+  const corregida = e.estado === 'corregida';
+  // en una evaluación, qué estuvo bien lo dice el profe al corregir (e.correccion)
+  const okDe = p => esEval ? (corregida && e.correccion ? (e.correccion[p.id] ?? null) : null) : Comun.corregir(p, r[p.id]);
+  const pt = esEval ? (corregida && e.correccion ? {ok: Object.values(e.correccion).filter(Boolean).length, total: Object.keys(e.correccion).length} : {total: 0}) : Comun.puntaje(tp.preguntas, r);
   const conPreg = (tp.preguntas||[]).length > 0;
-  if(e.estado === 'corregida') marcarDevolucionVista(tp.id, e);
+  const coms = e.comentarios || {};
+  if(corregida) marcarDevolucionVista(tp.id, e);
+  const fotos = (e.fotos || []).filter(f=>/^data:image\//.test(f));
+  const link = Comun.normalizarLink(e.link);
   abrirSheet(`
     <h3>${esc(tp.titulo || Comun.tituloDeTexto(tp.consigna))}</h3>
-    <p class="sheet-sub"><span class="badge ${e.estado==='corregida' ? 'pagada' : 'neutral'}">${e.estado==='corregida' ? 'Corregida' : conPreg ? 'Entregada' : 'Hecha'}</span>${pt.total ? ` · ${pt.ok}/${pt.total} bien` : ''}</p>
-    ${e.estado==='corregida' && (e.nota || e.devolucion) ? `<div class="devolucion">
-      ${e.nota ? `<div class="nota">${esc(e.nota)}</div>` : ''}
-      ${e.devolucion ? esc(e.devolucion) : ''}
-    </div>` : ''}
+    <p class="sheet-sub">${NOMBRE_TIPO[tipo]} · <span class="badge ${corregida ? 'pagada' : 'neutral'}">${corregida ? 'Corregida' : conPreg || tipo === 'tp' ? 'Entregada' : 'Hecha'}</span>${pt.total ? ` · ${pt.ok}/${pt.total} bien` : ''}</p>
+    ${devolucionHtml(e)}
     ${!conPreg && tp.consigna ? `<div class="tp-consigna">${esc(tp.consigna)}</div>` : ''}
     ${(tp.links||[]).length ? `<div class="clase-extras" style="margin-bottom:10px;">${linksHtml(tp.links)}</div>` : ''}
+    ${e.texto ? `<div class="section-label">Lo que mandaste</div><div class="tp-consigna">${esc(e.texto)}</div>` : ''}
+    ${fotos.length ? `<div class="entrega-fotos">${fotos.map(f=>`<span class="foto-mini"><img src="${f}" alt=""></span>`).join('')}</div>` : ''}
+    ${link ? `<a class="btn sm outline" href="${esc(link)}" target="_blank" rel="noopener">${ic('globe')}${esc(Comun.nombreDeLink(link))}</a>` : ''}
+    ${esEval && !corregida ? `<div class="note">${ic('clock')}<div>Tu profe todavía no la corrigió. Cuando lo haga, te avisamos.</div></div>` : ''}
     ${(tp.preguntas||[]).map((p, i)=>{
-      const ok = Comun.corregir(p, r[p.id]);
+      const ok = okDe(p);
       const resp = r[p.id] === undefined ? '<i class="hint">Sin responder</i>'
         : p.tipo === 'opcion' ? esc(p.opciones[r[p.id]] ?? '') : p.tipo === 'vf' ? (r[p.id] ? 'Verdadero' : 'Falso') : esc(r[p.id]);
-      return `<div class="entrega-preg ${p.tipo==='texto'?'abierta':ok?'bien':'mal'}">
+      const clase = p.tipo==='texto' || ok === null ? 'abierta' : ok ? 'bien' : 'mal';
+      return `<div class="entrega-preg ${clase}">
         <div class="enunciado">${i+1}. ${esc(p.enunciado)}</div>
-        <div class="resp">${ic(p.tipo==='texto' ? 'edit' : ok ? 'check' : 'x')}<span>${resp}</span></div>
+        <div class="resp">${ic(clase === 'abierta' ? 'edit' : ok ? 'check' : 'x')}<span>${resp}</span></div>
+        ${coms[p.id] ? `<div class="com-profe">${ic('message')}${esc(coms[p.id])}</div>` : ''}
       </div>`;
     }).join('')}
     ${e.comentario ? `<div class="note">${ic('message')}<div><b>Le dijiste:</b> ${esc(e.comentario)}</div></div>` : ''}
-    ${conPreg ? `<div class="sheet-footer"><button type="button" class="btn outline grow" id="btnPracticar">${ic('repeat')}Practicar de nuevo</button></div>` : ''}
+    ${tipo === 'ejercicio' ? `<div class="sheet-footer"><button type="button" class="btn outline" id="btnPracticar">${ic('repeat')}Practicar</button><button type="button" class="btn primary" id="btnRehacer">Hacerlo de nuevo</button></div>`
+      : conPreg && !esEval ? `<div class="sheet-footer"><button type="button" class="btn outline grow" id="btnPracticar">${ic('repeat')}Practicar de nuevo</button></div>` : ''}
   `);
   mate($('sheetContent'));
   if($('btnPracticar')) $('btnPracticar').addEventListener('click', ()=>{ cerrarSheet(); jugar(tp, null, false); });
+  if($('btnRehacer')) $('btnRehacer').addEventListener('click', ()=>{ cerrarSheet(); jugar(tp, null, true); });
   render();
 }
 

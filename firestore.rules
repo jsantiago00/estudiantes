@@ -239,19 +239,21 @@ service cloud.firestore {
         allow read: if esProfeDe(aulaId) || esMiembroDe(aulaId);
 
         allow create: if esMiembroDe(aulaId)
-          && request.resource.data.keys().hasOnly(['respuestas', 'puntaje', 'comentario', 'estado', 'enviadaEn', 'por', 'porNombre'])
+          && request.resource.data.keys().hasOnly(['respuestas', 'puntaje', 'comentario', 'estado', 'enviadaEn', 'por', 'porNombre', 'texto', 'fotos', 'link', 'intentos'])
           && entregaValida(request.resource.data);
 
         allow update: if
           (esMiembroDe(aulaId)
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['respuestas', 'puntaje', 'comentario', 'estado', 'enviadaEn', 'por', 'porNombre'])
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['respuestas', 'puntaje', 'comentario', 'estado', 'enviadaEn', 'por', 'porNombre', 'texto', 'fotos', 'link', 'intentos'])
             && entregaValida(request.resource.data))
           ||
           (esProfeDe(aulaId)
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['devolucion', 'nota', 'estado', 'corregidaEn'])
-            && request.resource.data.estado == 'corregida'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['devolucion', 'nota', 'estado', 'corregidaEn', 'comentarios', 'correccion'])
+            && request.resource.data.estado in ['corregida', 'rehacer']
             && request.resource.data.devolucion is string && request.resource.data.devolucion.size() <= 4000
-            && request.resource.data.nota is string && request.resource.data.nota.size() <= 40);
+            && request.resource.data.nota is string && request.resource.data.nota.size() <= 40
+            && (!('comentarios' in request.resource.data) || (request.resource.data.comentarios is map && request.resource.data.comentarios.size() <= 200))
+            && (!('correccion' in request.resource.data) || (request.resource.data.correccion is map && request.resource.data.correccion.size() <= 200)));
 
         allow delete: if esProfeDe(aulaId);
       }
@@ -283,7 +285,12 @@ service cloud.firestore {
         && d.estado == 'enviada'
         && d.respuestas is map && d.respuestas.size() <= 200
         && d.comentario is string && d.comentario.size() <= 1500
-        && d.porNombre is string && d.porNombre.size() <= 60;
+        && d.porNombre is string && d.porNombre.size() <= 60
+        // trabajos prácticos: texto, hasta 3 fotos achicadas (data:image) y un link
+        && (!('texto' in d) || (d.texto is string && d.texto.size() <= 5000))
+        && (!('fotos' in d) || (d.fotos is list && d.fotos.size() <= 3))
+        && (!('link' in d) || (d.link is string && d.link.size() <= 500))
+        && (!('intentos' in d) || (d.intentos is int && d.intentos <= 100));
     }
 
     // Perfil público del profe en el buscador. Lo arma Plataforma.perfilPublico (js/plataforma.js).

@@ -133,6 +133,17 @@ igual(C.instanteArg('2026-11-22', '18:30').toISOString(), '2026-11-22T21:30:00.0
   db.config = {nombreProfe: 'Juli', telefonoProfe: '549261'};
   const nuevo = C.construirAula(db, db.alumnos[0], new Date('2026-11-22T12:00:00Z'));
   igual([nuevo.profeNombre, nuevo.telefonoProfe], ['Juli', '549261'], 'toma el nombre y el WhatsApp de los datos del profe');
+  // Actividades: tipo y evaluaciones sin respuestas
+  igual(nuevo.tps[0].tipo, 'tarea', 'sin tipo, es una tarea');
+  db.tps.push({id:'ev', alumnoId:'a1', titulo:'Evaluación', tipo:'evaluacion', tiempoMin:40, publicado:true,
+    preguntas:[{id:'q1', tipo:'opcion', enunciado:'2+2', opciones:['3','4'], correcta:1}, {id:'q2', tipo:'numero', enunciado:'pi', correcta:3.14, tolerancia:0.01}, {id:'q3', tipo:'vf', enunciado:'x', correcta:true}]});
+  const ev = C.construirAula(db, db.alumnos[0], new Date('2026-11-22T12:00:00Z')).tps.find(t=>t.id==='ev');
+  ok(ev.tipo === 'evaluacion' && ev.tiempoMin === 40, 'la evaluación lleva su tipo y su tiempo');
+  ok(ev.preguntas.every(p=>!('correcta' in p) && !('tolerancia' in p)), 'y no lleva las respuestas correctas');
+  igual(ev.preguntas[0].opciones, ['3','4'], 'pero sí las opciones');
+  db.tps.push({id:'ej', alumnoId:'a1', titulo:'Ej', tipo:'ejercicio', tiempoMin:10, publicado:true, preguntas:[{id:'q', tipo:'vf', enunciado:'x', correcta:false}]});
+  const ej = C.construirAula(db, db.alumnos[0], new Date('2026-11-22T12:00:00Z')).tps.find(t=>t.id==='ej');
+  ok(ej.preguntas[0].correcta === false && ej.tiempoMin === 0, 'un ejercicio sí lleva las respuestas (se corrige al toque) y no tiene tiempo');
 }
 
 /* ---------- Recordatorios ---------- */

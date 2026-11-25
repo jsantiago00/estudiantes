@@ -42,7 +42,7 @@
   <div class="sb-brand"><img src="icons/icon.svg?v=2" alt="" width="34" height="34"><span>Estudiemos</span></div>
   <button type="button" data-view="clases" class="active"><span class="ico" data-ic="calendar"></span>Agenda</button>
   <button type="button" data-view="alumnos"><span class="ico" data-ic="users"></span>Alumnos</button>
-  <button type="button" data-view="tareas"><span class="ico" data-ic="list"></span>Tareas</button>
+  <button type="button" data-view="tareas"><span class="ico" data-ic="list"></span>Actividades</button>
   <button type="button" data-view="stats"><span class="ico" data-ic="wallet"></span>Billetera</button>
   <div class="sb-spacer"></div>
   <button type="button" class="sb-settings" onclick="abrirAjustes()"><span class="ico" data-ic="settings"></span>Ajustes</button>
@@ -131,8 +131,8 @@
     <div id="listaTareas"></div>
     <div class="card list">
       <div class="card-head">
-        <h2>Tareas para tus alumnos</h2>
-        <button type="button" class="link-btn" onclick="openTpForm()">Mandar una</button>
+        <h2>Actividades para tus alumnos</h2>
+        <button type="button" class="link-btn" onclick="openTpForm()">Mandar</button>
       </div>
       <div id="listaTps"></div>
     </div>
@@ -235,8 +235,8 @@
 
     <div class="card list">
       <div class="card-head">
-        <h2>Tareas que le mandaste</h2>
-        <button type="button" class="link-btn" onclick="openTpForm(null, currentAlumnoDetalleId)">Mandar una</button>
+        <h2>Sus actividades</h2>
+        <button type="button" class="link-btn" onclick="openTpForm(null, currentAlumnoDetalleId)">Mandar</button>
       </div>
       <div id="detalleTps"></div>
     </div>
@@ -266,7 +266,7 @@
 <nav class="bottom-nav" id="bottomNav" data-nav>
   <button data-view="clases" class="active"><span class="ico" data-ic="calendar"></span>Agenda</button>
   <button data-view="alumnos"><span class="ico" data-ic="users"></span>Alumnos</button>
-  <button data-view="tareas"><span class="ico" data-ic="list"></span>Tareas</button>
+  <button data-view="tareas"><span class="ico" data-ic="list"></span>Actividades</button>
   <button data-view="stats"><span class="ico" data-ic="wallet"></span>Billetera</button>
 </nav>
 
@@ -610,7 +610,7 @@ function confirmar(opts){
 }
 
 /* ---------- header, navegación y botón flotante ---------- */
-const TITULOS = {clases:'Agenda', alumnos:'Alumnos', tareas:'Tareas', stats:'Billetera'};
+const TITULOS = {clases:'Agenda', alumnos:'Alumnos', tareas:'Actividades', stats:'Billetera'};
 let vistaAntesDeDetalle = 'alumnos';
 function setHeader(title, sub){
   document.getElementById('headerTitle').textContent = title;

@@ -203,7 +203,11 @@
     const tps = (db.tps || []).filter(tp => tp.alumnoId === alumno.id && tp.publicado).map(tp=>({
       id: tp.id, titulo: tp.titulo || tituloDeTexto(tp.consigna), consigna: tp.consigna || '', tema: tp.temaId ? temaNombre(tp.temaId) : '',
       fechaEntrega: tp.fechaEntrega || null, claseId: tp.claseId || null,
-      preguntas: tp.preguntas || [], links: limpiarLinks(tp.links), publicadoEn: tp.publicadoEn || null
+      tipo: ['ejercicio', 'tarea', 'tp', 'evaluacion'].includes(tp.tipo) ? tp.tipo : 'tarea',
+      tiempoMin: tp.tipo === 'evaluacion' ? (Number(tp.tiempoMin) || 0) : 0,
+      // en una evaluación no viajan las respuestas correctas: la corrige el profe
+      preguntas: tp.tipo === 'evaluacion' ? (tp.preguntas || []).map(sinRespuesta) : (tp.preguntas || []),
+      links: limpiarLinks(tp.links), publicadoEn: tp.publicadoEn || null
     }));
     const cfg = db.config || {};
     const perfil = cfg.perfil || {};
@@ -220,6 +224,13 @@
       clases, tps,
       avisos: (alumno.avisos || []).slice(-MAX_AVISOS)
     };
+  }
+
+  /** Una pregunta sin la respuesta correcta (para las evaluaciones). */
+  function sinRespuesta(p){
+    const o = {id: p.id, tipo: p.tipo, enunciado: p.enunciado};
+    if(p.tipo === 'opcion') o.opciones = (p.opciones || []).slice();
+    return o;
   }
 
   /* ---------- Recordatorios (los usa el notificador) ---------- */
@@ -317,7 +328,7 @@
     ALFABETO_SALA, nuevoCodigoSala, nuevoIdLargo, formatoCodigoSala,
     instanteArg, isoLocal,
     parsearPreguntas, preguntasATexto, corregir, puntaje,
-    claseTerminada, estadoCuenta, construirAula,
+    claseTerminada, estadoCuenta, construirAula, sinRespuesta,
     clasesPorEmpezar, clasesRecienTerminadas, horaLinda,
     parsearListaAlumnos, tituloDeTexto, normalizarLink, nombreDeLink, limpiarLinks
   };

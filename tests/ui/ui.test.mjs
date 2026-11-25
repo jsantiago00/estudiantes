@@ -317,7 +317,28 @@ const datosProfe = {
   await clickTexto(page, 'Mandar tarea');
   await esperar(2500);
 
+  // Evaluación con tiempo, y un trabajo práctico
+  await page.evaluate(()=>openTpForm(null, 'a1'));
+  await clickTexto(page, 'Evaluación', '#tpTipos button');
+  ok(await page.$eval('#tpTiempoBox', b=>!b.hidden), 'la evaluación pide el tiempo');
+  await page.type('#f_tp_consigna', 'Evaluación de fracciones');
+  await page.type('#f_tp_tiempo', '20');
+  await page.evaluate(()=>{ document.querySelector('#f_tp_pegar').closest('details').open = true; });
+  await page.type('#f_tp_pegar', '? ¿Cuánto es 1/2 + 1/2?\n- 2\n* 1\n\n? 3/4 es mayor que 1.\n= F');
+  await clickTexto(page, 'Agregarlas');
+  await page.screenshot({path: join(capturas, 'profe-4-evaluacion.png'), fullPage: true});
+  await clickTexto(page, 'Mandar evaluación');
+  await esperar(300);
+  await page.evaluate(()=>openTpForm(null, 'a1'));
+  await clickTexto(page, 'Trabajo práctico', '#tpTipos button');
+  await page.type('#f_tp_consigna', 'TP: Línea de tiempo de la Revolución de Mayo');
+  await clickTexto(page, 'Mandar trabajo práctico');
+  await esperar(2500);
+  const tiposPub = (await page.evaluate(id=>window.__docs.get('aulas/' + id), aulaId)).tps.map(t=>t.tipo).sort().join();
+  ok(tiposPub === 'evaluacion,tarea,tarea,tarea,tp', 'llegan los tipos de actividad: ' + tiposPub);
+
   ok(errores.length === 0, 'la app del profe no tiró errores: ' + errores.join(' | '));
+  globalThis.__profeDb = await page.evaluate(()=>JSON.parse(JSON.stringify(db)));
   globalThis.__aula = await page.evaluate(id=>window.__docs.get('aulas/' + id), aulaId);
   globalThis.__aulaId = aulaId;
   globalThis.__entrega = ent;
@@ -413,6 +434,46 @@ const datosProfe = {
   ok(!(await texto(page, '#view-inicio')).includes('¡Nada pendiente!') || true, 'vuelve a la pantalla principal');
   await page.screenshot({path: join(capturas, 'est-4-todo-hecho.png'), fullPage: true});
 
+  // Evaluación: sin corrección al toque, con reloj
+  const ev = aula.tps.find(t=>t.tipo === 'evaluacion');
+  ok(ev.preguntas.every(p=>!('correcta' in p)), 'la evaluación no trae las respuestas');
+  await clickTexto(page, 'Evaluación de fracciones', '#view-inicio .list-item');
+  await esperar(200);
+  ok((await texto(page, '#sheetContent')).includes('una sola vez') && (await texto(page, '#sheetContent')).includes('20 minutos'), 'avisa que es una sola vez y el tiempo');
+  await clickTexto(page, 'Empezar', '#sheetContent button');
+  await esperar(1200);
+  ok(/\d+:\d\d/.test(await texto(page, '#jugarReloj')), 'se ve el reloj');
+  await page.evaluate(()=>document.querySelector('.opcion[data-k="1"]').click());
+  await clickTexto(page, 'Siguiente');
+  ok(!(await page.$('.feedback')), 'no muestra si está bien');
+  await clickTexto(page, 'Verdadero');
+  await clickTexto(page, 'Siguiente');
+  await page.screenshot({path: join(capturas, 'est-6-evaluacion.png')});
+  await clickTexto(page, 'Mandársela a mi profe');
+  await esperar(400);
+  await click(page, '#btnHechas');
+  const eEv = await page.evaluate((id, tp)=>window.__docs.get('aulas/' + id + '/entregas/' + tp), aulaId, ev.id);
+  ok(eEv && eEv.puntaje === null && eEv.respuestas.q1 !== undefined || (eEv && eEv.puntaje === null), 'la evaluación se entrega sin puntaje (lo pone el profe)');
+  await clickTexto(page, 'Evaluación de fracciones', '#view-inicio .list-item');
+  await esperar(200);
+  ok((await texto(page, '#sheetContent')).includes('todavía no la corrigió') && !(await page.$('#btnPracticar')), 'después no se puede rehacer ni ver las correctas');
+  await page.evaluate(()=>document.querySelector('[data-cerrar]').click());
+
+  // Trabajo práctico: texto y link
+  const tpTp = aula.tps.find(t=>t.tipo === 'tp');
+  await clickTexto(page, 'Línea de tiempo', '#view-inicio .list-item');
+  await esperar(200);
+  await clickTexto(page, 'Mandárselo a mi profe');
+  ok((await texto(page, '#toast')).includes('Escribí algo'), 'no se manda vacío');
+  await page.type('#f_tp_texto', 'Acá está mi línea de tiempo');
+  await page.type('#f_tp_link', 'docs.google.com/document/d/linea');
+  await page.screenshot({path: join(capturas, 'est-7-tp.png'), fullPage: true});
+  await clickTexto(page, 'Mandárselo a mi profe');
+  await esperar(400);
+  const eTp = await page.evaluate((id, tp)=>window.__docs.get('aulas/' + id + '/entregas/' + tp), aulaId, tpTp.id);
+  ok(eTp && eTp.texto === 'Acá está mi línea de tiempo' && eTp.link.startsWith('https://docs.google.com') && Array.isArray(eTp.fotos), 'el trabajo práctico se manda con texto y link');
+  globalThis.__eEv = eEv; globalThis.__evId = ev.id; globalThis.__eTp = eTp; globalThis.__tpTpId = tpTp.id;
+
   // Tu cuenta
   await click(page, '#yoToggle');
   await esperar(200);
@@ -428,6 +489,38 @@ const datosProfe = {
   await page.screenshot({path: join(capturas, 'est-5-cuenta.png'), fullPage: true});
 
   ok(errores.length === 0, 'la app del estudiante no tiró errores: ' + errores.join(' | '));
+  await page.close();
+}
+
+/* El profe corrige la evaluación y pide rehacer el trabajo práctico */
+{
+  const aulaId = globalThis.__aulaId;
+  const docs = {'users/profe': globalThis.__profeDb, ['aulas/' + aulaId]: {...globalThis.__aula, miembros: ['sofi']},
+    ['aulas/' + aulaId + '/entregas/' + globalThis.__evId]: globalThis.__eEv, ['aulas/' + aulaId + '/entregas/' + globalThis.__tpTpId]: globalThis.__eTp};
+  const {page, errores} = await pagina('index.html', {usuario: {uid:'profe', displayName:'Ana Pérez', email:'ana@x.com'}, docs});
+  await esperar(1500);
+  await page.evaluate(id=>verTp(id), globalThis.__evId);
+  await esperar(300);
+  ok((await texto(page, '#sheetContent')).includes('1/2'), 'el profe ve el puntaje de la evaluación (las respuestas las tiene él)');
+  await page.type('#f_nota', '10');
+  await page.evaluate(()=>{ document.querySelector('.com-preg').value = 'Bien sumado'; });
+  await page.screenshot({path: join(capturas, 'profe-5-corregir-eval.png'), fullPage: true});
+  await clickTexto(page, 'Enviar devolución');
+  await esperar(300);
+  const ev = await page.evaluate((id, tp)=>window.__docs.get('aulas/' + id + '/entregas/' + tp), aulaId, globalThis.__evId);
+  ok(ev.estado === 'corregida' && ev.nota === '10' && Object.values(ev.correccion).join() === 'true,false' && Object.values(ev.comentarios)[0] === 'Bien sumado', 'la corrección lleva qué estuvo bien y los comentarios: ' + JSON.stringify(ev.correccion));
+  await page.evaluate(id=>verTp(id), globalThis.__tpTpId);
+  await esperar(300);
+  ok((await texto(page, '#sheetContent')).includes('Acá está mi línea de tiempo') && await page.$('#sheetContent a[href^="https://docs.google.com"]'), 'el profe ve el texto y el link del trabajo práctico');
+  await clickTexto(page, 'Para rehacer');
+  ok((await texto(page, '#toast')).includes('Contale'), 'para rehacer pide decir qué corregir');
+  await page.type('#f_devolucion', 'Faltan las fechas de 1806');
+  await clickTexto(page, 'Para rehacer');
+  await esperar(300);
+  const tp = await page.evaluate((id, tp)=>window.__docs.get('aulas/' + id + '/entregas/' + tp), aulaId, globalThis.__tpTpId);
+  ok(tp.estado === 'rehacer', 'queda para rehacer');
+  ok(await page.evaluate(()=>[...window.__docs.values()].some(v=>v.titulo && v.titulo.includes('Para rehacer'))), 'y se le avisa al alumno');
+  ok(errores.length === 0, 'corregir sin errores: ' + errores.join(' | '));
   await page.close();
 }
 
